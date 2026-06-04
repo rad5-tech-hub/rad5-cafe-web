@@ -62,8 +62,25 @@ export default function Home() {
     if (!user) return;
     setLoadingTx(true);
     api.wallet.transactions({ limit: 5 }).then((res: any) => {
-      if (res.success && Array.isArray(res.data)) {
-        setTransactions(res.data);
+      const rawList = res.transactions || res.data;
+      if (res.success && Array.isArray(rawList)) {
+        const parseDate = (val: any): string => {
+          if (!val) return new Date().toISOString();
+          if (typeof val === 'string') return val;
+          if (typeof val === 'number') return new Date(val).toISOString();
+          if (typeof val === 'object') {
+            if (typeof val.toDate === 'function') return val.toDate().toISOString();
+            if (typeof val._seconds === 'number') return new Date(val._seconds * 1000).toISOString();
+            if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+          }
+          return new Date(val).toISOString();
+        };
+        const normalized = rawList.map((tx: any) => ({
+          ...tx,
+          _id: tx.id ?? tx._id,
+          createdAt: parseDate(tx.createdAt),
+        }));
+        setTransactions(normalized);
       } else {
         setTransactions([]);
       }

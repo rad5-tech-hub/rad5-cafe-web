@@ -12,16 +12,6 @@ type Transaction = {
   createdAt: string;
 };
 
-const fallbackTransactions: Transaction[] = [
-  { _id: '1', type: 'Funding', amount: 5000, status: 'success', createdAt: new Date().toISOString() },
-  { _id: '2', type: 'Purchase', amount: -2500, status: 'success', createdAt: new Date().toISOString() },
-  { _id: '3', type: 'Purchase', amount: -1000, status: 'success', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { _id: '4', type: 'Funding', amount: 3000, status: 'success', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { _id: '5', type: 'Purchase', amount: -1500, status: 'success', createdAt: new Date(Date.now() - 172800000).toISOString() },
-  { _id: '6', type: 'Funding', amount: 10000, status: 'success', createdAt: new Date(Date.now() - 259200000).toISOString() },
-  { _id: '7', type: 'Purchase', amount: -800, status: 'failed', createdAt: new Date(Date.now() - 345600000).toISOString() },
-];
-
 const filters = ['Today', 'Weekly', 'Monthly', 'All'];
 
 export function meta() {
@@ -36,17 +26,35 @@ export default function History() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(false);
 
+  const parseDate = (val: any): string => {
+    if (!val) return new Date().toISOString();
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') return new Date(val).toISOString();
+    if (typeof val === 'object') {
+      if (typeof val.toDate === 'function') return val.toDate().toISOString();
+      if (typeof val._seconds === 'number') return new Date(val._seconds * 1000).toISOString();
+      if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+    }
+    return new Date(val).toISOString();
+  };
+
   useEffect(() => {
     setLoading(true);
     api.wallet.transactions({ limit: 50 })
       .then((res: any) => {
-        if (res.success && Array.isArray(res.data)) {
-          setTransactionsList(res.data);
+        const rawList = res.transactions || res.data;
+        if (res.success && Array.isArray(rawList)) {
+          const normalized = rawList.map((tx: any) => ({
+            ...tx,
+            _id: tx.id ?? tx._id,
+            createdAt: parseDate(tx.createdAt),
+          }));
+          setTransactionsList(normalized);
         } else {
-          setTransactionsList(fallbackTransactions);
+          setTransactionsList([]);
         }
       })
-      .catch(() => setTransactionsList(fallbackTransactions))
+      .catch(() => setTransactionsList([]))
       .finally(() => setLoading(false));
   }, []);
 

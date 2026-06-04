@@ -64,20 +64,28 @@ export default function Admin() {
 
   const fetchAdminData = () => {
     setLoading(true);
-    Promise.all([
-      api.adminDashboard.overview(),
-      api.adminDashboard.alerts.list()
-    ])
-      .then(([statsRes, alertsRes]) => {
-        if (statsRes.success && statsRes.data) {
-          setStats(statsRes.data);
-        }
-        if (alertsRes.success && Array.isArray(alertsRes.data)) {
-          setAlerts(alertsRes.data);
+    setAlerts([]);
+
+    api.adminDashboard.overview()
+      .then((res) => {
+        const overview = res.data ?? res;
+        if (overview) {
+          setStats(overview);
         }
       })
       .catch((err) => {
-        console.warn('Could not load real-time admin dashboard data:', err);
+        console.warn('Could not load admin dashboard stats:', err);
+      });
+
+    api.adminDashboard.alerts.list()
+      .then((res) => {
+        const list = res.data ?? res;
+        if (res.success && Array.isArray(list)) {
+          setAlerts(list);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load alerts:', err);
       })
       .finally(() => setLoading(false));
   };

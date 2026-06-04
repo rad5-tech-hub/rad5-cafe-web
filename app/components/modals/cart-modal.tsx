@@ -334,7 +334,8 @@ export const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, onOrderPl
 
               {/* Receipt Body */}
               <div className="w-full border border-border rounded-xl bg-bg-element p-5 flex flex-col gap-4 text-xs font-medium text-text-main border-dashed select-all">
-                <div className="text-center flex flex-col">
+                <div className="text-center flex flex-col items-center">
+                  <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-12 h-12 mb-1" />
                   <span className="font-extrabold text-base">RAD5 Café</span>
                   <span className="text-text-secondary uppercase tracking-widest text-[9px] font-bold">Digital Receipt</span>
                 </div>

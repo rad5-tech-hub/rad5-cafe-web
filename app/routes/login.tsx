@@ -81,6 +81,7 @@ export default function Login() {
 
       {/* Brand Header */}
       <div className="relative z-10 text-center mb-6 select-none animate-fade-in">
+        <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-20 h-20 mx-auto mb-3 drop-shadow-lg" />
         <h1
           className="text-5xl md:text-6xl font-extrabold text-white tracking-tight drop-shadow-lg"
           style={{ fontFamily: 'var(--font-rounded)' }}
@@ -199,9 +200,7 @@ export default function Login() {
           {!isStaff ? (
             <>
               <span>New to RAD5 Café?</span>
-              <Link to="/register" className="text-tint hover:underline font-bold">
-                Create Smart Wallet
-              </Link>
+              <span className="text-text-secondary">Sign in with Google to continue</span>
             </>
           ) : (
             <span className="text-[10px] text-text-secondary leading-normal">

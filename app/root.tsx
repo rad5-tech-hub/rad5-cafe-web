@@ -35,6 +35,8 @@ export const links: Route.LinksFunction = () => [
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap",
   },
+  { rel: "icon", href: "/RAD5 Cafe.svg", type: "image/svg+xml" },
+  { rel: "apple-touch-icon", href: "/RAD5 Cafe.svg" },
 ];
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -138,8 +140,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Desktop Sidebar Navigation */}
       <aside className="hidden md:flex flex-col w-72 bg-card border-r border-border fixed top-0 bottom-0 left-0 z-20">
         <div className="h-20 flex items-center gap-3 px-8 border-b border-border">
-          <div className="w-10 h-10 rounded-full bg-tint flex items-center justify-center text-white">
-            <Icon name="cart" size={20} color="#FFFFFF" />
+          <div className="w-10 h-10 flex items-center justify-center">
+            <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-10 h-10" />
           </div>
           <div className="flex flex-col">
             <span className="font-extrabold text-xl tracking-tight text-text-main">RAD5 Café</span>
@@ -253,9 +255,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Mobile Header */}
         <header className="md:hidden h-16 flex items-center justify-between px-6 bg-card border-b border-border sticky top-0 z-20">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-tint flex items-center justify-center text-white">
-              <Icon name="cart" size={16} color="#FFFFFF" />
-            </div>
+            <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-8 h-8" />
             <span className="font-extrabold text-base tracking-tight text-text-main">RAD5 Café</span>
           </div>
           <Link

@@ -18,21 +18,29 @@ export const RestockModal: React.FC<RestockModalProps> = ({
   onRestock,
 }) => {
   const { showToast } = useToast();
-  const [selectedProduct, setSelectedProduct] = useState(products[0]?.id || '');
+  const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('');
   const [newCostPrice, setNewCostPrice] = useState('');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (!isOpen) return null;
+  const product = products.find((p) => p.id === selectedProduct);
+  const numericQty = parseInt(quantity, 10);
 
-  const product = products.find((p) => p.id === selectedProduct) || products[0];
-  const numericQty = parseInt(quantity, 10) || 0;
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!product || !numericQty || !pin) {
-      showToast('Quantity and Transaction PIN are required.', 'warning');
+    if (!product) {
+      showToast('Please select a product.', 'warning');
+      return;
+    }
+    if (isNaN(numericQty) || numericQty === 0) {
+      showToast('Please enter a valid quantity.', 'warning');
+      return;
+    }
+    if (!pin) {
+      showToast('Transaction PIN is required.', 'warning');
       return;
     }
 
@@ -46,10 +54,10 @@ export const RestockModal: React.FC<RestockModalProps> = ({
       );
       if (success) {
         showToast(`Restocked ${numericQty} units of ${product.name}!`, 'success');
-        // Reset
         setQuantity('');
         setNewCostPrice('');
         setPin('');
+        setSelectedProduct('');
         onClose();
       }
     } catch (err: any) {
@@ -79,39 +87,44 @@ export const RestockModal: React.FC<RestockModalProps> = ({
             </button>
           </div>
           <p className="text-text-secondary text-xs">
-            Increase current stock for cafe inventory items.
+            Increase or decrease stock for cafe inventory items.
           </p>
         </div>
 
-        {/* Product Picker Grid */}
-        <div className="flex flex-wrap gap-2 max-h-[20vh] overflow-y-auto p-1 bg-bg-element border border-border rounded-xl">
-          {products.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setSelectedProduct(p.id)}
-              className={`py-1.5 px-3 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
-                selectedProduct === p.id
-                  ? 'bg-tint text-white border-tint'
-                  : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
-              }`}
-            >
-              {p.name} ({p.stock})
-            </button>
-          ))}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-text-main select-none">Product</label>
+          <select
+            value={selectedProduct}
+            onChange={(e) => setSelectedProduct(e.target.value)}
+            className="w-full p-3 bg-bg-element border border-border rounded-xl text-sm font-semibold text-text-main focus:border-tint focus:outline-none transition-colors appearance-none cursor-pointer"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+              backgroundPosition: 'right 0.75rem center',
+              backgroundRepeat: 'no-repeat',
+              backgroundSize: '1.25em 1.25em',
+              paddingRight: '2.5rem',
+            }}
+          >
+            <option value="" disabled>Select a product...</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.stock} units)
+              </option>
+            ))}
+          </select>
         </div>
 
         {product && (
           <div className="flex flex-col gap-1 text-xs text-text-secondary border-l-2 border-tint pl-2">
-            <span>Selected Product: <strong className="text-text-main">{product.name}</strong></span>
-            <span>Current Inventory Stock: <strong className="text-text-main">{product.stock} units</strong></span>
+            <span>Selected: <strong className="text-text-main">{product.name}</strong></span>
+            <span>Current Stock: <strong className="text-text-main">{product.stock} units</strong></span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
-            label="Quantity Added"
-            placeholder="0"
+            label="Quantity"
+            placeholder="e.g. 10 or -5"
             type="number"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
@@ -145,9 +158,9 @@ export const RestockModal: React.FC<RestockModalProps> = ({
               variant="primary"
               size="lg"
               fullWidth={true}
-              disabled={!numericQty || !pin || loading}
+              disabled={!product || isNaN(numericQty) || numericQty === 0 || !pin || loading}
             >
-              {loading ? 'Restocking...' : `Add ${numericQty || '0'} units`}
+              {loading ? 'Restocking...' : `Restock ${numericQty || '0'} units`}
             </Button>
           </div>
         </form>
