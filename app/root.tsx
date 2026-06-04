@@ -133,6 +133,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     { label: 'Transactions', path: '/history', icon: 'sync' as const },
     { label: 'Notifications', path: '/notifications', icon: 'bell' as const },
     { label: 'My Profile', path: '/profile', icon: 'user' as const },
+    ...(isAdmin ? [
+      { label: 'Admin Panel', path: '/admin', icon: 'chart-bar' as const },
+      { label: 'Inventory', path: '/inventory', icon: 'package-variant-closed' as const },
+      { label: 'Analytics', path: '/analytics', icon: 'trending-up' as const },
+      { label: 'Sales Logs', path: '/sales', icon: 'dollar' as const },
+      { label: 'Reports', path: '/reports', icon: 'file-document' as const },
+    ] : []),
   ];
 
   return (
@@ -170,72 +177,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
 
-          {/* Admin Navigation Group */}
-          {isAdmin && (
-            <div className="mt-8 pt-4 border-t border-border flex flex-col gap-1.5">
-              <span className="px-4 text-[10px] uppercase font-bold tracking-widest text-text-secondary mb-2 block">
-                Admin Area
-              </span>
-              <Link
-                to="/admin"
-                className={`flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
-                  location.pathname === '/admin'
-                    ? 'bg-accent text-white shadow-md shadow-accent/10'
-                    : 'text-text-secondary hover:bg-bg-selected hover:text-text-main'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon name="chart-bar" size={18} color={location.pathname === '/admin' ? '#FFFFFF' : 'var(--color-text-secondary)'} />
-                  <span>Admin Panel</span>
-                </div>
-                <Badge label="Staff" variant="error" />
-              </Link>
-              <Link
-                to="/inventory"
-                className={`flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
-                  location.pathname === '/inventory'
-                    ? 'bg-accent text-white shadow-md shadow-accent/10'
-                    : 'text-text-secondary hover:bg-bg-selected hover:text-text-main'
-                }`}
-              >
-                <Icon name="package-variant-closed" size={18} color={location.pathname === '/inventory' ? '#FFFFFF' : 'var(--color-text-secondary)'} />
-                <span>Inventory</span>
-              </Link>
-              <Link
-                to="/analytics"
-                className={`flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
-                  location.pathname === '/analytics'
-                    ? 'bg-accent text-white shadow-md shadow-accent/10'
-                    : 'text-text-secondary hover:bg-bg-selected hover:text-text-main'
-                }`}
-              >
-                <Icon name="trending-up" size={18} color={location.pathname === '/analytics' ? '#FFFFFF' : 'var(--color-text-secondary)'} />
-                <span>Analytics</span>
-              </Link>
-              <Link
-                to="/sales"
-                className={`flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
-                  location.pathname === '/sales'
-                    ? 'bg-accent text-white shadow-md shadow-accent/10'
-                    : 'text-text-secondary hover:bg-bg-selected hover:text-text-main'
-                }`}
-              >
-                <Icon name="dollar" size={18} color={location.pathname === '/sales' ? '#FFFFFF' : 'var(--color-text-secondary)'} />
-                <span>Sales Logs</span>
-              </Link>
-              <Link
-                to="/reports"
-                className={`flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
-                  location.pathname === '/reports'
-                    ? 'bg-accent text-white shadow-md shadow-accent/10'
-                    : 'text-text-secondary hover:bg-bg-selected hover:text-text-main'
-                }`}
-              >
-                <Icon name="file-document" size={18} color={location.pathname === '/reports' ? '#FFFFFF' : 'var(--color-text-secondary)'} />
-                <span>Reports</span>
-              </Link>
-            </div>
-          )}
         </nav>
 
         {/* Bottom Sign Out Area */}
@@ -275,8 +216,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Sticky Bottom Navbar */}
         <nav className="md:hidden sticky bottom-0 w-full h-16 bg-card border-t border-border flex items-center justify-around px-2 z-20 shadow-lg">
-          {navItems.filter(i => i.path !== '/notifications').map((item) => {
-            const isActive = location.pathname === item.path;
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path || (item.path === '/admin' && ['/admin', '/inventory', '/analytics', '/sales', '/reports'].includes(location.pathname));
             return (
               <Link
                 key={item.label}
@@ -290,35 +231,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-          {isAdmin && (
-            <Link
-              to="/admin"
-              className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-200 ${
-                location.pathname.startsWith('/admin') ||
-                location.pathname === '/inventory' ||
-                location.pathname === '/analytics' ||
-                location.pathname === '/sales' ||
-                location.pathname === '/reports'
-                  ? 'text-accent'
-                  : 'text-text-secondary'
-              }`}
-            >
-              <Icon
-                name="chart-bar"
-                size={20}
-                color={
-                  location.pathname.startsWith('/admin') ||
-                  location.pathname === '/inventory' ||
-                  location.pathname === '/analytics' ||
-                  location.pathname === '/sales' ||
-                  location.pathname === '/reports'
-                    ? 'var(--color-accent)'
-                    : 'var(--color-text-secondary)'
-                }
-              />
-              <span className="text-[10px] font-bold mt-1 leading-none">Admin</span>
-            </Link>
-          )}
         </nav>
       </div>
 
