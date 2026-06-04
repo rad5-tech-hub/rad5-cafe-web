@@ -281,6 +281,7 @@ export const api = {
     auth: {
       login: (body: { email: string; password?: string }) =>
         request<any>('/admin-dashboard/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+      me: () => request<any>('/admin-dashboard/auth/me'),
       setupPin: (pin: string) =>
         request<any>('/admin-dashboard/auth/setup-pin', { method: 'POST', body: JSON.stringify({ pin }) }),
       changePin: (oldPin: string, newPin: string) =>

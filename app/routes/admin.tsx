@@ -7,6 +7,7 @@ import { Badge } from '~/components/ui/badge';
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
 import { useToast } from '~/context/toast-context';
+import { AdminPinSetupModal } from '~/components/modals/admin-pin-setup-modal';
 
 export function meta() {
   return [
@@ -62,6 +63,9 @@ export default function Admin() {
   const [walletPin, setWalletPin] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
 
+  const [adminPinSetupNeeded, setAdminPinSetupNeeded] = useState(false);
+  const [showAdminPinSetup, setShowAdminPinSetup] = useState(false);
+
   const fetchAdminData = () => {
     setLoading(true);
     setAlerts([]);
@@ -92,6 +96,25 @@ export default function Admin() {
 
   useEffect(() => {
     fetchAdminData();
+
+    api.adminDashboard.auth.me()
+      .then((res) => {
+        if (res.success && res.data && res.data.pinSetup === false) {
+          setAdminPinSetupNeeded(true);
+          setShowAdminPinSetup(true);
+        }
+      })
+      .catch(() => {
+        // fallback: check user /auth/me for adminPinSetup field
+        api.auth.me().then((res: any) => {
+          if (res.success && res.data) {
+            if (res.data.adminPinSetup === false || (!res.data.adminPinSetup && res.data.pinSetup === false)) {
+              setAdminPinSetupNeeded(true);
+              setShowAdminPinSetup(true);
+            }
+          }
+        }).catch(() => {});
+      });
   }, []);
 
   const handleAcknowledgeAlert = async (id: string) => {
@@ -442,7 +465,14 @@ export default function Admin() {
         </div>
       </div>
 
-
+      <AdminPinSetupModal
+        isOpen={showAdminPinSetup}
+        onDismiss={() => setShowAdminPinSetup(false)}
+        onDone={() => {
+          setShowAdminPinSetup(false);
+          setAdminPinSetupNeeded(false);
+        }}
+      />
     </div>
   );
 }
