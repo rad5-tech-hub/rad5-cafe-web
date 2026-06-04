@@ -97,9 +97,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Auth Redirection Guard
   useEffect(() => {
     if (!loading && !user && !isAuthRoute) {
-      navigate('/login');
+      navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
     }
-  }, [user, loading, isAuthRoute, navigate]);
+  }, [user, loading, isAuthRoute, navigate, location.pathname]);
 
   if (loading) {
     return (

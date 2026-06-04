@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '~/context/auth-context';
 import { useToast } from '~/context/toast-context';
 import { AuthBackground } from '~/components/auth-background';
@@ -16,10 +16,13 @@ export function meta() {
 }
 
 export default function Login() {
-  const { signInWithGoogle, signIn, loginAsAdmin } = useAuth();
+  const { signInWithGoogle, loginAsAdmin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const [isStaff, setIsStaff] = useState(false);
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/';
+  const isAdminLogin = redirect.startsWith('/admin');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,7 +41,7 @@ export default function Login() {
     }
   };
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       showToast('Please enter both email and password.', 'warning');
@@ -47,24 +50,16 @@ export default function Login() {
 
     setLoading(true);
     try {
-      if (isStaff) {
-        // Staff/Superadmin v2 custom JWT Auth
-        const res: any = await api.adminDashboard.auth.login({
-          email: email.trim(),
-          password: password,
-        });
-        if (res.success && res.token) {
-          loginAsAdmin(res.token, res.user);
-          showToast('Welcome back, Admin!', 'success');
-          navigate('/admin');
-        } else {
-          showToast(res.message || 'Superadmin login failed.', 'error');
-        }
+      const res: any = await api.adminDashboard.auth.login({
+        email: email.trim(),
+        password: password,
+      });
+      if (res.success && res.token) {
+        loginAsAdmin(res.token, res.user);
+        showToast('Welcome back, Admin!', 'success');
+        navigate(redirect);
       } else {
-        // Customer standard Firebase Auth
-        await signIn(email.trim(), password);
-        showToast('Logged in successfully!', 'success');
-        navigate('/');
+        showToast(res.message || 'Superadmin login failed.', 'error');
       }
     } catch (error: any) {
       console.error(error);
@@ -76,10 +71,8 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-6 overflow-hidden">
-      {/* Slideshow background */}
       <AuthBackground />
 
-      {/* Brand Header */}
       <div className="relative z-10 text-center mb-6 select-none animate-fade-in">
         <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-20 h-20 mx-auto mb-3 drop-shadow-lg" />
         <h1
@@ -89,49 +82,25 @@ export default function Login() {
           RAD5 Café
         </h1>
         <p className="text-white/90 text-sm md:text-base mt-1 font-medium tracking-wide drop-shadow-md">
-          Wallet & Smart Inventory
+          {isAdminLogin ? 'Staff Console' : 'Wallet & Smart Inventory'}
         </p>
       </div>
 
-      {/* Action Card */}
       <Card
         padded={true}
         className="relative z-10 w-full max-w-sm flex flex-col gap-5 bg-card/75 backdrop-blur-md border border-white/10 shadow-2xl select-none"
       >
         <div className="flex flex-col gap-1 text-center">
           <h2 className="text-xl font-extrabold text-text-main">
-            {isStaff ? 'Staff Console Access' : 'Sign In'}
+            {isAdminLogin ? 'Staff Access' : 'Sign In'}
           </h2>
           <p className="text-xs text-text-secondary">
-            {isStaff ? 'Authenticate with superadmin email & password' : 'Access your smart wallet'}
+            {isAdminLogin ? 'Authenticate with staff credentials' : 'Access your smart wallet'}
           </p>
         </div>
 
-        {/* Auth Mode Tabs */}
-        <div className="grid grid-cols-2 p-1 bg-bg-selected/35 border border-border rounded-xl">
-          <button
-            type="button"
-            onClick={() => setIsStaff(false)}
-            className={`py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              !isStaff ? 'bg-tint text-white shadow-xs' : 'text-text-secondary hover:text-text-main'
-            }`}
-          >
-            Customer
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsStaff(true)}
-            className={`py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              isStaff ? 'bg-accent text-white shadow-xs' : 'text-text-secondary hover:text-text-main'
-            }`}
-          >
-            Staff Admin
-          </button>
-        </div>
-        
-        {/* Sign In Form or Google Sign-In */}
-        {isStaff ? (
-          <form onSubmit={handleEmailSignIn} className="flex flex-col gap-3.5">
+        {isAdminLogin ? (
+          <form onSubmit={handleAdminLogin} className="flex flex-col gap-3.5">
             <Input
               label="Email Address"
               type="email"
@@ -195,20 +164,19 @@ export default function Login() {
           </div>
         )}
 
-
         <div className="text-xs text-text-secondary pt-3.5 border-t border-border flex flex-col gap-1.5 text-center">
-          {!isStaff ? (
+          {isAdminLogin ? (
+            <span className="text-[10px] text-text-secondary leading-normal">
+              Unauthorized access to staff environment is logged. For assistance, contact support.
+            </span>
+          ) : (
             <>
               <span>New to RAD5 Café?</span>
               <span className="text-text-secondary">Sign in with Google to continue</span>
             </>
-          ) : (
-            <span className="text-[10px] text-text-secondary leading-normal">
-              Unauthorized access to staff environment is logged. For assistance, contact support.
-            </span>
           )}
         </div>
       </Card>
     </div>
   );
-}
+};
