@@ -8,6 +8,8 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth';
 
 import { auth } from '~/lib/firebase';
@@ -21,6 +23,8 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<boolean>;
   loginAsAdmin: (token: string, userDetails: any) => void;
+  googleRedirectResult: { isNewUser: boolean } | null;
+  consumeGoogleRedirectResult: () => { isNewUser: boolean } | null;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -28,6 +32,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [googleRedirectResult, setGoogleRedirectResult] = useState<{ isNewUser: boolean } | null>(null);
 
   useEffect(() => {
     const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
@@ -50,6 +55,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    getRedirectResult(auth).then((result) => {
+      if (result) {
+        const isNewUser = getAdditionalUserInfo(result)?.isNewUser ?? false;
+        if (isNewUser) {
+          api.auth.updateProfile({
+            fullName: result.user.displayName || '',
+            phoneNumber: result.user.phoneNumber || '',
+          }).catch((err) => {
+            console.warn('Backend profile update failed:', err);
+          });
+        }
+        setGoogleRedirectResult({ isNewUser });
+      }
+    }).catch((err) => {
+      console.warn('Redirect sign-in error:', err);
+    });
+  }, []);
+
   const signIn = async (email: string, password: string) => {
     localStorage.removeItem('adminToken');
     await signInWithEmailAndPassword(auth, email, password);
@@ -70,19 +94,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     localStorage.removeItem('adminToken');
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const isNewUser = getAdditionalUserInfo(result)?.isNewUser ?? false;
-    if (isNewUser) {
-      try {
-        await api.auth.updateProfile({
-          fullName: result.user.displayName || '',
-          phoneNumber: result.user.phoneNumber || '',
-        });
-      } catch (err) {
-        console.warn('Backend profile update failed:', err);
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const isNewUser = getAdditionalUserInfo(result)?.isNewUser ?? false;
+      if (isNewUser) {
+        try {
+          await api.auth.updateProfile({
+            fullName: result.user.displayName || '',
+            phoneNumber: result.user.phoneNumber || '',
+          });
+        } catch (err) {
+          console.warn('Backend profile update failed:', err);
+        }
       }
+      return isNewUser;
+    } catch (error: any) {
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        await signInWithRedirect(auth, provider);
+        return false;
+      }
+      throw error;
     }
-    return isNewUser;
   };
 
   const loginAsAdmin = (token: string, userDetails: any) => {
@@ -96,8 +128,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const consumeGoogleRedirectResult = () => {
+    const result = googleRedirectResult;
+    if (result) {
+      setGoogleRedirectResult(null);
+    }
+    return result;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, signInWithGoogle, loginAsAdmin }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, signInWithGoogle, loginAsAdmin, googleRedirectResult, consumeGoogleRedirectResult }}>
       {children}
     </AuthContext.Provider>
   );

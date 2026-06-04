@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '~/context/auth-context';
 import { useToast } from '~/context/toast-context';
@@ -16,7 +16,7 @@ export function meta() {
 }
 
 export default function Login() {
-  const { signInWithGoogle, loginAsAdmin } = useAuth();
+  const { signInWithGoogle, loginAsAdmin, googleRedirectResult, consumeGoogleRedirectResult } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -26,6 +26,14 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const result = consumeGoogleRedirectResult();
+    if (result) {
+      showToast(result.isNewUser ? "Welcome! Let's setup your PIN." : "Welcome back to RAD5 Café!", 'success');
+      navigate(result.isNewUser ? '/setup-pin' : '/');
+    }
+  }, [googleRedirectResult]);
 
   const handleGoogleSignIn = async () => {
     try {

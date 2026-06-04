@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '~/context/auth-context';
 import { useToast } from '~/context/toast-context';
@@ -14,10 +14,23 @@ export function meta() {
 }
 
 export default function Register() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, googleRedirectResult, consumeGoogleRedirectResult } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const result = consumeGoogleRedirectResult();
+    if (result) {
+      if (result.isNewUser) {
+        showToast('Account created successfully! Now set up your security PIN.', 'success');
+        navigate('/setup-pin');
+      } else {
+        showToast('Welcome back! You already have an account.', 'success');
+        navigate('/');
+      }
+    }
+  }, [googleRedirectResult]);
 
   const handleGoogleSignUp = async () => {
     try {
