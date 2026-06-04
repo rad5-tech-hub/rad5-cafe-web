@@ -218,7 +218,7 @@ export const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({
     setUploadProgress('Uploading to storage...');
     try {
       const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `products/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const fileName = `product-images/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
       const storageRef = ref(storage, fileName);
       
       const snapshot = await uploadBytes(storageRef, file);
@@ -286,7 +286,7 @@ export const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({
 
       // Upload blob to Firebase Storage
       const fileExt = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
-      const fileName = `products/${Date.now()}_unsplash_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const fileName = `product-images/${Date.now()}_unsplash_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
       const storageRef = ref(storage, fileName);
 
       const snapshot = await uploadBytes(storageRef, blob, {
