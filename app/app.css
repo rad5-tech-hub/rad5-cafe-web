@@ -1,15 +1,115 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: 'Spline Sans', 'Inter', system-ui, sans-serif;
+  --font-rounded: 'SF Pro Rounded', system-ui, sans-serif;
+  --font-mono: ui-monospace, Consolas, monospace;
+
+  /* Custom Colors mapped to Tailwind classes */
+  --color-text-main: var(--color-text);
+  --color-bg-page: var(--color-background);
+  --color-bg-element: var(--color-background-element);
+  --color-bg-selected: var(--color-background-selected);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-tint: var(--color-tint);
+  --color-accent: var(--color-accent);
+  --color-card: var(--color-card);
+  --color-border: var(--color-border);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-error-val: var(--color-error-val);
+
+  /* Border Radii */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  /* Custom Animations */
+  --animate-spin-slow: spin 3s linear infinite;
+  --animate-pulse-slow: pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-shimmer: shimmer 1.5s infinite linear;
+}
+
+:root {
+  /* Light Mode Variables */
+  --color-text: #1A1A2E;
+  --color-background: #F8F9FA;
+  --color-background-element: #FFFFFF;
+  --color-background-selected: #E8E8EE;
+  --color-text-secondary: #6B7280;
+  --color-tint: #003D99;            /* Primary brand blue */
+  --color-accent: #8B0000;          /* Highlight red */
+  --color-card: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-success: #059669;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
+  --color-error-val: var(--color-error);
+  
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark Mode Variables Override */
+    --color-text: #F3F4F6;
+    --color-background: #0F172A;     /* Sleek slate-900 background */
+    --color-background-element: #1E293B; /* Slate-800 element background */
+    --color-background-selected: #334155;
+    --color-text-secondary: #94A3B8;
+    --color-tint: #3B82F6;          /* Bright electric blue */
+    --color-accent: #DC2626;
+    --color-card: #1E293B;
+    --color-border: #334155;
+    --color-success: #10B981;
+    --color-warning: #F59E0B;
+    --color-error: #EF4444;
+  }
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
   }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, var(--color-background-element) 25%, var(--color-background-selected) 50%, var(--color-background-element) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Custom scrollbar for premium aesthetics */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-background-selected);
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
 }

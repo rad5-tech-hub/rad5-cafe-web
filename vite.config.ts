@@ -7,4 +7,7 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  server: {
+    allowedHosts: [".ngrok-free.app", "localhost", "127.0.0.1"],
+  },
 });
