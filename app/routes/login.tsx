@@ -40,7 +40,7 @@ export default function Login() {
       setLoading(true);
       const isNewUser = await signInWithGoogle();
       showToast(isNewUser ? "Welcome! Let's setup your PIN." : "Welcome back to RAD5 Café!", 'success');
-      navigate(isNewUser ? '/setup-pin' : '/');
+      navigate(isNewUser ? '/setup-pin' : '/dashboard');
     } catch (error: any) {
       console.error(error);
       showToast(error.message || 'Google Sign-In failed. Please try again.', 'error');

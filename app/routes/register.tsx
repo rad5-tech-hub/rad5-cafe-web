@@ -27,7 +27,7 @@ export default function Register() {
         navigate('/setup-pin');
       } else {
         showToast('Welcome back! You already have an account.', 'success');
-        navigate('/');
+        navigate('/dashboard');
       }
     }
   }, [googleRedirectResult]);
@@ -41,7 +41,7 @@ export default function Register() {
         navigate('/setup-pin');
       } else {
         showToast('Welcome back! You already have an account.', 'success');
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (error: any) {
       console.error(error);

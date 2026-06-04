@@ -37,6 +37,28 @@ export const links: Route.LinksFunction = () => [
   },
   { rel: "icon", href: "/RAD5 Cafe.svg", type: "image/svg+xml" },
   { rel: "apple-touch-icon", href: "/RAD5 Cafe.svg" },
+  { rel: "canonical", href: "https://rad5cafe.vercel.app" },
+];
+
+export const meta: Route.MetaFunction = () => [
+  { charSet: "utf-8" },
+  { name: "viewport", content: "width=device-width, initial-scale=1" },
+  { name: "theme-color", content: "#003D99" },
+  { name: "description", content: "RAD5 Café — Smart wallet, instant ordering, and real-time inventory. Download the Android app or order online with Google sign-in." },
+  { name: "keywords", content: "RAD5 Café, smart wallet, café ordering, food delivery, inventory management, POS system" },
+  { name: "author", content: "RAD5 Tech Hub" },
+  { name: "robots", content: "index, follow" },
+  { property: "og:title", content: "RAD5 Café — Smart Wallet & Ordering" },
+  { property: "og:description", content: "Download the app or order online. Smart wallet, instant checkout, real-time inventory." },
+  { property: "og:type", content: "website" },
+  { property: "og:url", content: "https://rad5cafe.vercel.app" },
+  { property: "og:image", content: "https://images.pexels.com/photos/34932768/pexels-photo-34932768.jpeg" },
+  { property: "og:image:width", content: "1200" },
+  { property: "og:image:height", content: "630" },
+  { name: "twitter:card", content: "summary_large_image" },
+  { name: "twitter:title", content: "RAD5 Café — Smart Wallet & Ordering" },
+  { name: "twitter:description", content: "Download the app or order online. Smart wallet, instant checkout, real-time inventory." },
+  { name: "twitter:image", content: "https://images.pexels.com/photos/34932768/pexels-photo-34932768.jpeg" },
 ];
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -50,7 +72,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<any>(null);
 
-  const isAuthRoute = ['/login', '/register', '/setup-pin'].includes(location.pathname);
+  const isAuthRoute = ['/', '/login', '/register', '/setup-pin'].includes(location.pathname);
 
   // Check user profile for admin role
   useEffect(() => {
@@ -128,7 +150,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const userNavItems = [
-    { label: 'Dashboard', path: '/', icon: 'bank' as const },
+    { label: 'Dashboard', path: '/dashboard', icon: 'bank' as const },
     { label: 'Café Menu', path: '/cafe', icon: 'cart' as const },
     { label: 'Transactions', path: '/history', icon: 'sync' as const },
     { label: 'Notifications', path: '/notifications', icon: 'bell' as const },
@@ -323,7 +345,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         </pre>
       )}
       <a
-        href="/"
+        href="/dashboard"
         className="px-5 py-2.5 bg-tint text-white font-semibold rounded-lg hover:opacity-90 active:scale-95 transition-all mt-4"
       >
         Go back home

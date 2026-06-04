@@ -58,7 +58,7 @@ export default function SetupPin() {
     try {
       await api.auth.setupPin(fullPin);
       showToast('Transaction PIN created successfully!', 'success');
-      navigate('/');
+      navigate('/dashboard');
     } catch (error: any) {
       console.error(error);
       showToast(error.message || 'Failed to setup transaction PIN. Please try again.', 'error');
