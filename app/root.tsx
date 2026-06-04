@@ -127,20 +127,23 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  const navItems = [
+  const userNavItems = [
     { label: 'Dashboard', path: '/', icon: 'bank' as const },
     { label: 'Café Menu', path: '/cafe', icon: 'cart' as const },
     { label: 'Transactions', path: '/history', icon: 'sync' as const },
     { label: 'Notifications', path: '/notifications', icon: 'bell' as const },
     { label: 'My Profile', path: '/profile', icon: 'user' as const },
-    ...(isAdmin ? [
-      { label: 'Admin Panel', path: '/admin', icon: 'chart-bar' as const },
-      { label: 'Inventory', path: '/inventory', icon: 'package-variant-closed' as const },
-      { label: 'Analytics', path: '/analytics', icon: 'trending-up' as const },
-      { label: 'Sales Logs', path: '/sales', icon: 'dollar' as const },
-      { label: 'Reports', path: '/reports', icon: 'file-document' as const },
-    ] : []),
   ];
+
+  const adminNavItems = [
+    { label: 'Admin Panel', path: '/admin', icon: 'chart-bar' as const },
+    { label: 'Inventory', path: '/inventory', icon: 'package-variant-closed' as const },
+    { label: 'Analytics', path: '/analytics', icon: 'trending-up' as const },
+    { label: 'Sales Logs', path: '/sales', icon: 'dollar' as const },
+    { label: 'Reports', path: '/reports', icon: 'file-document' as const },
+  ];
+
+  const navItems = isAdmin ? adminNavItems : userNavItems;
 
   return (
     <div className="min-h-screen flex bg-bg-page">
