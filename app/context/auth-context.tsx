@@ -22,7 +22,6 @@ type AuthContextType = {
   signUp: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<boolean>;
-  loginAsAdmin: (token: string, userDetails: any) => void;
   googleRedirectResult: { isNewUser: boolean } | null;
   consumeGoogleRedirectResult: () => { isNewUser: boolean } | null;
 };
@@ -35,19 +34,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [googleRedirectResult, setGoogleRedirectResult] = useState<{ isNewUser: boolean } | null>(null);
 
   useEffect(() => {
-    const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
-    if (adminToken) {
-      setUser({
-        uid: 'ADMIN000001',
-        email: 'admin@rad5cafe.com',
-        displayName: 'Café Admin',
-        getIdToken: async () => '',
-        role: 'admin',
-      });
-      setLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
@@ -75,24 +61,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    localStorage.removeItem('adminToken');
     await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signUp = async (email: string, password: string) => {
-    localStorage.removeItem('adminToken');
     const result = await createUserWithEmailAndPassword(auth, email, password);
     return result.user;
   };
 
   const signOut = async () => {
-    localStorage.removeItem('adminToken');
     await firebaseSignOut(auth);
     setUser(null);
   };
 
   const signInWithGoogle = async () => {
-    localStorage.removeItem('adminToken');
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
@@ -117,17 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loginAsAdmin = (token: string, userDetails: any) => {
-    localStorage.setItem('adminToken', token);
-    setUser({
-      uid: userDetails.uid || userDetails.id || 'ADMIN000001',
-      email: userDetails.email || 'admin@rad5cafe.com',
-      displayName: userDetails.fullName || 'Café Admin',
-      getIdToken: async () => '',
-      role: 'admin',
-    });
-  };
-
   const consumeGoogleRedirectResult = () => {
     const result = googleRedirectResult;
     if (result) {
@@ -137,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, signInWithGoogle, loginAsAdmin, googleRedirectResult, consumeGoogleRedirectResult }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, signInWithGoogle, googleRedirectResult, consumeGoogleRedirectResult }}>
       {children}
     </AuthContext.Provider>
   );

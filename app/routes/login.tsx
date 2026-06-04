@@ -6,7 +6,6 @@ import { AuthBackground } from '~/components/auth-background';
 import { Card } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import { AnimatedButton } from '~/components/ui/animated-button';
-import { api } from '~/lib/api';
 
 export function meta() {
   return [
@@ -16,7 +15,7 @@ export function meta() {
 }
 
 export default function Login() {
-  const { signInWithGoogle, loginAsAdmin, googleRedirectResult, consumeGoogleRedirectResult } = useAuth();
+  const { signIn, signInWithGoogle, googleRedirectResult, consumeGoogleRedirectResult } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -58,17 +57,9 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const res: any = await api.adminDashboard.auth.login({
-        email: email.trim(),
-        password: password,
-      });
-      if (res.success && res.token) {
-        loginAsAdmin(res.token, res.user);
-        showToast('Welcome back, Admin!', 'success');
-        navigate(redirect);
-      } else {
-        showToast(res.message || 'Superadmin login failed.', 'error');
-      }
+      await signIn(email.trim(), password);
+      showToast('Welcome back, Admin!', 'success');
+      navigate(redirect);
     } catch (error: any) {
       console.error(error);
       showToast(error.message || 'Authentication failed. Please check your credentials.', 'error');

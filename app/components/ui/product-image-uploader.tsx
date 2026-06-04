@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 import { storage } from '~/lib/firebase';
 import { api } from '~/lib/api';
 import { Icon } from './icon';
@@ -35,24 +35,25 @@ export const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
 
-  // Load existing product images when Firestore tab is opened
+  // Load images from Firebase Storage when Gallery tab is opened
   useEffect(() => {
-    if (activeTab === 'firestore' && existingImages.length === 0) {
+    if (activeTab === 'firestore') {
       setGalleryLoading(true);
-      api.products.list({ limit: 100 })
-        .then((res) => {
-          if (res.success && Array.isArray(res.data)) {
-            const urls = res.data
-              .map((p: any) => p.imageUrl)
-              .filter((url): url is string => typeof url === 'string' && url.length > 0);
-            // Unique URLs
-            setExistingImages(Array.from(new Set(urls)));
-          }
+      const storageRef = ref(storage, 'product-images');
+      listAll(storageRef)
+        .then(async (result) => {
+          const urls = await Promise.all(
+            result.items.map((itemRef) => getDownloadURL(itemRef))
+          );
+          setExistingImages(urls);
         })
-        .catch((err) => console.warn('Could not fetch existing product images:', err))
+        .catch((err) => {
+          console.warn('Could not list Firebase Storage images:', err);
+          setExistingImages([]);
+        })
         .finally(() => setGalleryLoading(false));
     }
-  }, [activeTab, existingImages.length]);
+  }, [activeTab]);
 
   // Handle Unsplash image search
   const handleSearch = async (e?: React.FormEvent) => {
@@ -580,7 +581,7 @@ export const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({
                     </div>
                   ) : existingImages.length === 0 ? (
                     <span className="text-[11px] text-text-secondary text-center py-6">
-                      No existing product images found in Firestore
+                      No images found in Firebase Storage
                     </span>
                   ) : (
                     <div className="grid grid-cols-4 gap-2 max-h-[160px] overflow-y-auto p-0.5 border border-border/50 rounded-lg">

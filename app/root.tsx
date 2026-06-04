@@ -77,8 +77,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Check user profile for admin role
   useEffect(() => {
     if (user) {
-      // Immediately set isAdmin if client-side user role is admin
-      if (user.role === 'admin' || user.email === 'admin@rad5.cafe' || user.email === 'admin@rad5cafe.com') {
+      // Immediately set isAdmin for known admin emails
+      if (user.email === 'admin@rad5.cafe' || user.email === 'admin@rad5cafe.com') {
         setIsAdmin(true);
       }
 

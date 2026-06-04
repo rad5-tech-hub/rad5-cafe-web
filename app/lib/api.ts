@@ -9,7 +9,6 @@ function handleUnauthorized() {
   if (isRedirecting) return;
   isRedirecting = true;
 
-  localStorage.removeItem('adminToken');
   signOut(auth).catch(() => {});
 
   const currentPath = window.location.pathname;
@@ -33,11 +32,8 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  
-  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
-  if (adminToken) {
-    headers['Authorization'] = `Bearer ${adminToken}`;
-  } else if (user) {
+
+  if (user) {
     const token = await user.getIdToken();
     headers['Authorization'] = `Bearer ${token}`;
   }
