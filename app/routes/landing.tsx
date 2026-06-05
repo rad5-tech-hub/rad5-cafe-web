@@ -39,6 +39,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const [activeIdx, setActiveIdx] = useState(0);
   const [loggingIn, setLoggingIn] = useState(false);
+  const [showApkPopup, setShowApkPopup] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setActiveIdx(i => (i + 1) % IMAGES.length), 5000);
@@ -124,16 +125,16 @@ export default function Landing() {
         </div>
 
         <div className="flex flex-col w-full gap-3">
-          <a
-            href={APK_URL}
-            className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-white text-[#003D99] font-bold text-sm hover:bg-gray-100 transition-all shadow-2xl shadow-black/30"
+          <button
+            onClick={() => setShowApkPopup(true)}
+            className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-white text-[#003D99] font-bold text-sm hover:bg-gray-100 transition-all shadow-2xl shadow-black/30 cursor-pointer"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.523 2.264a1.5 1.5 0 0 1 .212 2.112l-5.205 6.868a.754.754 0 0 1-1.048.11.77.77 0 0 1-.11-1.049l5.205-6.868a1.5 1.5 0 0 1 2.112-.212l.834.607ZM6.83 3.166a2.25 2.25 0 0 0-.83 1.792v14.084a2.25 2.25 0 0 0 .83 1.792l.045.035 7.686-7.686a1.126 1.126 0 0 0 0-1.592L6.875 3.134l-.046.035Z"/>
               <path d="m18.566 12.4-4.758 4.758L7.14 10.5a.756.756 0 0 1-.044-1.068.756.756 0 0 1 1.002-.045l11.416 6.66.834.607a1.5 1.5 0 0 0 .213-2.111l-.213-.213-1.782-1.782Z"/>
             </svg>
             Download Android App
-          </a>
+          </button>
 
           <button
             onClick={handleGoogleSignIn}
@@ -157,6 +158,50 @@ export default function Landing() {
           </button>
         </div>
       </div>
+
+      {/* APK Popup */}
+      {showApkPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/70 backdrop-blur-xs">
+          <div className="absolute inset-0" onClick={() => setShowApkPopup(false)} />
+          <div
+            className="relative bg-cover bg-center w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-4 shadow-2xl animate-scale-up overflow-hidden"
+            style={{
+              backgroundImage: `url(${IMAGES[0]})`,
+              borderRadius: 'var(--radius-xl)',
+            }}
+          >
+            <div className="absolute inset-0 bg-[#003D99]/85 backdrop-blur-[1px]" />
+            <div className="relative z-10 flex flex-col items-center gap-4 w-full">
+            <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
+              <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.523 2.264a1.5 1.5 0 0 1 .212 2.112l-5.205 6.868a.754.754 0 0 1-1.048.11.77.77 0 0 1-.11-1.049l5.205-6.868a1.5 1.5 0 0 1 2.112-.212l.834.607ZM6.83 3.166a2.25 2.25 0 0 0-.83 1.792v14.084a2.25 2.25 0 0 0 .83 1.792l.045.035 7.686-7.686a1.126 1.126 0 0 0 0-1.592L6.875 3.134l-.046.035Z"/>
+                <path d="m18.566 12.4-4.758 4.758L7.14 10.5a.756.756 0 0 1-.044-1.068.756.756 0 0 1 1.002-.045l11.416 6.66.834.607a1.5 1.5 0 0 0 .213-2.111l-.213-.213-1.782-1.782Z"/>
+              </svg>
+            </div>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <h3 className="text-lg font-extrabold text-white">New Update Coming!</h3>
+              <p className="text-sm text-white/80 leading-relaxed">
+                A fresh version of the RAD5 Café app will be posted in the coming week. You can still download the current version below.
+              </p>
+            </div>
+            <div className="flex flex-col w-full gap-2">
+              <a
+                href={APK_URL}
+                className="w-full py-3 rounded-xl bg-white text-[#003D99] font-bold text-sm hover:bg-gray-100 transition-all cursor-pointer text-center"
+              >
+                Download Current Version
+              </a>
+              <button
+                onClick={() => setShowApkPopup(false)}
+                className="w-full py-2.5 rounded-xl bg-white/15 text-white font-semibold text-sm hover:bg-white/25 transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
