@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '~/lib/api';
 import { Card } from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
 import { Icon } from '~/components/ui/icon';
 
 type Transaction = {
@@ -25,6 +26,10 @@ export default function History() {
   const [transactionsList, setTransactionsList] = useState<Transaction[]>([]);
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 20;
 
   const parseDate = (val: any): string => {
     if (!val) return new Date().toISOString();
@@ -38,9 +43,9 @@ export default function History() {
     return new Date(val).toISOString();
   };
 
-  useEffect(() => {
+  const fetchTransactions = (pageNum: number) => {
     setLoading(true);
-    api.wallet.transactions({ limit: 50 })
+    api.wallet.transactions({ page: pageNum, limit })
       .then((res: any) => {
         const rawList = res.transactions || res.data;
         if (res.success && Array.isArray(rawList)) {
@@ -50,13 +55,24 @@ export default function History() {
             createdAt: parseDate(tx.createdAt),
           }));
           setTransactionsList(normalized);
+          setTotal(res.total ?? normalized.length);
+          setTotalPages(res.totalPages ?? Math.ceil((res.total ?? normalized.length) / limit));
         } else {
           setTransactionsList([]);
         }
       })
       .catch(() => setTransactionsList([]))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    setPage(1);
+    fetchTransactions(1);
   }, []);
+
+  useEffect(() => {
+    if (page > 1) fetchTransactions(page);
+  }, [page]);
 
   const filterTransactions = () => {
     const now = new Date();
@@ -175,6 +191,33 @@ export default function History() {
           </div>
         )}
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="text-xs font-bold cursor-pointer"
+          >
+            Previous
+          </Button>
+          <span className="text-xs font-bold text-text-secondary">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="text-xs font-bold cursor-pointer"
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

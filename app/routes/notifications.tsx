@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '~/lib/api';
 import { Card } from '~/components/ui/card';
+import { Button } from '~/components/ui/button';
 import { Icon } from '~/components/ui/icon';
 
 type NotificationItem = {
@@ -24,6 +25,10 @@ export function meta() {
 export default function Notifications() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 20;
 
   const parseDate = (val: any): string => {
     if (!val) return new Date().toISOString();
@@ -43,9 +48,9 @@ export default function Notifications() {
     return new Date(val).toISOString();
   };
 
-  const fetchNotifications = () => {
+  const fetchNotifications = (pageNum: number) => {
     setLoading(true);
-    api.notifications.list()
+    api.notifications.list(pageNum, limit)
       .then((res: any) => {
         const rawList = res.data || res.notifications;
         if (res.success && Array.isArray(rawList)) {
@@ -58,6 +63,8 @@ export default function Notifications() {
             read: raw.read ?? raw.isRead ?? false,
           }));
           setItems(parsed);
+          setTotal(res.total ?? parsed.length);
+          setTotalPages(res.totalPages ?? Math.ceil((res.total ?? parsed.length) / limit));
         } else {
           setItems([]);
         }
@@ -67,8 +74,12 @@ export default function Notifications() {
   };
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications(1);
   }, []);
+
+  useEffect(() => {
+    if (page > 1) fetchNotifications(page);
+  }, [page]);
 
   const markAsRead = (id: string) => {
     // Only call API if it is currently unread
@@ -207,6 +218,33 @@ export default function Notifications() {
               </Card>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="text-xs font-bold cursor-pointer"
+          >
+            Previous
+          </Button>
+          <span className="text-xs font-bold text-text-secondary">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="text-xs font-bold cursor-pointer"
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>

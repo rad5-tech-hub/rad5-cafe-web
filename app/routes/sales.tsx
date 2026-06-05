@@ -41,6 +41,10 @@ export default function Sales() {
   const [salesList, setSalesList] = useState<Sale[]>([]);
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 20;
 
   // Cancellation state
   const [cancellingSaleId, setCancellingSaleId] = useState<string | null>(null);
@@ -50,12 +54,14 @@ export default function Sales() {
   const [issuingSaleId, setIssuingSaleId] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
 
-  const fetchSalesData = (filter: string) => {
+  const fetchSalesData = (filter: string, pageNum: number) => {
     setLoading(true);
-    api.adminDashboard.sales.list({ filter: filter.toLowerCase(), limit: 100 })
+    api.adminDashboard.sales.list({ filter: filter.toLowerCase(), page: pageNum, limit })
       .then((res: any) => {
         if (res.success && Array.isArray(res.data)) {
           setSalesList(res.data);
+          setTotal(res.total ?? res.data.length);
+          setTotalPages(res.totalPages ?? Math.ceil((res.total ?? res.data.length) / limit));
         } else {
           setSalesList([]);
         }
@@ -68,8 +74,13 @@ export default function Sales() {
   };
 
   useEffect(() => {
-    fetchSalesData(activeFilter);
+    setPage(1);
+    fetchSalesData(activeFilter, 1);
   }, [activeFilter]);
+
+  useEffect(() => {
+    if (page > 1) fetchSalesData(activeFilter, page);
+  }, [page]);
 
   const handleConfirmCancel = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +97,7 @@ export default function Sales() {
         showToast('Order cancelled and customer refunded successfully!', 'success');
         setCancellingSaleId(null);
         setCancelPin('');
-        fetchSalesData(activeFilter); // Reload sales data
+        fetchSalesData(activeFilter, page);
       } else {
         showToast(res.message || 'Failed to cancel order.', 'error');
       }
@@ -107,7 +118,7 @@ export default function Sales() {
       if (res.success) {
         showToast('Order issued successfully!', 'success');
         setIssuingSaleId(null);
-        fetchSalesData(activeFilter);
+        fetchSalesData(activeFilter, page);
       } else {
         showToast(res.message || 'Failed to issue order.', 'error');
       }
@@ -236,6 +247,33 @@ export default function Sales() {
           </div>
         )}
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="text-xs font-bold cursor-pointer"
+          >
+            Previous
+          </Button>
+          <span className="text-xs font-bold text-text-secondary">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="text-xs font-bold cursor-pointer"
+          >
+            Next
+          </Button>
+        </div>
+      )}
 
       {/* Confirmation Modal for PIN validation */}
       {cancellingSaleId && (

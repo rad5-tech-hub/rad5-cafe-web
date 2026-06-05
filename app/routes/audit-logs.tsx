@@ -35,6 +35,16 @@ const actionLabels: Record<string, { label: string; variant: 'default' | 'info' 
   refund_processed: { label: 'Refund', variant: 'error' },
 };
 
+const tabs: { label: string; actions: string[] }[] = [
+  { label: 'All', actions: [] },
+  { label: 'Wallet', actions: ['wallet_transaction', 'wallet_transfer', 'payment_finalized', 'refund_processed'] },
+  { label: 'Orders', actions: ['order_placed', 'order_cancelled'] },
+  { label: 'Products', actions: ['product_added', 'product_updated', 'product_restocked'] },
+  { label: 'Users', actions: ['user_status_toggled', 'user_created', 'pin_changed'] },
+  { label: 'Categories', actions: ['category_created', 'category_updated', 'category_deleted'] },
+  { label: 'System', actions: ['admin_login', 'alert_acknowledged'] },
+];
+
 function getActionBadge(action: string) {
   const config = actionLabels[action] ?? { label: action.replace(/_/g, ' '), variant: 'default' as const };
   return <Badge label={config.label} variant={config.variant} />;
@@ -53,6 +63,7 @@ export default function AuditLogs() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('All');
 
   const limit = 50;
 
@@ -77,7 +88,12 @@ export default function AuditLogs() {
   }, []);
 
   useEffect(() => {
-    fetchLogs(page);
+    setPage(1);
+    fetchLogs(1);
+  }, [activeTab, fetchLogs]);
+
+  useEffect(() => {
+    if (page > 1) fetchLogs(page);
   }, [page, fetchLogs]);
 
   const formatDetails = (details: Record<string, any> | undefined) => {
@@ -97,6 +113,15 @@ export default function AuditLogs() {
       .join(' · ');
   };
 
+  const activeTabConfig = tabs.find((t) => t.label === activeTab) ?? tabs[0];
+  const filteredLogs = activeTabConfig.actions.length === 0
+    ? logs
+    : logs.filter((log) => activeTabConfig.actions.includes(log.action));
+
+  const changeTab = (tab: string) => {
+    setActiveTab(tab);
+  };
+
   return (
     <div className="flex flex-col gap-6 select-none max-w-3xl mx-auto">
       <div className="flex justify-between items-center">
@@ -109,6 +134,23 @@ export default function AuditLogs() {
         <Badge label={`${total} total`} variant="info" />
       </div>
 
+      {/* Category Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {tabs.map((tab) => (
+          <button
+            key={tab.label}
+            onClick={() => changeTab(tab.label)}
+            className={`px-4 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === tab.label
+                ? 'bg-tint text-white border-tint shadow-xs'
+                : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <Card padded={false} className="overflow-hidden shadow-xs">
         {loading ? (
           <div className="flex justify-center items-center py-20">
@@ -117,13 +159,13 @@ export default function AuditLogs() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           </div>
-        ) : logs.length === 0 ? (
+        ) : filteredLogs.length === 0 ? (
           <div className="text-center py-16 text-text-secondary text-sm">
             No audit logs found.
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {logs.map((log) => {
+            {filteredLogs.map((log) => {
               const details = formatDetails(log.details);
               return (
                 <div key={log.id} className="flex flex-col md:flex-row md:justify-between md:items-center p-4 hover:bg-bg-selected/10 transition-colors gap-3">

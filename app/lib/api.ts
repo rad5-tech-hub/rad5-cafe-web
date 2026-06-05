@@ -25,6 +25,13 @@ type ApiResponse<T = unknown> = {
   total?: number;
   page?: number;
   limit?: number;
+  totalPages?: number;
+  logs?: any[];
+  transactions?: any[];
+  notifications?: any[];
+  token?: string;
+  user?: any;
+  balance?: number;
 };
 
 async function getAuthHeaders(): Promise<HeadersInit> {

@@ -35,11 +35,15 @@ export default function Inventory() {
   const [showRestock, setShowRestock] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 50;
 
-  const fetchInventoryData = () => {
+  const fetchInventoryData = (pageNum: number) => {
     setLoading(true);
     Promise.all([
-      api.adminDashboard.inventoryTracking(1, 100),
+      api.adminDashboard.inventoryTracking(pageNum, limit),
       api.categories.list()
     ]).then(([prodRes, catRes]) => {
       if (prodRes.success && Array.isArray(prodRes.data)) {
@@ -49,6 +53,8 @@ export default function Inventory() {
           quantity: p.currentStock ?? p.quantity ?? 0,
         }));
         setInventoryList(mapped);
+        setTotal(prodRes.total ?? mapped.length);
+        setTotalPages(prodRes.totalPages ?? Math.ceil((prodRes.total ?? mapped.length) / limit));
       } else {
         setInventoryList([]);
       }
@@ -62,8 +68,18 @@ export default function Inventory() {
   };
 
   useEffect(() => {
-    fetchInventoryData();
+    fetchInventoryData(1);
   }, []);
+
+  useEffect(() => {
+    if (page > 1) fetchInventoryData(page);
+  }, [page]);
+
+  const changeCategory = (cat: string) => {
+    setSelectedCategory(cat);
+    setPage(1);
+    fetchInventoryData(1);
+  };
 
   const getCategoryName = (product: any) => {
     if (product.category) return product.category;
@@ -90,7 +106,7 @@ export default function Inventory() {
         pin: pin,
       });
       if (res.success) {
-        fetchInventoryData();
+        fetchInventoryData(page);
         return true;
       }
       return false;
@@ -104,7 +120,7 @@ export default function Inventory() {
     try {
       const res = await api.products.update(productId, data);
       if (res.success) {
-        fetchInventoryData();
+        fetchInventoryData(page);
         return true;
       }
       return false;
@@ -147,7 +163,7 @@ export default function Inventory() {
         {categories.map((cat) => (
           <button
             key={cat}
-            onClick={() => setSelectedCategory(cat)}
+            onClick={() => changeCategory(cat)}
             className={`px-4.5 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer ${
               selectedCategory === cat
                 ? 'bg-tint text-white border-tint'
@@ -248,6 +264,32 @@ export default function Inventory() {
         </div>
       )}
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="text-xs font-bold cursor-pointer"
+          >
+            Previous
+          </Button>
+          <span className="text-xs font-bold text-text-secondary">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="text-xs font-bold cursor-pointer"
+          >
+            Next
+          </Button>
+        </div>
+      )}
 
 
       <RestockModal
