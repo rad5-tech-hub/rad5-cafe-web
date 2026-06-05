@@ -27,6 +27,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   const [imageUrl, setImageUrl] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
+  const [lowStockThreshold, setLowStockThreshold] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,6 +40,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       setImageUrl(product.imageUrl || '');
       setCostPrice(product.costPrice != null ? String(product.costPrice) : '');
       setSellingPrice(product.sellingPrice != null ? String(product.sellingPrice) : '');
+      setLowStockThreshold(product.lowStockThreshold != null ? String(product.lowStockThreshold) : '');
       setIsActive(product.isActive !== false);
       setPin('');
     }
@@ -49,6 +51,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   const pid = product.id ?? product._id;
   const cost = parseInt(costPrice, 10) || 0;
   const selling = parseInt(sellingPrice, 10) || 0;
+  const lowStockThresholdNum = parseInt(lowStockThreshold, 10) || 0;
   const profitPerUnit = selling - cost;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,6 +70,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       if (imageUrl !== product.imageUrl) updateData.imageUrl = imageUrl;
       if (cost !== product.costPrice) updateData.costPrice = cost;
       if (selling !== product.sellingPrice) updateData.sellingPrice = selling;
+      if (lowStockThresholdNum !== (product.lowStockThreshold || 0)) updateData.lowStockThreshold = lowStockThresholdNum;
       if (isActive !== (product.isActive !== false)) updateData.isActive = isActive;
 
       if (Object.keys(updateData).length === 0) {
@@ -173,6 +177,14 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
               required
             />
           </div>
+
+          <Input
+            label="Low Stock Alert"
+            placeholder="10"
+            type="number"
+            value={lowStockThreshold}
+            onChange={(e) => setLowStockThreshold(e.target.value)}
+          />
 
           <div className="flex items-center gap-3 p-3 rounded-xl bg-bg-element border border-border">
             <label className="text-sm font-semibold text-text-main cursor-pointer select-none" htmlFor="edit-isActive">

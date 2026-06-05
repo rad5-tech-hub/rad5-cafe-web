@@ -92,7 +92,7 @@ All authenticated endpoints require a **Firebase ID token** sent in the `Authori
 | `GET`  | `/`                  | Yes       | `?category=catId&search=keyword&page=1&limit=50`                                        | Paginated products                       |
 | `GET`  | `/:id`               | Yes       | —                                                                                       | Single product                           |
 | `POST` | `/`                  | **Admin** | `{ name, categoryId, description?, imageUrl?, costPrice, sellingPrice, quantity }`      | Created product (201)                    |
-| `PUT`  | `/:id`               | **Admin** | `{ name?, categoryId?, description?, imageUrl?, costPrice?, sellingPrice?, isActive? }` | `{ message: "Product updated" }`         |
+| `PUT`  | `/:id`               | **Admin** | `{ name?, categoryId?, description?, imageUrl?, costPrice?, sellingPrice?, lowStockThreshold?, isActive? }` | `{ message: "Product updated" }`         |
 | `POST` | `/:id/restock`       | **Admin** | `{ quantity, newCostPrice? }`                                                           | Updated product                          |
 | `GET`  | `/:id/stock-history` | **Admin** | —                                                                                       | Stock history entries                    |
 | `GET`  | `/alerts/low-stock`  | **Admin** | —                                                                                       | Products at or below low-stock threshold |

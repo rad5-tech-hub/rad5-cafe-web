@@ -12,8 +12,14 @@ export const Input: React.FC<InputProps> = ({
   labelClassName = '',
   className = '',
   id,
+  type,
+  onWheel,
   ...props
 }) => {
+  const handleWheel = type === 'number' && !onWheel
+    ? (e: React.WheelEvent<HTMLInputElement>) => { e.preventDefault(); }
+    : onWheel;
+
   return (
     <div className="flex flex-col gap-1.5 w-full">
       {label && (
@@ -26,6 +32,8 @@ export const Input: React.FC<InputProps> = ({
       )}
       <input
         id={id}
+        type={type}
+        onWheel={handleWheel}
         className={`bg-bg-element border text-text-main text-base outline-none transition-colors duration-200 w-full placeholder:text-text-secondary ${
           error ? 'border-error-val focus:border-error-val' : 'border-border focus:border-tint'
         } ${className}`}

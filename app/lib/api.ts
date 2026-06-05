@@ -210,6 +210,7 @@ export const api = {
         imageUrl?: string;
         costPrice?: number;
         sellingPrice?: number;
+        lowStockThreshold?: number;
         isActive?: boolean;
       },
     ) => request(`/products/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
