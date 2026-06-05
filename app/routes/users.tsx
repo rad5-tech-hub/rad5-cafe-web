@@ -39,6 +39,18 @@ type PaymentLog = {
   createdAt: string;
 };
 
+function parseDate(val: any): string {
+  if (!val) return new Date().toISOString();
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return new Date(val).toISOString();
+  if (typeof val === 'object') {
+    if (typeof val.toDate === 'function') return val.toDate().toISOString();
+    if (typeof val._seconds === 'number') return new Date(val._seconds * 1000).toISOString();
+    if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+  }
+  return new Date(val).toISOString();
+}
+
 export function meta() {
   return [
     { title: "User Management - RAD5 Café" },
@@ -311,7 +323,7 @@ export default function Users() {
                   </span>
                 </div>
                 <span className="text-xs text-text-secondary flex-shrink-0">
-                  {new Date(user.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {new Date(parseDate(user.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               </div>
             ))}
@@ -475,7 +487,7 @@ export default function Users() {
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Joined</span>
                 <span className="text-xs font-bold text-text-main">
-                  {new Date(selectedUser.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {new Date(parseDate(selectedUser.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               </div>
               <div className="flex flex-col gap-0.5">
@@ -576,7 +588,7 @@ export default function Users() {
                       <div className="flex flex-col gap-0.5 text-[10px] text-text-secondary">
                         <span>Txn: {log.details.transactionId}</span>
                         <span>Source: {log.details.source}</span>
-                        <span>{new Date(log.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>{new Date(parseDate(log.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </div>
                   ))}
