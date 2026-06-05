@@ -29,7 +29,8 @@ export type IconName =
   | 'search'
   | 'camera'
   | 'edit'
-  | 'log-out';
+  | 'log-out'
+  | 'shield-check';
 
 interface IconProps {
   name: IconName;
@@ -97,6 +98,8 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.Edit3;
       case 'log-out':
         return Lucide.LogOut;
+      case 'shield-check':
+        return Lucide.ShieldCheck;
       default:
         return Lucide.HelpCircle;
     }
