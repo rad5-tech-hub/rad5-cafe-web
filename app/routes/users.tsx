@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
@@ -56,13 +56,16 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
 
-  const [walletAdjustUser, setWalletAdjustUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const [showWalletAdjust, setShowWalletAdjust] = useState(false);
   const [walletAmount, setWalletAmount] = useState('');
   const [walletDesc, setWalletDesc] = useState('');
   const [walletPin, setWalletPin] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
 
-  const [paymentLogsUser, setPaymentLogsUser] = useState<User | null>(null);
   const [paymentLogs, setPaymentLogs] = useState<PaymentLog[]>([]);
   const [paymentLogsLoading, setPaymentLogsLoading] = useState(false);
   const [paymentLogsPage, setPaymentLogsPage] = useState(1);
@@ -111,16 +114,34 @@ export default function Users() {
       .finally(() => setPaymentLogsLoading(false));
   };
 
-  const openPaymentLogs = (user: User) => {
-    setPaymentLogsUser(user);
+  const openUserDetail = (user: User) => {
+    setSelectedUser(user);
+    setMenuOpen(false);
+    setShowWalletAdjust(false);
+    setWalletAmount('');
+    setWalletDesc('');
+    setWalletPin('');
+    setPaymentLogs([]);
     setPaymentLogsPage(1);
     fetchPaymentLogs(user.id, 1);
   };
 
-  const changePaymentLogsPage = (newPage: number) => {
-    if (!paymentLogsUser) return;
-    setPaymentLogsPage(newPage);
-    fetchPaymentLogs(paymentLogsUser.id, newPage);
+  const closeUserDetail = () => {
+    setSelectedUser(null);
+    setMenuOpen(false);
+    setShowWalletAdjust(false);
+  };
+
+  const handleMenuAction = (action: string) => {
+    setMenuOpen(false);
+    if (action === 'wallet') {
+      setShowWalletAdjust((prev) => !prev);
+    } else if (action === 'toggle-status') {
+      handleToggleStatus(selectedUser!);
+    } else if (action === 'toggle-role') {
+      const newRole = selectedUser!.role === 'admin' ? 'customer' : 'admin';
+      handleSetRole(selectedUser!, newRole);
+    }
   };
 
   const handleToggleStatus = async (user: User) => {
@@ -142,6 +163,9 @@ export default function Users() {
       if (res.success) {
         showToast(`User ${user.isActive ? 'deactivated' : 'activated'} successfully.`, 'success');
         fetchUsers(page);
+        if (selectedUser?.id === user.id) {
+          setSelectedUser({ ...user, isActive: !user.isActive });
+        }
       } else {
         showToast(res.message || 'Failed to update user status.', 'error');
       }
@@ -171,6 +195,9 @@ export default function Users() {
       if (res.success) {
         showToast(`User role updated to ${newRole} successfully.`, 'success');
         fetchUsers(page);
+        if (selectedUser?.id === user.id) {
+          setSelectedUser({ ...user, role: newRole });
+        }
       } else {
         showToast(res.message || 'Failed to update user role.', 'error');
       }
@@ -181,7 +208,7 @@ export default function Users() {
 
   const handleWalletAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!walletAdjustUser || !walletAmount || !walletPin) {
+    if (!selectedUser || !walletAmount || !walletPin) {
       showToast('Amount and PIN are required.', 'warning');
       return;
     }
@@ -189,18 +216,19 @@ export default function Users() {
     setWalletLoading(true);
     try {
       const res = await api.adminDashboard.wallet.adjust({
-        userId: walletAdjustUser.id,
+        userId: selectedUser.id,
         amount: Number(walletAmount),
-        description: walletDesc.trim() || `Admin balance adjustment for ${walletAdjustUser.fullName}`,
+        description: walletDesc.trim() || `Admin balance adjustment for ${selectedUser.fullName}`,
         pin: walletPin,
       });
 
       if (res.success) {
         showToast(`Wallet adjusted! New balance: ₦${res.data?.balance?.toLocaleString()}`, 'success');
-        setWalletAdjustUser(null);
         setWalletAmount('');
         setWalletDesc('');
         setWalletPin('');
+        setShowWalletAdjust(false);
+        fetchPaymentLogs(selectedUser.id, 1);
       } else {
         showToast(res.message || 'Balance adjustment failed.', 'error');
       }
@@ -211,12 +239,23 @@ export default function Users() {
     }
   };
 
-  const openWalletAdjust = (user: User) => {
-    setWalletAdjustUser(user);
-    setWalletAmount('');
-    setWalletDesc('');
-    setWalletPin('');
+  const changePaymentLogsPage = (newPage: number) => {
+    if (!selectedUser) return;
+    setPaymentLogsPage(newPage);
+    fetchPaymentLogs(selectedUser.id, newPage);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
 
   return (
     <div className="flex flex-col gap-6 select-none max-w-3xl mx-auto">
@@ -245,97 +284,41 @@ export default function Users() {
         ) : (
           <div className="divide-y divide-border">
             {users.map((user) => (
-              <div key={user.id} className="flex flex-col md:flex-row md:justify-between md:items-center p-4 hover:bg-bg-selected/10 transition-colors gap-3">
-                <div className="flex-1 min-w-0 flex flex-col gap-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-extrabold text-sm text-text-main select-all">
+              <div
+                key={user.id}
+                onClick={() => openUserDetail(user)}
+                className="flex items-center p-4 hover:bg-bg-selected/10 transition-colors cursor-pointer gap-4"
+              >
+                <div className="w-10 h-10 rounded-full bg-bg-element border border-border flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-bold text-text-secondary">
+                    {(user.fullName || 'U')[0].toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-sm text-text-main truncate">
                       {user.fullName || 'Unnamed User'}
                     </span>
-                    <Badge
-                      label={user.role}
-                      variant={user.role === 'admin' ? 'warning' : 'default'}
-                    />
-                    {user.isActive ? (
-                      <Badge label="Active" variant="success" />
-                    ) : (
+                    {user.role === 'admin' && (
+                      <Badge label="Admin" variant="warning" />
+                    )}
+                    {!user.isActive && (
                       <Badge label="Inactive" variant="error" />
                     )}
-                    {user.pinSetup && (
-                      <Badge label="PIN Set" variant="info" />
-                    )}
                   </div>
-                  <span className="text-xs text-text-main font-semibold select-all">
+                  <span className="text-xs text-text-main font-semibold truncate">
                     {user.email}
                   </span>
-                  <div className="flex items-center gap-3 text-[10px] text-text-secondary flex-wrap">
-                    <span>UID: {user.uid}</span>
-                    <span>Wallet: {user.walletId}</span>
-                    {user.phoneNumber && <span>Phone: {user.phoneNumber}</span>}
-                    <span>Joined: {new Date(user.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                  </div>
                 </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openPaymentLogs(user)}
-                    className="text-[10px] font-bold cursor-pointer text-tint border-tint/30 hover:bg-tint/10"
-                  >
-                    Payment Logs
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openWalletAdjust(user)}
-                    className="text-[10px] font-bold cursor-pointer text-tint border-tint/30 hover:bg-tint/10"
-                  >
-                    Adjust Wallet
-                  </Button>
-                  {user.role === 'admin' ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSetRole(user, 'customer')}
-                      className="text-[10px] font-bold cursor-pointer text-error-val border-error-val/30 hover:bg-error-val/10"
-                    >
-                      Remove Admin
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSetRole(user, 'admin')}
-                      className="text-[10px] font-bold cursor-pointer text-warning border-warning/30 hover:bg-warning/10"
-                    >
-                      Make Admin
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleToggleStatus(user)}
-                    disabled={togglingUserId === user.id}
-                    className={`text-[10px] font-bold cursor-pointer ${
-                      user.isActive
-                        ? 'text-error-val border-error-val/30 hover:bg-error-val/10'
-                        : 'text-success border-success/30 hover:bg-success/10'
-                    }`}
-                  >
-                    {togglingUserId === user.id
-                      ? 'Updating...'
-                      : user.isActive
-                        ? 'Deactivate'
-                        : 'Activate'}
-                  </Button>
-                </div>
+                <span className="text-xs text-text-secondary flex-shrink-0">
+                  {new Date(user.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
               </div>
             ))}
           </div>
         )}
       </Card>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-3">
           <Button
@@ -362,154 +345,276 @@ export default function Users() {
         </div>
       )}
 
-      {/* Wallet Adjust Modal */}
-      {walletAdjustUser && (
+      {/* User Detail Modal */}
+      {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="absolute inset-0" onClick={() => setWalletAdjustUser(null)} />
+          <div className="absolute inset-0" onClick={closeUserDetail} />
           <Card
             padded={true}
-            className="relative bg-card border border-border w-full max-w-sm rounded-2xl flex flex-col gap-4 shadow-2xl animate-scale-up"
+            className="relative bg-card border border-border w-full max-w-md rounded-2xl flex flex-col gap-4 shadow-2xl animate-scale-up max-h-[85vh] overflow-hidden"
             style={{ borderRadius: 'var(--radius-xl)' }}
           >
-            <div className="flex flex-col gap-1">
-              <h3 className="text-lg font-bold text-text-main">Adjust Wallet</h3>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                Adjusting wallet for <strong>{walletAdjustUser.fullName}</strong> ({walletAdjustUser.uid})
-              </p>
-            </div>
-            <form onSubmit={handleWalletAdjust} className="flex flex-col gap-3">
-              <Input
-                label="Amount (₦)"
-                placeholder="5000 to credit, -2000 to debit"
-                type="number"
-                value={walletAmount}
-                onChange={(e) => setWalletAmount(e.target.value)}
-                required
-                autoFocus
-              />
-              <Input
-                label="Reason"
-                placeholder="e.g. Compensation, manual top-up"
-                value={walletDesc}
-                onChange={(e) => setWalletDesc(e.target.value)}
-              />
-              <Input
-                label="Transaction PIN"
-                placeholder="4-digit PIN"
-                type="password"
-                maxLength={4}
-                pattern="\d{4}"
-                value={walletPin}
-                onChange={(e) => setWalletPin(e.target.value.replace(/\D/g, ''))}
-                required
-                autoComplete="new-password"
-              />
-              <div className="flex gap-2 justify-end border-t border-border pt-3 mt-1">
-                <Button
-                  variant="outline"
-                  size="md"
-                  type="button"
-                  onClick={() => setWalletAdjustUser(null)}
-                  className="cursor-pointer"
-                >
-                  Close
-                </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  type="submit"
-                  disabled={walletLoading}
-                  className="bg-accent hover:opacity-90 font-bold"
-                >
-                  {walletLoading ? 'Adjusting...' : 'Adjust Balance'}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {/* Payment Logs Modal */}
-      {paymentLogsUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="absolute inset-0" onClick={() => setPaymentLogsUser(null)} />
-          <Card
-            padded={true}
-            className="relative bg-card border border-border w-full max-w-lg rounded-2xl flex flex-col gap-4 shadow-2xl animate-scale-up max-h-[80vh] overflow-hidden"
-            style={{ borderRadius: 'var(--radius-xl)' }}
-          >
-            <div className="flex flex-col gap-1">
-              <h3 className="text-lg font-bold text-text-main">
-                Payment Logs — {paymentLogsUser.fullName}
-              </h3>
-              <p className="text-xs text-text-secondary">
-                {paymentLogsTotal} payment{paymentLogsTotal !== 1 ? 's' : ''} found for {paymentLogsUser.uid}
-              </p>
-            </div>
-
-            {paymentLogsLoading ? (
-              <div className="flex justify-center items-center py-12">
-                <svg className="animate-spin h-6 w-6 text-tint" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </div>
-            ) : paymentLogs.length === 0 ? (
-              <div className="text-center py-10 text-text-secondary text-sm">
-                No payment logs for this user.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 overflow-y-auto max-h-[50vh]">
-                {paymentLogs.map((log) => (
-                  <div key={log.id} className="p-3 bg-bg-element rounded-lg border border-border flex flex-col gap-1.5">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold text-success">
-                        ₦{log.details.amount.toLocaleString()}
-                      </span>
-                      <Badge label="Top-up" variant="success" />
-                    </div>
-                    <div className="flex flex-col gap-0.5 text-[10px] text-text-secondary">
-                      <span>Txn: {log.details.transactionId}</span>
-                      <span>Source: {log.details.source}</span>
-                      <span>{new Date(log.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-full bg-bg-element border border-border flex items-center justify-center flex-shrink-0">
+                  <span className="text-lg font-bold text-text-secondary">
+                    {(selectedUser.fullName || 'U')[0].toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <h3 className="text-lg font-bold text-text-main truncate">
+                    {selectedUser.fullName || 'Unnamed User'}
+                  </h3>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Badge
+                      label={selectedUser.role}
+                      variant={selectedUser.role === 'admin' ? 'warning' : 'default'}
+                    />
+                    {selectedUser.isActive ? (
+                      <Badge label="Active" variant="success" />
+                    ) : (
+                      <Badge label="Inactive" variant="error" />
+                    )}
+                    {selectedUser.pinSetup && (
+                      <Badge label="PIN Set" variant="info" />
+                    )}
                   </div>
-                ))}
+                </div>
               </div>
+
+              {/* Kebab Menu */}
+              <div className="relative flex-shrink-0" ref={menuRef}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-bg-selected transition-colors cursor-pointer"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-text-secondary">
+                    <circle cx="5" cy="12" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="19" cy="12" r="2" />
+                  </svg>
+                </button>
+
+                {menuOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-10 animate-scale-up"
+                    style={{ borderRadius: 'var(--radius-lg)' }}
+                  >
+                    <button
+                      onClick={() => handleMenuAction('wallet')}
+                      className="w-full text-left px-4 py-2.5 text-sm font-semibold text-text-main hover:bg-bg-selected transition-colors flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-tint flex-shrink-0">
+                        <path d="M21 12V7H5a2 2 0 010-4h14v4"/>
+                        <path d="M3 5v14a2 2 0 002 2h16v-5"/>
+                        <path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/>
+                      </svg>
+                      Adjust Wallet
+                    </button>
+                    <button
+                      onClick={() => handleMenuAction('toggle-status')}
+                      disabled={togglingUserId === selectedUser.id}
+                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-bg-selected transition-colors flex items-center gap-2.5 cursor-pointer disabled:opacity-50 ${
+                        selectedUser.isActive ? 'text-error-val' : 'text-success'
+                      }`}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+                        {selectedUser.isActive ? (
+                          <>
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                          </>
+                        ) : (
+                          <>
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="8 12 11 15 16 9"/>
+                          </>
+                        )}
+                      </svg>
+                      {togglingUserId === selectedUser.id
+                        ? 'Updating...'
+                        : selectedUser.isActive
+                          ? 'Deactivate'
+                          : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => handleMenuAction('toggle-role')}
+                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-bg-selected transition-colors flex items-center gap-2.5 cursor-pointer ${
+                        selectedUser.role === 'admin' ? 'text-error-val' : 'text-warning'
+                      }`}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+                        <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                      </svg>
+                      {selectedUser.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* User Info Grid */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 py-3 border-y border-border">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Email</span>
+                <span className="text-xs font-bold text-text-main select-all truncate">{selectedUser.email}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Phone</span>
+                <span className="text-xs font-bold text-text-main select-all">{selectedUser.phoneNumber || '\u2014'}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">User ID</span>
+                <span className="text-xs font-bold text-text-main select-all truncate">{selectedUser.uid}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Wallet ID</span>
+                <span className="text-xs font-bold text-text-main select-all truncate">{selectedUser.walletId}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Joined</span>
+                <span className="text-xs font-bold text-text-main">
+                  {new Date(selectedUser.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Status</span>
+                <span className={`text-xs font-bold ${selectedUser.isActive ? 'text-success' : 'text-error-val'}`}>
+                  {selectedUser.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            </div>
+
+            {/* Wallet Adjust Form */}
+            {showWalletAdjust && (
+              <form onSubmit={handleWalletAdjust} className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-5 bg-tint rounded-full" />
+                  <span className="text-sm font-bold text-text-main">Wallet Adjustment</span>
+                </div>
+                <Input
+                  label="Amount (₦)"
+                  placeholder="5000 to credit, -2000 to debit"
+                  type="number"
+                  value={walletAmount}
+                  onChange={(e) => setWalletAmount(e.target.value)}
+                  required
+                  autoFocus
+                />
+                <Input
+                  label="Reason"
+                  placeholder="e.g. Compensation, manual top-up"
+                  value={walletDesc}
+                  onChange={(e) => setWalletDesc(e.target.value)}
+                />
+                <Input
+                  label="Transaction PIN"
+                  placeholder="4-digit PIN"
+                  type="password"
+                  maxLength={4}
+                  pattern="\d{4}"
+                  value={walletPin}
+                  onChange={(e) => setWalletPin(e.target.value.replace(/\D/g, ''))}
+                  required
+                  autoComplete="new-password"
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => setShowWalletAdjust(false)}
+                    className="cursor-pointer text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    type="submit"
+                    disabled={walletLoading}
+                    className="bg-accent hover:opacity-90 font-bold text-xs"
+                  >
+                    {walletLoading ? 'Adjusting...' : 'Adjust Balance'}
+                  </Button>
+                </div>
+              </form>
             )}
 
-            {/* Payment Logs Pagination */}
-            {paymentLogsTotalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 border-t border-border pt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => changePaymentLogsPage(Math.max(1, paymentLogsPage - 1))}
-                  disabled={paymentLogsPage <= 1}
-                  className="text-[10px] font-bold cursor-pointer"
-                >
-                  Previous
-                </Button>
-                <span className="text-[10px] font-bold text-text-secondary">
-                  {paymentLogsPage} / {paymentLogsTotalPages}
+            {/* Payment Logs */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-5 bg-success rounded-full" />
+                <span className="text-sm font-bold text-text-main">Payment History</span>
+                <span className="text-[10px] text-text-secondary">
+                  ({paymentLogsTotal} transaction{paymentLogsTotal !== 1 ? 's' : ''})
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => changePaymentLogsPage(Math.min(paymentLogsTotalPages, paymentLogsPage + 1))}
-                  disabled={paymentLogsPage >= paymentLogsTotalPages}
-                  className="text-[10px] font-bold cursor-pointer"
-                >
-                  Next
-                </Button>
               </div>
-            )}
+
+              {paymentLogsLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <svg className="animate-spin h-5 w-5 text-tint" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+              ) : paymentLogs.length === 0 ? (
+                <div className="text-center py-6 text-text-secondary text-xs">
+                  No payment history for this user.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 overflow-y-auto max-h-48">
+                  {paymentLogs.map((log) => (
+                    <div key={log.id} className="p-3 bg-bg-element rounded-lg border border-border flex flex-col gap-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-success">
+                          ₦{log.details.amount.toLocaleString()}
+                        </span>
+                        <Badge label="Top-up" variant="success" />
+                      </div>
+                      <div className="flex flex-col gap-0.5 text-[10px] text-text-secondary">
+                        <span>Txn: {log.details.transactionId}</span>
+                        <span>Source: {log.details.source}</span>
+                        <span>{new Date(log.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {paymentLogsTotalPages > 1 && (
+                <div className="flex justify-center items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => changePaymentLogsPage(Math.max(1, paymentLogsPage - 1))}
+                    disabled={paymentLogsPage <= 1}
+                    className="text-[10px] font-bold cursor-pointer"
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-[10px] font-bold text-text-secondary">
+                    {paymentLogsPage} / {paymentLogsTotalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => changePaymentLogsPage(Math.min(paymentLogsTotalPages, paymentLogsPage + 1))}
+                    disabled={paymentLogsPage >= paymentLogsTotalPages}
+                    className="text-[10px] font-bold cursor-pointer"
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </div>
 
             <div className="flex justify-end border-t border-border pt-3">
               <Button
                 variant="outline"
                 size="md"
-                onClick={() => setPaymentLogsUser(null)}
+                onClick={closeUserDetail}
                 className="cursor-pointer"
               >
                 Close
