@@ -40,34 +40,7 @@ export default function Sales() {
 
   const [aggregateRevenue, setAggregateRevenue] = useState(0);
   const [aggregateProfit, setAggregateProfit] = useState(0);
-
-  const fetchAggregates = (filterValue: string) => {
-    const periodMap: Record<string, 'daily' | 'weekly' | 'monthly'> = {
-      daily: 'daily',
-      weekly: 'weekly',
-      monthly: 'monthly',
-    };
-    const period = periodMap[filterValue];
-    if (period) {
-      api.adminDashboard.analytics.revenue(period, 1)
-        .then((res) => {
-          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-            setAggregateRevenue(res.data[0].revenue);
-            setAggregateProfit(res.data[0].profit);
-          }
-        })
-        .catch(() => {});
-    } else {
-      api.adminDashboard.analytics.profit()
-        .then((res) => {
-          if (res.success && res.data) {
-            setAggregateRevenue(0);
-            setAggregateProfit(res.data.lifetimeProfit);
-          }
-        })
-        .catch(() => {});
-    }
-  };
+  const [aggregateOrders, setAggregateOrders] = useState(0);
 
   const fetchSalesData = (filterValue: string, pageNum: number) => {
     setLoading(true);
@@ -77,6 +50,9 @@ export default function Sales() {
           setSalesList(res.data);
           setTotal(res.total ?? res.data.length);
           setTotalPages(res.totalPages ?? Math.ceil((res.total ?? res.data.length) / limit));
+          setAggregateRevenue(res.totalRevenue ?? 0);
+          setAggregateProfit(res.totalProfit ?? 0);
+          setAggregateOrders(res.totalOrders ?? res.total ?? 0);
         } else {
           setSalesList([]);
         }
@@ -90,10 +66,7 @@ export default function Sales() {
 
   useEffect(() => {
     setPage(1);
-    setAggregateRevenue(0);
-    setAggregateProfit(0);
     fetchSalesData(activeFilter, 1);
-    fetchAggregates(activeFilter);
   }, [activeFilter]);
 
   useEffect(() => {
@@ -168,7 +141,7 @@ export default function Sales() {
         </Card>
         <Card className="p-4 flex flex-col gap-1 text-center shadow-xs">
           <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Orders</span>
-          <span className="text-lg md:text-xl font-extrabold text-tint select-all">{total}</span>
+          <span className="text-lg md:text-xl font-extrabold text-tint select-all">{aggregateOrders}</span>
         </Card>
       </div>
 

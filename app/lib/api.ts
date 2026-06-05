@@ -26,6 +26,9 @@ type ApiResponse<T = unknown> = {
   page?: number;
   limit?: number;
   totalPages?: number;
+  totalRevenue?: number;
+  totalProfit?: number;
+  totalOrders?: number;
   logs?: any[];
   transactions?: any[];
   notifications?: any[];
@@ -61,6 +64,9 @@ export type Sale = {
 
 export type SalesListResponse = {
   data: Sale[];
+  totalRevenue: number;
+  totalProfit: number;
+  totalOrders: number;
   total: number;
   page: number;
   limit: number;
