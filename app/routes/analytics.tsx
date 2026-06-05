@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '~/components/ui/card';
 import { api } from '~/lib/api';
 import type { RevenueDataPoint, TopProduct, TopCustomer, ProfitResponse } from '~/lib/api';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type Period = 'daily' | 'weekly' | 'monthly';
 
@@ -97,20 +98,22 @@ export default function Analytics() {
     fetchData(revenuePeriod);
   }, [revenuePeriod]);
 
-  const revenueValues = revenueData.map((d) => safeNum(d.revenue));
-  const maxRevenue = Math.max(...revenueValues, 1);
-
   const productProfit = Array.isArray(profitData?.productProfit) ? profitData.productProfit : [];
 
-  const formatPeriodDate = (periodStr: string) => {
-    try {
-      const d = new Date(periodStr);
-      if (!isNaN(d.getTime())) {
-        return d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
-      }
-    } catch {}
-    return periodStr;
-  };
+  const chartData = revenueData.map((d) => ({
+    period: d.period,
+    revenue: safeNum(d.revenue),
+    profit: safeNum(d.profit),
+    label: (() => {
+      try {
+        const dt = new Date(d.period);
+        if (!isNaN(dt.getTime())) {
+          return dt.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+        }
+      } catch {}
+      return d.period;
+    })(),
+  }));
 
   return (
     <div className="flex flex-col gap-6 select-none max-w-3xl mx-auto">
@@ -162,30 +165,36 @@ export default function Analytics() {
             No {periodLabels[revenuePeriod].toLowerCase()} revenue data recorded yet.
           </div>
         ) : (
-          <div className="px-6 pb-6">
-            <div className="flex items-end justify-between h-48">
-              {revenueData.map((point) => {
-                const barHeight = (safeNum(point.revenue) / maxRevenue) * 100;
-                return (
-                  <div key={point.period} className="flex flex-col items-center gap-2 flex-1 group">
-                    <span className="text-[10px] font-bold text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-all">
-                      {fmtCurrency(point.revenue)}
-                    </span>
-                    <div
-                      className="w-8 bg-tint rounded-t-md hover:opacity-90 transition-all duration-300 animate-scale-up"
-                      style={{
-                        height: `${Number.isFinite(barHeight) ? barHeight : 0}%`,
-                        transformOrigin: 'bottom',
-                        animationFillMode: 'forwards',
-                      }}
-                    />
-                    <span className="text-[10px] font-semibold text-text-secondary whitespace-nowrap">
-                      {formatPeriodDate(point.period)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="px-4 pb-4">
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
+                  axisLine={{ stroke: 'var(--color-border)' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                  formatter={(value: any) => [fmtCurrency(Number(value)), '']}
+                  labelStyle={{ color: 'var(--color-text-secondary)', marginBottom: 4 }}
+                />
+                <Bar dataKey="revenue" fill="var(--color-tint)" radius={[4, 4, 0, 0]} maxBarSize={48} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         )}
       </Card>
