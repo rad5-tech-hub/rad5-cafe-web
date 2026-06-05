@@ -4,30 +4,14 @@ import { Badge } from '~/components/ui/badge';
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
 import { useToast } from '~/context/toast-context';
-import { api } from '~/lib/api';
+import { api, type Sale } from '~/lib/api';
 
-type Sale = {
-  id: string;
-  receiptNumber: string;
-  customerName: string;
-  items: {
-    productId: string;
-    productName: string;
-    quantity: number;
-    unitPrice: number;
-    costPrice: number;
-    totalPrice: number;
-  }[];
-  revenue: number;
-  profit: number;
-  status: string;
-  date: string;
-  issued?: boolean;
-  issuedAt?: string;
-  issuedBy?: string;
-};
-
-const filters = ['Daily', 'Weekly', 'Monthly', 'All'];
+const filters = [
+  { label: 'All', value: 'all' },
+  { label: 'Daily', value: 'daily' },
+  { label: 'Weekly', value: 'weekly' },
+  { label: 'Monthly', value: 'monthly' },
+] as const;
 
 export function meta() {
   return [
@@ -39,7 +23,7 @@ export function meta() {
 export default function Sales() {
   const { showToast } = useToast();
   const [salesList, setSalesList] = useState<Sale[]>([]);
-  const [activeFilter, setActiveFilter] = useState('All');
+  const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -54,10 +38,41 @@ export default function Sales() {
   const [issuingSaleId, setIssuingSaleId] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
 
-  const fetchSalesData = (filter: string, pageNum: number) => {
+  const [aggregateRevenue, setAggregateRevenue] = useState(0);
+  const [aggregateProfit, setAggregateProfit] = useState(0);
+
+  const fetchAggregates = (filterValue: string) => {
+    const periodMap: Record<string, 'daily' | 'weekly' | 'monthly'> = {
+      daily: 'daily',
+      weekly: 'weekly',
+      monthly: 'monthly',
+    };
+    const period = periodMap[filterValue];
+    if (period) {
+      api.adminDashboard.analytics.revenue(period, 1)
+        .then((res) => {
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            setAggregateRevenue(res.data[0].revenue);
+            setAggregateProfit(res.data[0].profit);
+          }
+        })
+        .catch(() => {});
+    } else {
+      api.adminDashboard.analytics.profit()
+        .then((res) => {
+          if (res.success && res.data) {
+            setAggregateRevenue(0);
+            setAggregateProfit(res.data.lifetimeProfit);
+          }
+        })
+        .catch(() => {});
+    }
+  };
+
+  const fetchSalesData = (filterValue: string, pageNum: number) => {
     setLoading(true);
-    api.adminDashboard.sales.list({ filter: filter.toLowerCase(), page: pageNum, limit })
-      .then((res: any) => {
+    api.adminDashboard.sales.list({ filter: filterValue, page: pageNum, limit })
+      .then((res) => {
         if (res.success && Array.isArray(res.data)) {
           setSalesList(res.data);
           setTotal(res.total ?? res.data.length);
@@ -75,7 +90,10 @@ export default function Sales() {
 
   useEffect(() => {
     setPage(1);
+    setAggregateRevenue(0);
+    setAggregateProfit(0);
     fetchSalesData(activeFilter, 1);
+    fetchAggregates(activeFilter);
   }, [activeFilter]);
 
   useEffect(() => {
@@ -129,10 +147,6 @@ export default function Sales() {
     }
   };
 
-  const totalRevenue = salesList.reduce((s, sale) => s + (sale.status !== 'cancelled' ? sale.revenue : 0), 0);
-  const totalProfit = salesList.reduce((s, sale) => s + (sale.status !== 'cancelled' ? sale.profit : 0), 0);
-  const totalTransactions = salesList.filter(s => s.status !== 'cancelled').length;
-
   return (
     <div className="flex flex-col gap-6 select-none max-w-2xl mx-auto">
       <div>
@@ -146,15 +160,15 @@ export default function Sales() {
       <div className="grid grid-cols-3 gap-4">
         <Card className="p-4 flex flex-col gap-1 text-center shadow-xs">
           <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Revenue</span>
-          <span className="text-lg md:text-xl font-extrabold text-success select-all">₦{totalRevenue.toLocaleString()}</span>
+          <span className="text-lg md:text-xl font-extrabold text-success select-all">₦{aggregateRevenue.toLocaleString()}</span>
         </Card>
         <Card className="p-4 flex flex-col gap-1 text-center shadow-xs">
           <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Profit</span>
-          <span className="text-lg md:text-xl font-extrabold text-success select-all">₦{totalProfit.toLocaleString()}</span>
+          <span className="text-lg md:text-xl font-extrabold text-success select-all">₦{aggregateProfit.toLocaleString()}</span>
         </Card>
         <Card className="p-4 flex flex-col gap-1 text-center shadow-xs">
           <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Orders</span>
-          <span className="text-lg md:text-xl font-extrabold text-tint select-all">{totalTransactions}</span>
+          <span className="text-lg md:text-xl font-extrabold text-tint select-all">{total}</span>
         </Card>
       </div>
 
@@ -162,15 +176,15 @@ export default function Sales() {
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {filters.map((f) => (
           <button
-            key={f}
-            onClick={() => setActiveFilter(f)}
+            key={f.value}
+            onClick={() => setActiveFilter(f.value)}
             className={`px-4 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer ${
-              activeFilter === f
+              activeFilter === f.value
                 ? 'bg-tint text-white border-tint shadow-xs'
                 : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
             }`}
           >
-            {f}
+            {f.label}
           </button>
         ))}
       </div>
@@ -239,7 +253,19 @@ export default function Sales() {
                     </div>
                   )}
                   {sale.status === 'completed' && sale.issued && (
-                    <Badge label="Issued" variant="success" />
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge label="Issued" variant="success" />
+                      {sale.issuedBy && (
+                        <span className="text-[10px] text-text-secondary">
+                          by {sale.issuedBy}
+                        </span>
+                      )}
+                      {sale.issuedAt && (
+                        <span className="text-[10px] text-text-secondary">
+                          {new Date(sale.issuedAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -250,28 +276,31 @@ export default function Sales() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="text-xs font-bold cursor-pointer"
-          >
-            Previous
-          </Button>
-          <span className="text-xs font-bold text-text-secondary">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            className="text-xs font-bold cursor-pointer"
-          >
-            Next
-          </Button>
+        <div className="flex justify-between items-center gap-3">
+          <span className="text-xs text-text-secondary">{total} total results</span>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="text-xs font-bold cursor-pointer"
+            >
+              Previous
+            </Button>
+            <span className="text-xs font-bold text-text-secondary">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="text-xs font-bold cursor-pointer"
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
 

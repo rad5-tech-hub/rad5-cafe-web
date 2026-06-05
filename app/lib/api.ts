@@ -34,6 +34,85 @@ type ApiResponse<T = unknown> = {
   balance?: number;
 };
 
+// ── Admin Dashboard Types ──────────────────────────
+
+export type SaleItem = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  costPrice: number;
+  totalPrice: number;
+};
+
+export type Sale = {
+  id: string;
+  receiptNumber: string;
+  customerName: string;
+  items: SaleItem[];
+  revenue: number;
+  profit: number;
+  status: 'pending' | 'completed' | 'cancelled';
+  issued: boolean;
+  issuedBy: string | null;
+  issuedAt: string | null;
+  date: string;
+};
+
+export type SalesListResponse = {
+  data: Sale[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export type RevenueDataPoint = {
+  period: string;
+  revenue: number;
+  profit: number;
+  salesCount: number;
+};
+
+export type TopProduct = {
+  productId: string;
+  productName: string;
+  totalSold: number;
+  totalRevenue: number;
+  totalProfit: number;
+};
+
+export type TopCustomer = {
+  userId: string;
+  fullName: string;
+  email: string;
+  ordersCount: number;
+  totalSpent: number;
+};
+
+export type TopProductsResponse = {
+  bestSelling: TopProduct[];
+  highestProfit: TopProduct[];
+};
+
+export type CustomersResponse = {
+  mostActive: TopCustomer[];
+  highestSpending: TopCustomer[];
+};
+
+export type ProfitResponse = {
+  productProfit: {
+    productId: string;
+    productName: string;
+    profit: number;
+    unitsSold: number;
+    margin: number;
+  }[];
+  dailyProfit: number;
+  monthlyProfit: number;
+  lifetimeProfit: number;
+};
+
 async function getAuthHeaders(): Promise<HeadersInit> {
   const user = auth.currentUser;
   const headers: Record<string, string> = {
@@ -334,21 +413,21 @@ export const api = {
         if (params?.page) qs.set('page', String(params.page));
         if (params?.limit) qs.set('limit', String(params.limit));
         const query = qs.toString();
-        return request<any>(`/admin-dashboard/sales${query ? `?${query}` : ''}`);
+        return request<Sale[]>(`/admin-dashboard/sales${query ? `?${query}` : ''}`);
       },
       adjust: (id: string, body: { status: 'pending' | 'completed' | 'cancelled'; pin: string }) =>
-        request<any>(`/admin-dashboard/sales/${id}/adjust`, { method: 'PUT', body: JSON.stringify(body) }),
+        request<{ balance?: number }>(`/admin-dashboard/sales/${id}/adjust`, { method: 'PUT', body: JSON.stringify(body) }),
       issue: (id: string) =>
-        request<any>(`/admin-dashboard/sales/${id}/issue`, { method: 'PUT' }),
+        request<Sale>(`/admin-dashboard/sales/${id}/issue`, { method: 'PUT' }),
     },
     analytics: {
-      revenue: (period = 'weekly', limit = 30) =>
-        request<any>(`/admin-dashboard/analytics/revenue?period=${period}&limit=${limit}`),
+      revenue: (period: 'daily' | 'weekly' | 'monthly' = 'daily', limit = 30) =>
+        request<RevenueDataPoint[]>(`/admin-dashboard/analytics/revenue?period=${period}&limit=${limit}`),
       topProducts: (limit = 10) =>
-        request<any>(`/admin-dashboard/analytics/top-products?limit=${limit}`),
+        request<TopProductsResponse>(`/admin-dashboard/analytics/top-products?limit=${limit}`),
       customers: (limit = 10) =>
-        request<any>(`/admin-dashboard/analytics/customers?limit=${limit}`),
-      profit: () => request<any>('/admin-dashboard/analytics/profit'),
+        request<CustomersResponse>(`/admin-dashboard/analytics/customers?limit=${limit}`),
+      profit: () => request<ProfitResponse>('/admin-dashboard/analytics/profit'),
     },
     alerts: {
       list: () => request<any>('/admin-dashboard/alerts'),
