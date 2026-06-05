@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
 import { useToast } from '~/context/toast-context';
 import { useConfirm } from '~/context/confirm-context';
 import { api } from '~/lib/api';
@@ -38,6 +39,12 @@ export default function Users() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
+
+  const [walletAdjustUser, setWalletAdjustUser] = useState<User | null>(null);
+  const [walletAmount, setWalletAmount] = useState('');
+  const [walletDesc, setWalletDesc] = useState('');
+  const [walletPin, setWalletPin] = useState('');
+  const [walletLoading, setWalletLoading] = useState(false);
 
   const limit = 20;
 
@@ -91,6 +98,45 @@ export default function Users() {
     } finally {
       setTogglingUserId(null);
     }
+  };
+
+  const handleWalletAdjust = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!walletAdjustUser || !walletAmount || !walletPin) {
+      showToast('Amount and PIN are required.', 'warning');
+      return;
+    }
+
+    setWalletLoading(true);
+    try {
+      const res = await api.adminDashboard.wallet.adjust({
+        userId: walletAdjustUser.id,
+        amount: Number(walletAmount),
+        description: walletDesc.trim() || `Admin balance adjustment for ${walletAdjustUser.fullName}`,
+        pin: walletPin,
+      });
+
+      if (res.success) {
+        showToast(`Wallet adjusted! New balance: ₦${res.data?.balance?.toLocaleString()}`, 'success');
+        setWalletAdjustUser(null);
+        setWalletAmount('');
+        setWalletDesc('');
+        setWalletPin('');
+      } else {
+        showToast(res.message || 'Balance adjustment failed.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Balance adjustment failed.', 'error');
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
+  const openWalletAdjust = (user: User) => {
+    setWalletAdjustUser(user);
+    setWalletAmount('');
+    setWalletDesc('');
+    setWalletPin('');
   };
 
   return (
@@ -154,6 +200,14 @@ export default function Users() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => openWalletAdjust(user)}
+                    className="text-[10px] font-bold cursor-pointer text-tint border-tint/30 hover:bg-tint/10"
+                  >
+                    Adjust Wallet
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleToggleStatus(user)}
                     disabled={togglingUserId === user.id}
                     className={`text-[10px] font-bold cursor-pointer ${
@@ -199,6 +253,73 @@ export default function Users() {
           >
             Next
           </Button>
+        </div>
+      )}
+
+      {/* Wallet Adjust Modal */}
+      {walletAdjustUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="absolute inset-0" onClick={() => setWalletAdjustUser(null)} />
+          <Card
+            padded={true}
+            className="relative bg-card border border-border w-full max-w-sm rounded-2xl flex flex-col gap-4 shadow-2xl animate-scale-up"
+            style={{ borderRadius: 'var(--radius-xl)' }}
+          >
+            <div className="flex flex-col gap-1">
+              <h3 className="text-lg font-bold text-text-main">Adjust Wallet</h3>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                Adjusting wallet for <strong>{walletAdjustUser.fullName}</strong> ({walletAdjustUser.uid})
+              </p>
+            </div>
+            <form onSubmit={handleWalletAdjust} className="flex flex-col gap-3">
+              <Input
+                label="Amount (₦)"
+                placeholder="5000 to credit, -2000 to debit"
+                type="number"
+                value={walletAmount}
+                onChange={(e) => setWalletAmount(e.target.value)}
+                required
+                autoFocus
+              />
+              <Input
+                label="Reason"
+                placeholder="e.g. Compensation, manual top-up"
+                value={walletDesc}
+                onChange={(e) => setWalletDesc(e.target.value)}
+              />
+              <Input
+                label="Transaction PIN"
+                placeholder="4-digit PIN"
+                type="password"
+                maxLength={4}
+                pattern="\d{4}"
+                value={walletPin}
+                onChange={(e) => setWalletPin(e.target.value.replace(/\D/g, ''))}
+                required
+                autoComplete="new-password"
+              />
+              <div className="flex gap-2 justify-end border-t border-border pt-3 mt-1">
+                <Button
+                  variant="outline"
+                  size="md"
+                  type="button"
+                  onClick={() => setWalletAdjustUser(null)}
+                  className="cursor-pointer"
+                >
+                  Close
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  type="submit"
+                  disabled={walletLoading}
+                  className="bg-accent hover:opacity-90 font-bold"
+                >
+                  {walletLoading ? 'Adjusting...' : 'Adjust Balance'}
+                </Button>
+              </div>
+            </form>
+          </Card>
         </div>
       )}
     </div>
