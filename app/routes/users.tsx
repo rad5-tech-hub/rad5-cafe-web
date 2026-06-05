@@ -23,6 +23,22 @@ type User = {
   updatedAt: string;
 };
 
+type PaymentLog = {
+  id: string;
+  userId: string;
+  action: string;
+  resource: string;
+  resourceId: string;
+  details: {
+    amount: number;
+    amountKobo: number;
+    transactionId: string;
+    source: string;
+  };
+  ip: string;
+  createdAt: string;
+};
+
 export function meta() {
   return [
     { title: "User Management - RAD5 Café" },
@@ -45,6 +61,14 @@ export default function Users() {
   const [walletDesc, setWalletDesc] = useState('');
   const [walletPin, setWalletPin] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
+
+  const [paymentLogsUser, setPaymentLogsUser] = useState<User | null>(null);
+  const [paymentLogs, setPaymentLogs] = useState<PaymentLog[]>([]);
+  const [paymentLogsLoading, setPaymentLogsLoading] = useState(false);
+  const [paymentLogsPage, setPaymentLogsPage] = useState(1);
+  const [paymentLogsTotalPages, setPaymentLogsTotalPages] = useState(1);
+  const [paymentLogsTotal, setPaymentLogsTotal] = useState(0);
+  const paymentLogsLimit = 50;
 
   const limit = 20;
 
@@ -70,6 +94,34 @@ export default function Users() {
   useEffect(() => {
     fetchUsers(page);
   }, [page, fetchUsers]);
+
+  const fetchPaymentLogs = (userId: string, pageNum: number) => {
+    setPaymentLogsLoading(true);
+    api.admin.users.paymentLogs(userId, pageNum, paymentLogsLimit)
+      .then((res: any) => {
+        const data = res.logs ?? res.data ?? [];
+        setPaymentLogs(Array.isArray(data) ? data : []);
+        setPaymentLogsTotal(res.total ?? 0);
+        setPaymentLogsTotalPages(res.totalPages ?? Math.ceil((res.total ?? 0) / paymentLogsLimit));
+      })
+      .catch((err: any) => {
+        console.warn('Could not load payment logs:', err);
+        setPaymentLogs([]);
+      })
+      .finally(() => setPaymentLogsLoading(false));
+  };
+
+  const openPaymentLogs = (user: User) => {
+    setPaymentLogsUser(user);
+    setPaymentLogsPage(1);
+    fetchPaymentLogs(user.id, 1);
+  };
+
+  const changePaymentLogsPage = (newPage: number) => {
+    if (!paymentLogsUser) return;
+    setPaymentLogsPage(newPage);
+    fetchPaymentLogs(paymentLogsUser.id, newPage);
+  };
 
   const handleToggleStatus = async (user: User) => {
     const confirmed = await showConfirm({
@@ -97,6 +149,33 @@ export default function Users() {
       showToast(err.message || 'Failed to update user status.', 'error');
     } finally {
       setTogglingUserId(null);
+    }
+  };
+
+  const handleSetRole = async (user: User, newRole: string) => {
+    const isPromoting = newRole === 'admin';
+    const confirmed = await showConfirm({
+      title: isPromoting ? 'Promote to Admin' : 'Remove Admin',
+      message: isPromoting
+        ? `Are you sure you want to make ${user.fullName} an admin? They will gain full access to the admin panel.`
+        : `Are you sure you want to remove admin privileges from ${user.fullName}?`,
+      variant: isPromoting ? 'default' : 'danger',
+      confirmLabel: isPromoting ? 'Make Admin' : 'Remove Admin',
+      cancelLabel: 'Cancel',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const res = await api.admin.users.setRole(user.uid, newRole);
+      if (res.success) {
+        showToast(`User role updated to ${newRole} successfully.`, 'success');
+        fetchUsers(page);
+      } else {
+        showToast(res.message || 'Failed to update user role.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update user role.', 'error');
     }
   };
 
@@ -196,7 +275,15 @@ export default function Users() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openPaymentLogs(user)}
+                    className="text-[10px] font-bold cursor-pointer text-tint border-tint/30 hover:bg-tint/10"
+                  >
+                    Payment Logs
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -205,6 +292,25 @@ export default function Users() {
                   >
                     Adjust Wallet
                   </Button>
+                  {user.role === 'admin' ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetRole(user, 'customer')}
+                      className="text-[10px] font-bold cursor-pointer text-error-val border-error-val/30 hover:bg-error-val/10"
+                    >
+                      Remove Admin
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetRole(user, 'admin')}
+                      className="text-[10px] font-bold cursor-pointer text-warning border-warning/30 hover:bg-warning/10"
+                    >
+                      Make Admin
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -319,6 +425,96 @@ export default function Users() {
                 </Button>
               </div>
             </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Payment Logs Modal */}
+      {paymentLogsUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="absolute inset-0" onClick={() => setPaymentLogsUser(null)} />
+          <Card
+            padded={true}
+            className="relative bg-card border border-border w-full max-w-lg rounded-2xl flex flex-col gap-4 shadow-2xl animate-scale-up max-h-[80vh] overflow-hidden"
+            style={{ borderRadius: 'var(--radius-xl)' }}
+          >
+            <div className="flex flex-col gap-1">
+              <h3 className="text-lg font-bold text-text-main">
+                Payment Logs — {paymentLogsUser.fullName}
+              </h3>
+              <p className="text-xs text-text-secondary">
+                {paymentLogsTotal} payment{paymentLogsTotal !== 1 ? 's' : ''} found for {paymentLogsUser.uid}
+              </p>
+            </div>
+
+            {paymentLogsLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <svg className="animate-spin h-6 w-6 text-tint" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+            ) : paymentLogs.length === 0 ? (
+              <div className="text-center py-10 text-text-secondary text-sm">
+                No payment logs for this user.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 overflow-y-auto max-h-[50vh]">
+                {paymentLogs.map((log) => (
+                  <div key={log.id} className="p-3 bg-bg-element rounded-lg border border-border flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-success">
+                        ₦{log.details.amount.toLocaleString()}
+                      </span>
+                      <Badge label="Top-up" variant="success" />
+                    </div>
+                    <div className="flex flex-col gap-0.5 text-[10px] text-text-secondary">
+                      <span>Txn: {log.details.transactionId}</span>
+                      <span>Source: {log.details.source}</span>
+                      <span>{new Date(log.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Payment Logs Pagination */}
+            {paymentLogsTotalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 border-t border-border pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => changePaymentLogsPage(Math.max(1, paymentLogsPage - 1))}
+                  disabled={paymentLogsPage <= 1}
+                  className="text-[10px] font-bold cursor-pointer"
+                >
+                  Previous
+                </Button>
+                <span className="text-[10px] font-bold text-text-secondary">
+                  {paymentLogsPage} / {paymentLogsTotalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => changePaymentLogsPage(Math.min(paymentLogsTotalPages, paymentLogsPage + 1))}
+                  disabled={paymentLogsPage >= paymentLogsTotalPages}
+                  className="text-[10px] font-bold cursor-pointer"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+
+            <div className="flex justify-end border-t border-border pt-3">
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() => setPaymentLogsUser(null)}
+                className="cursor-pointer"
+              >
+                Close
+              </Button>
+            </div>
           </Card>
         </div>
       )}

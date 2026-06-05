@@ -271,6 +271,10 @@ export const api = {
         request<any>(`/admin/users?page=${page}&limit=${limit}`),
       toggleStatus: (id: string) =>
         request(`/admin/users/${id}/toggle-status`, { method: 'PUT' }),
+      paymentLogs: (id: string, page = 1, limit = 50) =>
+        request<any>(`/admin/users/${id}/payment-logs?page=${page}&limit=${limit}`),
+      setRole: (uid: string, role: string) =>
+        request(`/admin/users/${uid}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
     },
     reports: {
       downloadSales: (start?: string, end?: string) =>

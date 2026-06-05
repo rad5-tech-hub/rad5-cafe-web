@@ -77,15 +77,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Check user profile for admin role
   useEffect(() => {
     if (user) {
-      // Immediately set isAdmin for known admin emails
-      if (user.email === 'admin@rad5.cafe' || user.email === 'admin@rad5cafe.com') {
-        setIsAdmin(true);
-      }
-
       api.auth.me().then((res) => {
         if (res.success && res.data) {
           setProfile(res.data);
-          if (res.data.role === 'admin' || res.data.email === 'admin@rad5.cafe' || res.data.email === 'admin@rad5cafe.com') {
+          if (res.data.role === 'admin') {
             setIsAdmin(true);
           }
         }
