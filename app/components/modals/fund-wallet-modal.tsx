@@ -108,7 +108,7 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              onWheel={(e) => e.preventDefault()}
+              onWheel={(e) => (e.target as HTMLInputElement).blur()}
               className="w-full text-xl font-bold bg-transparent border-none outline-none text-text-main placeholder:text-text-secondary"
               required
               autoFocus

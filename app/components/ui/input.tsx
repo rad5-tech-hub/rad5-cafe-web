@@ -17,7 +17,7 @@ export const Input: React.FC<InputProps> = ({
   ...props
 }) => {
   const handleWheel = type === 'number' && !onWheel
-    ? (e: React.WheelEvent<HTMLInputElement>) => { e.preventDefault(); }
+    ? (e: React.WheelEvent<HTMLInputElement>) => { (e.target as HTMLInputElement).blur(); }
     : onWheel;
 
   return (
