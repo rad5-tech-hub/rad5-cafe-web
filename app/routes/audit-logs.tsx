@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card } from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
@@ -21,9 +21,12 @@ const actionLabels: Record<string, { label: string; variant: 'default' | 'info' 
   wallet_transfer: { label: 'Wallet Transfer', variant: 'info' },
   order_placed: { label: 'Order Placed', variant: 'info' },
   order_cancelled: { label: 'Order Cancelled', variant: 'error' },
+  issue_order: { label: 'Issue Order', variant: 'info' },
+  adjust_sale: { label: 'Adjust Sale', variant: 'warning' },
   product_added: { label: 'Product Added', variant: 'info' },
   product_updated: { label: 'Product Updated', variant: 'info' },
   product_restocked: { label: 'Product Restocked', variant: 'info' },
+  restock_product: { label: 'Restock Product', variant: 'info' },
   user_status_toggled: { label: 'User Status', variant: 'warning' },
   user_created: { label: 'User Created', variant: 'info' },
   pin_changed: { label: 'PIN Changed', variant: 'warning' },
@@ -33,21 +36,28 @@ const actionLabels: Record<string, { label: string; variant: 'default' | 'info' 
   category_deleted: { label: 'Category Deleted', variant: 'error' },
   alert_acknowledged: { label: 'Alert Ack', variant: 'default' },
   refund_processed: { label: 'Refund', variant: 'error' },
+  webhook_received: { label: 'Webhook Received', variant: 'default' },
 };
 
-const tabs: { label: string; actions: string[] }[] = [
-  { label: 'All', actions: [] },
-  { label: 'Wallet', actions: ['wallet_transaction', 'wallet_transfer', 'payment_finalized', 'refund_processed'] },
-  { label: 'Orders', actions: ['order_placed', 'order_cancelled'] },
-  { label: 'Products', actions: ['product_added', 'product_updated', 'product_restocked'] },
-  { label: 'Users', actions: ['user_status_toggled', 'user_created', 'pin_changed'] },
-  { label: 'Categories', actions: ['category_created', 'category_updated', 'category_deleted'] },
-  { label: 'System', actions: ['admin_login', 'alert_acknowledged'] },
-];
+function formatActionLabel(action: string): string {
+  return actionLabels[action]?.label ?? action
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 function getActionBadge(action: string) {
-  const config = actionLabels[action] ?? { label: action.replace(/_/g, ' '), variant: 'default' as const };
+  const config = actionLabels[action] ?? { label: formatActionLabel(action), variant: 'default' as const };
   return <Badge label={config.label} variant={config.variant} />;
+}
+
+function parseCreatedAt(val: any): string {
+  if (!val) return new Date().toISOString();
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return new Date(val).toISOString();
+  if (val._seconds !== undefined) return new Date(val._seconds * 1000).toISOString();
+  if (val.seconds !== undefined) return new Date(val.seconds * 1000).toISOString();
+  if (typeof val.toDate === 'function') return val.toDate().toISOString();
+  return new Date(val).toISOString();
 }
 
 export function meta() {
@@ -64,6 +74,7 @@ export default function AuditLogs() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('All');
+  const [allActions, setAllActions] = useState<string[]>([]);
 
   const limit = 50;
 
@@ -72,10 +83,20 @@ export default function AuditLogs() {
     api.notifications.auditLogs(pageNum, limit)
       .then((res: any) => {
         if (res.success) {
-          const data = res.logs ?? res.data ?? [];
-          setLogs(Array.isArray(data) ? data : []);
+          const data: any[] = res.logs ?? res.data ?? [];
+          const normalized = data.map((item: any) => ({
+            ...item,
+            createdAt: parseCreatedAt(item.createdAt),
+          }));
+          setLogs(normalized);
           setTotal(res.total ?? data.length);
           setTotalPages(res.totalPages ?? Math.ceil((res.total ?? data.length) / limit));
+
+          const uniqueActions = Array.from(new Set(data.map((l: any) => l.action))) as string[];
+          setAllActions((prev) => {
+            const merged = new Set([...prev, ...uniqueActions]);
+            return Array.from(merged).sort();
+          });
         } else {
           setLogs([]);
         }
@@ -96,30 +117,48 @@ export default function AuditLogs() {
     if (page > 1) fetchLogs(page);
   }, [page, fetchLogs]);
 
+  const tabs = useMemo(() => {
+    const dynamic: { label: string; action: string }[] = allActions.map((action) => ({
+      label: formatActionLabel(action),
+      action,
+    }));
+    return [
+      { label: 'All', action: '' },
+      ...dynamic,
+    ];
+  }, [allActions]);
+
+  const filteredLogs = activeTab === 'All'
+    ? logs
+    : logs.filter((log) => formatActionLabel(log.action) === activeTab);
+
+  const changeTab = (tab: string) => {
+    setActiveTab(tab);
+  };
+
   const formatDetails = (details: Record<string, any> | undefined) => {
     if (!details || Object.keys(details).length === 0) return null;
     const entries = Object.entries(details);
+
     if (entries.length === 1 && entries[0][0] === 'reference') {
       return entries[0][1] as string;
     }
+
     return entries
-      .filter(([key]) => key !== 'source')
+      .filter(([key]) => key !== 'source' && key !== 'amountKobo' && key !== 'ip' && key !== 'timestamp')
       .map(([key, val]) => {
-        if (key === 'amount') return `₦${Number(val).toLocaleString()}`;
-        if (key === 'amountKobo') return null;
+        if (key === 'amount') return `Amount: ₦${Number(val).toLocaleString()}`;
+        if (key === 'total') return `Total: ₦${Number(val).toLocaleString()}`;
+        if (key === 'quantity') return `Qty: ${val}`;
+        if (key === 'oldStatus') return `From: ${val}`;
+        if (key === 'newStatus') return `To: ${val}`;
+        if (key === 'receiptNumber') return `Receipt: ${val}`;
+        if (key === 'transactionId') return `Txn: ${val}`;
+        if (key === 'eventType') return `Event: ${val}`;
         return `${key}: ${typeof val === 'object' ? JSON.stringify(val) : val}`;
       })
       .filter(Boolean)
       .join(' · ');
-  };
-
-  const activeTabConfig = tabs.find((t) => t.label === activeTab) ?? tabs[0];
-  const filteredLogs = activeTabConfig.actions.length === 0
-    ? logs
-    : logs.filter((log) => activeTabConfig.actions.includes(log.action));
-
-  const changeTab = (tab: string) => {
-    setActiveTab(tab);
   };
 
   return (
@@ -134,7 +173,7 @@ export default function AuditLogs() {
         <Badge label={`${total} total`} variant="info" />
       </div>
 
-      {/* Category Tabs */}
+      {/* Dynamic Action Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {tabs.map((tab) => (
           <button
