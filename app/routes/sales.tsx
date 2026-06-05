@@ -22,6 +22,9 @@ type Sale = {
   profit: number;
   status: string;
   date: string;
+  issued?: boolean;
+  issuedAt?: string;
+  issuedBy?: string;
 };
 
 const filters = ['Daily', 'Weekly', 'Monthly', 'All'];
@@ -43,6 +46,9 @@ export default function Sales() {
   const [cancellingSaleId, setCancellingSaleId] = useState<string | null>(null);
   const [cancelPin, setCancelPin] = useState('');
   const [adjusting, setAdjusting] = useState(false);
+
+  const [issuingSaleId, setIssuingSaleId] = useState<string | null>(null);
+  const [issuing, setIssuing] = useState(false);
 
   const fetchSalesData = (filter: string) => {
     setLoading(true);
@@ -88,6 +94,27 @@ export default function Sales() {
       showToast(err.message || 'Failed to cancel order.', 'error');
     } finally {
       setAdjusting(false);
+    }
+  };
+
+  const handleConfirmIssue = async () => {
+    if (!issuingSaleId) return;
+
+    setIssuing(true);
+    try {
+      const res = await api.adminDashboard.sales.issue(issuingSaleId);
+
+      if (res.success) {
+        showToast('Order issued successfully!', 'success');
+        setIssuingSaleId(null);
+        fetchSalesData(activeFilter);
+      } else {
+        showToast(res.message || 'Failed to issue order.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to issue order.', 'error');
+    } finally {
+      setIssuing(false);
     }
   };
 
@@ -184,13 +211,24 @@ export default function Sales() {
                     )}
                   </div>
                   
-                  {sale.status === 'completed' && (
-                    <button
-                      onClick={() => setCancellingSaleId(sale.id)}
-                      className="text-[10px] font-bold text-error-val hover:underline cursor-pointer border border-error-val/30 hover:border-error-val/80 py-1 px-2 rounded-lg bg-error-val/5 transition-all mt-1"
-                    >
-                      Cancel & Refund
-                    </button>
+                  {sale.status === 'completed' && !sale.issued && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setIssuingSaleId(sale.id)}
+                        className="text-[10px] font-bold text-success hover:underline cursor-pointer border border-success/30 hover:border-success/80 py-1 px-2 rounded-lg bg-success/5 transition-all mt-1"
+                      >
+                        Issue
+                      </button>
+                      <button
+                        onClick={() => setCancellingSaleId(sale.id)}
+                        className="text-[10px] font-bold text-error-val hover:underline cursor-pointer border border-error-val/30 hover:border-error-val/80 py-1 px-2 rounded-lg bg-error-val/5 transition-all mt-1"
+                      >
+                        Cancel & Refund
+                      </button>
+                    </div>
+                  )}
+                  {sale.status === 'completed' && sale.issued && (
+                    <Badge label="Issued" variant="success" />
                   )}
                 </div>
               </div>
@@ -251,6 +289,45 @@ export default function Sales() {
                 </Button>
               </div>
             </form>
+          </Card>
+        </div>
+      )}
+
+      {issuingSaleId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="absolute inset-0" onClick={() => setIssuingSaleId(null)} />
+          <Card
+            padded={true}
+            className="relative bg-card border border-border w-full max-w-sm rounded-2xl flex flex-col gap-4 shadow-2xl animate-scale-up"
+            style={{ borderRadius: 'var(--radius-xl)' }}
+          >
+            <div className="flex flex-col gap-1">
+              <h3 className="text-lg font-bold text-text-main">Issue Order</h3>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                Mark this order as processed/fulfilled. This confirms the items have been handed over to the customer.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end border-t border-border pt-3 mt-1">
+              <Button
+                variant="outline"
+                size="md"
+                type="button"
+                onClick={() => setIssuingSaleId(null)}
+                className="cursor-pointer"
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                type="button"
+                onClick={handleConfirmIssue}
+                disabled={issuing}
+                className="bg-success hover:opacity-90 font-bold"
+              >
+                {issuing ? 'Issuing...' : 'Confirm Issue'}
+              </Button>
+            </div>
           </Card>
         </div>
       )}

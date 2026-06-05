@@ -162,6 +162,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     { label: 'Inventory', path: '/inventory', icon: 'package-variant-closed' as const },
     { label: 'Analytics', path: '/analytics', icon: 'trending-up' as const },
     { label: 'Sales Logs', path: '/sales', icon: 'dollar' as const },
+    { label: 'Users', path: '/admin/users', icon: 'account-group' as const },
     { label: 'Reports', path: '/reports', icon: 'file-document' as const },
   ];
 
@@ -242,7 +243,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Mobile Sticky Bottom Navbar */}
         <nav className="md:hidden sticky bottom-0 w-full h-16 bg-card border-t border-border flex items-center justify-around px-2 z-20 shadow-lg">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path || (item.path === '/admin' && ['/admin', '/inventory', '/analytics', '/sales', '/reports'].includes(location.pathname));
+            const isActive = location.pathname === item.path || (item.path === '/admin' && ['/admin', '/admin/users', '/inventory', '/analytics', '/sales', '/reports'].includes(location.pathname));
             return (
               <Link
                 key={item.label}

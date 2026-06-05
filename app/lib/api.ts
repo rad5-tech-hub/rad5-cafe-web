@@ -327,6 +327,8 @@ export const api = {
       },
       adjust: (id: string, body: { status: 'pending' | 'completed' | 'cancelled'; pin: string }) =>
         request<any>(`/admin-dashboard/sales/${id}/adjust`, { method: 'PUT', body: JSON.stringify(body) }),
+      issue: (id: string) =>
+        request<any>(`/admin-dashboard/sales/${id}/issue`, { method: 'PUT' }),
     },
     analytics: {
       revenue: (period = 'weekly', limit = 30) =>
