@@ -24,6 +24,15 @@ export function meta() {
   ];
 }
 
+function safeNum(n: unknown): number {
+  const num = Number(n);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function fmtCurrency(amount: unknown): string {
+  return `₦${safeNum(amount).toLocaleString()}`;
+}
+
 export default function Analytics() {
   const [revenuePeriod, setRevenuePeriod] = useState<Period>('daily');
   const [revenueData, setRevenueData] = useState<RevenueDataPoint[]>([]);
@@ -33,9 +42,12 @@ export default function Analytics() {
   const [highestSpending, setHighestSpending] = useState<TopCustomer[]>([]);
   const [profitData, setProfitData] = useState<ProfitResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchData = (period: Period) => {
     setLoading(true);
+    setError(false);
+
     Promise.all([
       api.adminDashboard.analytics.revenue(period, 30),
       api.adminDashboard.analytics.topProducts(10),
@@ -71,6 +83,13 @@ export default function Analytics() {
       }
     }).catch((err) => {
       console.warn('Could not load analytics:', err);
+      setError(true);
+      setRevenueData([]);
+      setBestSelling([]);
+      setHighestProfit([]);
+      setMostActive([]);
+      setHighestSpending([]);
+      setProfitData(null);
     }).finally(() => setLoading(false));
   };
 
@@ -78,9 +97,10 @@ export default function Analytics() {
     fetchData(revenuePeriod);
   }, [revenuePeriod]);
 
-  const maxRevenue = Math.max(...revenueData.map((d) => d.revenue), 1);
+  const revenueValues = revenueData.map((d) => safeNum(d.revenue));
+  const maxRevenue = Math.max(...revenueValues, 1);
 
-  const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
+  const productProfit = Array.isArray(profitData?.productProfit) ? profitData.productProfit : [];
 
   const formatPeriodDate = (periodStr: string) => {
     try {
@@ -100,6 +120,12 @@ export default function Analytics() {
           Review sales patterns, customer transactions, profit margins, and revenue charts.
         </p>
       </div>
+
+      {error && (
+        <Card className="p-4 text-center text-error-val text-sm font-semibold">
+          Failed to load analytics data. Please try again.
+        </Card>
+      )}
 
       {/* Revenue Chart with period selector */}
       <Card padded={false}>
@@ -139,16 +165,16 @@ export default function Analytics() {
           <div className="px-6 pb-6">
             <div className="flex items-end justify-between h-48">
               {revenueData.map((point) => {
-                const barHeight = (point.revenue / maxRevenue) * 100;
+                const barHeight = (safeNum(point.revenue) / maxRevenue) * 100;
                 return (
                   <div key={point.period} className="flex flex-col items-center gap-2 flex-1 group">
                     <span className="text-[10px] font-bold text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-all">
-                      {formatCurrency(point.revenue)}
+                      {fmtCurrency(point.revenue)}
                     </span>
                     <div
                       className="w-8 bg-tint rounded-t-md hover:opacity-90 transition-all duration-300 animate-scale-up"
                       style={{
-                        height: `${barHeight}%`,
+                        height: `${Number.isFinite(barHeight) ? barHeight : 0}%`,
                         transformOrigin: 'bottom',
                         animationFillMode: 'forwards',
                       }}
@@ -185,30 +211,32 @@ export default function Analytics() {
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="text-center p-3 bg-bg-element rounded-xl">
                 <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Today</span>
-                <p className="text-lg font-extrabold text-success mt-1">{formatCurrency(profitData.dailyProfit)}</p>
+                <p className="text-lg font-extrabold text-success mt-1">{fmtCurrency(profitData.dailyProfit)}</p>
               </div>
               <div className="text-center p-3 bg-bg-element rounded-xl">
                 <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">This Month</span>
-                <p className="text-lg font-extrabold text-success mt-1">{formatCurrency(profitData.monthlyProfit)}</p>
+                <p className="text-lg font-extrabold text-success mt-1">{fmtCurrency(profitData.monthlyProfit)}</p>
               </div>
               <div className="text-center p-3 bg-bg-element rounded-xl">
                 <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Lifetime</span>
-                <p className="text-lg font-extrabold text-tint mt-1">{formatCurrency(profitData.lifetimeProfit)}</p>
+                <p className="text-lg font-extrabold text-tint mt-1">{fmtCurrency(profitData.lifetimeProfit)}</p>
               </div>
             </div>
 
-            {profitData.productProfit.length > 0 && (
+            {productProfit.length > 0 && (
               <div>
                 <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">Per Product</h4>
                 <div className="divide-y divide-border">
-                  {profitData.productProfit.map((pp) => (
+                  {productProfit.map((pp) => (
                     <div key={pp.productId} className="flex justify-between items-center py-2.5 first:pt-0 last:pb-0">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-semibold text-sm text-text-main">{pp.productName}</span>
-                        <span className="text-xs text-text-secondary">{pp.unitsSold} sold · {pp.margin.toFixed(1)}% margin</span>
+                        <span className="text-xs text-text-secondary">
+                          {safeNum(pp.unitsSold)} sold · {safeNum(pp.margin).toFixed(1)}% margin
+                        </span>
                       </div>
                       <span className="text-sm font-extrabold text-success select-all">
-                        {formatCurrency(pp.profit)}
+                        {fmtCurrency(pp.profit)}
                       </span>
                     </div>
                   ))}
@@ -250,7 +278,7 @@ export default function Analytics() {
                     </div>
                   </div>
                   <span className="text-sm font-extrabold text-text-main select-all">
-                    {formatCurrency(p.totalRevenue)}
+                    {fmtCurrency(p.totalRevenue)}
                   </span>
                 </div>
               ))}
@@ -287,7 +315,7 @@ export default function Analytics() {
                     </div>
                   </div>
                   <span className="text-sm font-extrabold text-success select-all">
-                    {formatCurrency(p.totalProfit)}
+                    {fmtCurrency(p.totalProfit)}
                   </span>
                 </div>
               ))}
@@ -327,7 +355,7 @@ export default function Analytics() {
                     </div>
                   </div>
                   <span className="text-sm font-extrabold text-text-main select-all">
-                    {formatCurrency(c.totalSpent)}
+                    {fmtCurrency(c.totalSpent)}
                   </span>
                 </div>
               ))}
@@ -364,7 +392,7 @@ export default function Analytics() {
                     </div>
                   </div>
                   <span className="text-sm font-extrabold text-success select-all">
-                    {formatCurrency(c.totalSpent)}
+                    {fmtCurrency(c.totalSpent)}
                   </span>
                 </div>
               ))}
