@@ -81,11 +81,21 @@ export type RevenueDataPoint = {
 };
 
 export type TopProduct = {
-  productId: string;
-  productName: string;
+  id: string;
+  name: string;
+  categoryId: string;
+  description: string;
+  imageUrl: string;
+  costPrice: number;
+  sellingPrice: number;
+  profitPerUnit: number;
+  totalAdded: number;
   totalSold: number;
-  totalRevenue: number;
-  totalProfit: number;
+  lowStockThreshold: number;
+  isActive: boolean;
+  quantity: number;
+  createdAt: { _seconds: number; _nanoseconds: number };
+  updatedAt: { _seconds: number; _nanoseconds: number };
 };
 
 export type TopCustomer = {

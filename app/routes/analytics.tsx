@@ -98,8 +98,6 @@ export default function Analytics() {
     fetchData(revenuePeriod);
   }, [revenuePeriod]);
 
-  const productProfit = Array.isArray(profitData?.productProfit) ? profitData.productProfit : [];
-
   const chartData = revenueData.map((d) => ({
     period: d.period,
     revenue: safeNum(d.revenue),
@@ -217,7 +215,7 @@ export default function Analytics() {
           </div>
         ) : (
           <div className="px-6 pb-6">
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="text-center p-3 bg-bg-element rounded-xl">
                 <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Today</span>
                 <p className="text-lg font-extrabold text-success mt-1">{fmtCurrency(profitData.dailyProfit)}</p>
@@ -231,27 +229,6 @@ export default function Analytics() {
                 <p className="text-lg font-extrabold text-tint mt-1">{fmtCurrency(profitData.lifetimeProfit)}</p>
               </div>
             </div>
-
-            {productProfit.length > 0 && (
-              <div>
-                <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">Per Product</h4>
-                <div className="divide-y divide-border">
-                  {productProfit.map((pp) => (
-                    <div key={pp.productId} className="flex justify-between items-center py-2.5 first:pt-0 last:pb-0">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-semibold text-sm text-text-main">{pp.productName}</span>
-                        <span className="text-xs text-text-secondary">
-                          {safeNum(pp.unitsSold)} sold · {safeNum(pp.margin).toFixed(1)}% margin
-                        </span>
-                      </div>
-                      <span className="text-sm font-extrabold text-success select-all">
-                        {fmtCurrency(pp.profit)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </Card>
@@ -276,18 +253,18 @@ export default function Analytics() {
           ) : (
             <div className="px-6 pb-6 divide-y divide-border">
               {bestSelling.map((p, index) => (
-                <div key={p.productId} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
+                <div key={p.id} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center bg-tint/15 text-tint font-bold text-xs">
                       {index + 1}
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-sm text-text-main">{p.productName}</span>
-                      <span className="text-xs text-text-secondary">{p.totalSold} units sold</span>
+                      <span className="font-semibold text-sm text-text-main">{p.name}</span>
+                      <span className="text-xs text-text-secondary">{safeNum(p.totalSold)} units sold</span>
                     </div>
                   </div>
                   <span className="text-sm font-extrabold text-text-main select-all">
-                    {fmtCurrency(p.totalRevenue)}
+                    {fmtCurrency(safeNum(p.sellingPrice) * safeNum(p.totalSold))}
                   </span>
                 </div>
               ))}
@@ -313,18 +290,18 @@ export default function Analytics() {
           ) : (
             <div className="px-6 pb-6 divide-y divide-border">
               {highestProfit.map((p, index) => (
-                <div key={p.productId} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
+                <div key={p.id} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center bg-success/15 text-success font-bold text-xs">
                       {index + 1}
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-sm text-text-main">{p.productName}</span>
-                      <span className="text-xs text-text-secondary">{p.totalSold} units sold</span>
+                      <span className="font-semibold text-sm text-text-main">{p.name}</span>
+                      <span className="text-xs text-text-secondary">{safeNum(p.totalSold)} sold · ₦{safeNum(p.profitPerUnit)}/unit</span>
                     </div>
                   </div>
                   <span className="text-sm font-extrabold text-success select-all">
-                    {fmtCurrency(p.totalProfit)}
+                    {fmtCurrency(safeNum(p.profitPerUnit) * safeNum(p.totalSold))}
                   </span>
                 </div>
               ))}
