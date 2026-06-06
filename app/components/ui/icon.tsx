@@ -30,7 +30,10 @@ export type IconName =
   | 'camera'
   | 'edit'
   | 'log-out'
-  | 'shield-check';
+  | 'shield-check'
+  | 'smartphone'
+  | 'upload';
+
 
 interface IconProps {
   name: IconName;
@@ -100,6 +103,10 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.LogOut;
       case 'shield-check':
         return Lucide.ShieldCheck;
+      case 'smartphone':
+        return Lucide.Smartphone;
+      case 'upload':
+        return Lucide.Upload;
       default:
         return Lucide.HelpCircle;
     }

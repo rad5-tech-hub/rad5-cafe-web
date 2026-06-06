@@ -16,6 +16,7 @@ export default [
   route("analytics", "routes/analytics.tsx"),
   route("sales", "routes/sales.tsx"),
   route("reports", "routes/reports.tsx"),
+  route("admin/updates", "routes/updates.tsx"),
   route("history", "routes/history.tsx"),
   route("notifications", "routes/notifications.tsx"),
 ] satisfies RouteConfig;

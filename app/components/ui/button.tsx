@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'glass-blue';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -20,19 +20,22 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const getVariantStyles = () => {
+    const solidBase = 'shadow-lg';
     switch (variant) {
       case 'primary':
-        return 'bg-tint text-white hover:opacity-90 active:opacity-80';
+        return `bg-tint-dark ${solidBase} text-white hover:shadow-tint-dark/40 hover:-translate-y-px active:scale-[0.98]`;
       case 'secondary':
-        return 'bg-accent text-white hover:opacity-90 active:opacity-80';
+        return `bg-accent ${solidBase} text-white hover:shadow-accent/40 hover:-translate-y-px active:scale-[0.98]`;
       case 'outline':
-        return 'bg-transparent border-[1.5px] border-tint text-tint hover:bg-tint/5 active:bg-tint/10';
+        return 'glass-subtle text-tint hover:bg-tint/8 active:bg-tint/12';
       case 'ghost':
-        return 'bg-transparent text-tint hover:bg-tint/5 active:bg-tint/10';
+        return 'bg-transparent text-tint hover:bg-tint/8 active:bg-tint/12';
       case 'danger':
-        return 'bg-error-val text-white hover:opacity-90 active:opacity-80';
+        return `bg-error-val ${solidBase} text-white hover:shadow-error-val/40 hover:-translate-y-px active:scale-[0.98]`;
+      case 'glass-blue':
+        return 'glass-blue hover:bg-tint-dark/15 active:bg-tint-dark/25 dark:hover:bg-tint-dark/35 dark:active:bg-tint-dark/45';
       default:
-        return 'bg-tint text-white';
+        return `bg-tint-dark ${solidBase} text-white`;
     }
   };
 

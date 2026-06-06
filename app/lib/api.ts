@@ -349,6 +349,18 @@ export const api = {
       request<any>(`/images/search?q=${encodeURIComponent(q)}&count=${count}`),
   },
 
+  // ── App Version ───────────────────────────────────
+  version: {
+    get: () => request<any>('/version'),
+    update: (body: {
+      version: string;
+      versionCode: number;
+      apkLink: string;
+      releaseNotes?: string;
+      forceUpdate?: boolean;
+    }) => request('/version/update', { method: 'PUT', body: JSON.stringify(body) }),
+  },
+
   // ── Admin Analytics & Users (v1) ──────────────────
   admin: {
     analytics: {

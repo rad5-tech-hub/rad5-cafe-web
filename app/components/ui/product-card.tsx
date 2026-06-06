@@ -50,7 +50,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             Sold Out
           </span>
         ) : quantity > 0 ? (
-          <div className="flex items-center gap-1 bg-black/55 backdrop-blur-xs rounded-full p-0.5 border border-white/10">
+          <div className="flex items-center gap-1 bg-black/75 rounded-full p-0.5 border border-white/10">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -87,7 +87,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Card Content Overlay */}
-      <div className="relative z-10 w-full p-3 flex flex-col items-center gap-0.5 bg-black/45 backdrop-blur-xs text-white text-center">
+      <div className="relative z-10 w-full p-3 flex flex-col items-center gap-0.5 bg-black/70 text-white text-center">
         {children || (
           <>
             <span className="text-xs font-bold truncate max-w-full leading-tight">{item.name}</span>

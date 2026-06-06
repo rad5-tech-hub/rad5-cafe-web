@@ -59,16 +59,16 @@ export default function Register() {
       {/* Action Card */}
       <Card
         padded={true}
-        className="relative z-10 w-full max-w-sm flex flex-col gap-6 bg-card/65 backdrop-blur-md border border-white/10 shadow-2xl select-none"
+        className="relative z-10 w-full max-w-sm flex flex-col gap-6 bg-card border border-border shadow-2xl select-none"
       >
         <div className="text-center flex flex-col gap-1.5">
           <h1
-            className="text-2xl font-bold text-white tracking-tight"
+            className="text-2xl font-bold text-text-main tracking-tight"
             style={{ fontFamily: 'var(--font-rounded)' }}
           >
             Create Account
           </h1>
-          <p className="text-white/80 text-xs">
+          <p className="text-text-secondary text-xs">
             Join the RAD5 Café smart wallet ecosystem
           </p>
         </div>
@@ -80,7 +80,7 @@ export default function Register() {
             fullWidth={true}
             loading={loading}
             onClick={handleGoogleSignUp}
-            className="bg-white/10 hover:bg-white/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-3 py-3.5 border border-white/10 shadow-xs font-bold text-white cursor-pointer"
+            className="bg-bg-element hover:bg-bg-selected/35 hover:scale-[1.01] transition-all flex items-center justify-center gap-3 py-3.5 border border-border shadow-xs font-bold text-text-main cursor-pointer"
           >
             <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
               <path
@@ -104,9 +104,9 @@ export default function Register() {
           </AnimatedButton>
         </div>
 
-        <div className="text-xs text-center text-white/80 border-t border-white/10 pt-4 flex items-center justify-center gap-1.5 font-semibold font-rounded">
+        <div className="text-xs text-center text-text-secondary border-t border-border pt-4 flex items-center justify-center gap-1.5 font-semibold font-rounded">
           <span>Already have an account?</span>
-          <Link to="/login" className="text-white underline hover:text-white/90">
+          <Link to="/login" className="text-tint underline hover:text-tint-dark">
             Sign In
           </Link>
         </div>

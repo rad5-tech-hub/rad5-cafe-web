@@ -87,7 +87,7 @@ export default function Login() {
 
       <Card
         padded={true}
-        className="relative z-10 w-full max-w-sm flex flex-col gap-5 bg-card/75 backdrop-blur-md border border-white/10 shadow-2xl select-none"
+        className="relative z-10 w-full max-w-sm flex flex-col gap-5 bg-card border border-border shadow-2xl select-none"
       >
         <div className="flex flex-col gap-1 text-center">
           <h2 className="text-xl font-extrabold text-text-main">
@@ -121,11 +121,11 @@ export default function Login() {
 
             <AnimatedButton
               type="submit"
-              variant="primary"
+              variant="secondary"
               size="lg"
               fullWidth={true}
               loading={loading}
-              className="font-bold mt-1.5 bg-accent hover:opacity-90 transition-colors"
+              className="font-bold mt-1.5"
             >
               Secure Staff Login
             </AnimatedButton>

@@ -451,11 +451,10 @@ export default function Admin() {
                 />
                 <Button
                   type="submit"
-                  variant="primary"
+                  variant="secondary"
                   size="md"
                   fullWidth={true}
                   disabled={walletLoading}
-                  className="bg-accent hover:opacity-90 font-bold"
                 >
                   {walletLoading ? 'Adjusting...' : 'Perform Adjustment'}
                 </Button>

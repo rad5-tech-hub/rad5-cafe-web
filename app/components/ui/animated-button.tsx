@@ -23,7 +23,7 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
     return (
       <div className={`relative overflow-visible ${fullWidth ? 'w-full' : 'inline-block'}`}>
         {/* Glow Layer */}
-        <div className="absolute inset-[-4px] rounded-xl bg-gradient-to-r from-blue-500 via-red-600 to-blue-500 opacity-80 blur-md animate-pulse-slow"></div>
+        <div className="absolute inset-[-4px] rounded-xl bg-gradient-to-r from-blue-400 via-indigo-400 to-blue-400 opacity-60 blur-md animate-pulse-slow"></div>
         {/* Spinner Button */}
         <Button
           variant={variant}

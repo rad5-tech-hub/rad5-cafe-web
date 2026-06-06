@@ -542,11 +542,10 @@ export default function Users() {
                     Cancel
                   </Button>
                   <Button
-                    variant="primary"
+                    variant="secondary"
                     size="sm"
                     type="submit"
                     disabled={walletLoading}
-                    className="bg-accent hover:opacity-90 font-bold text-xs"
                   >
                     {walletLoading ? 'Adjusting...' : 'Adjust Balance'}
                   </Button>

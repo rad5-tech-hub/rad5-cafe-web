@@ -12,17 +12,17 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant = 'default', classN
   const getStyles = () => {
     switch (variant) {
       case 'default':
-        return 'bg-bg-selected text-text-secondary';
+        return 'glass-subtle text-text-secondary';
       case 'info':
-        return 'bg-tint/15 text-tint';
+        return 'bg-tint/12 text-tint';
       case 'success':
-        return 'bg-success/15 text-success';
+        return 'bg-success/12 text-success';
       case 'warning':
-        return 'bg-warning/15 text-warning';
+        return 'bg-warning/12 text-warning';
       case 'error':
-        return 'bg-error-val/15 text-error-val';
+        return 'bg-error-val/12 text-error-val';
       default:
-        return 'bg-bg-selected text-text-secondary';
+        return 'glass-subtle text-text-secondary';
     }
   };
 

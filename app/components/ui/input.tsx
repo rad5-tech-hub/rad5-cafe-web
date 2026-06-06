@@ -34,8 +34,8 @@ export const Input: React.FC<InputProps> = ({
         id={id}
         type={type}
         onWheel={handleWheel}
-        className={`bg-bg-element border text-text-main text-base outline-none transition-colors duration-200 w-full placeholder:text-text-secondary ${
-          error ? 'border-error-val focus:border-error-val' : 'border-border focus:border-tint'
+        className={`bg-bg-element border text-text-main text-base outline-none transition-all duration-200 w-full placeholder:text-text-secondary/60 ${
+          error ? 'border-error-val focus:border-error-val' : 'border-border focus:border-tint focus:shadow-md focus:shadow-tint/10'
         } ${className}`}
         style={{
           borderWidth: '1.5px',

@@ -90,7 +90,7 @@ export default function SetupPin() {
       {/* Action Card */}
       <Card
         padded={true}
-        className="relative z-10 w-full max-w-sm flex flex-col items-center gap-8 bg-card/65 backdrop-blur-md border border-white/10 shadow-2xl"
+        className="relative z-10 w-full max-w-sm flex flex-col items-center gap-8 bg-card border border-border shadow-2xl"
       >
         <div className="flex justify-center gap-4 w-full">
           {pin.map((digit, i) => (
@@ -107,9 +107,9 @@ export default function SetupPin() {
               onChange={(e) => handlePinChange(e.target.value, i)}
               onKeyDown={(e) => handleKeyDown(e, i)}
               autoFocus={i === 0}
-              className="w-14 h-16 text-center text-3xl font-extrabold text-white bg-white/10 border-2 rounded-xl outline-none focus:outline-none transition-colors duration-200 select-all"
+              className="w-14 h-16 text-center text-3xl font-extrabold text-text-main bg-bg-element border-2 rounded-xl outline-none focus:outline-none transition-colors duration-200 select-all"
               style={{
-                borderColor: digit ? 'var(--color-tint)' : 'rgba(255,255,255,0.25)',
+                borderColor: digit ? 'var(--color-tint)' : 'var(--color-border)',
               }}
             />
           ))}

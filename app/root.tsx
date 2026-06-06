@@ -73,6 +73,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<any>(null);
 
   const isAuthRoute = ['/', '/login', '/register', '/setup-pin'].includes(location.pathname);
+  const isAdminRoute = location.pathname.startsWith('/admin') || 
+                       ['/inventory', '/analytics', '/sales', '/reports'].includes(location.pathname);
 
   // Check user profile for admin role
   useEffect(() => {
@@ -160,15 +162,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     { label: 'Users', path: '/admin/users', icon: 'account-group' as const },
     { label: 'Audit Logs', path: '/admin/audit-logs', icon: 'shield-check' as const },
     { label: 'Reports', path: '/reports', icon: 'file-document' as const },
+    { label: 'App Updates', path: '/admin/updates', icon: 'smartphone' as const },
   ];
 
   const navItems = isAdmin ? adminNavItems : userNavItems;
 
   return (
-    <div className="min-h-screen flex bg-bg-page">
+    <div className={`min-h-screen flex bg-bg-page transition-colors duration-300 ${isAdminRoute ? 'admin-layout' : ''}`}>
       {/* Desktop Sidebar Navigation */}
-      <aside className="hidden md:flex flex-col w-72 bg-card border-r border-border fixed top-0 bottom-0 left-0 z-20">
-        <div className="h-20 flex items-center gap-3 px-8 border-b border-border">
+      <aside className="hidden md:flex flex-col w-72 glass-heavy fixed top-0 bottom-0 left-0 z-20 border-r-0 rounded-r-3xl">
+        <div className="h-20 flex items-center gap-3 px-8 border-b border-border/50">
           <div className="w-10 h-10 flex items-center justify-center">
             <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-10 h-10" />
           </div>
@@ -187,12 +190,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                 to={item.path}
                 className={`flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-tint text-white shadow-md shadow-tint/10'
-                    : 'text-text-secondary hover:bg-bg-selected hover:text-text-main'
+                    ? 'bg-tint-dark text-white shadow-md shadow-tint-dark/15'
+                    : 'text-black dark:text-white hover:bg-bg-selected hover:text-text-main'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon name={item.icon} size={18} color={isActive ? '#FFFFFF' : 'var(--color-text-secondary)'} />
+                  <Icon name={item.icon} size={18} color={isActive ? '#FFFFFF' : 'currentColor'} />
                   <span>{item.label}</span>
                 </div>
               </Link>
@@ -202,7 +205,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Bottom Sign Out Area */}
-        <div className="p-4 border-t border-border mt-auto">
+        <div className="p-4 border-t border-border/50 mt-auto">
           <button
             onClick={handleSignOut}
             className="flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold text-error-val hover:bg-error-val/10 rounded-xl transition-all duration-200 cursor-pointer"
@@ -216,7 +219,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:pl-72 min-h-screen">
         {/* Mobile Header */}
-        <header className="md:hidden h-16 flex items-center justify-between px-6 bg-card border-b border-border sticky top-0 z-20">
+        <header className="md:hidden h-16 flex items-center justify-between px-6 glass sticky top-0 z-20">
           <div className="flex items-center gap-2">
             <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-8 h-8" />
             <span className="font-extrabold text-base tracking-tight text-text-main">RAD5 Café</span>
@@ -237,7 +240,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
 
         {/* Mobile Sticky Bottom Navbar */}
-        <nav className="md:hidden sticky bottom-0 w-full h-16 bg-card border-t border-border flex items-center justify-around px-2 z-20 shadow-lg">
+        <nav className="md:hidden sticky bottom-0 w-full h-16 glass flex items-center justify-around px-2 z-20 shadow-lg">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path === '/admin' && ['/admin', '/admin/users', '/admin/audit-logs', '/inventory', '/analytics', '/sales', '/reports'].includes(location.pathname));
             return (
@@ -245,10 +248,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.label}
                 to={item.path}
                 className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-200 ${
-                  isActive ? 'text-tint' : 'text-text-secondary'
+                  isActive ? 'text-tint-dark font-extrabold' : 'text-black dark:text-white'
                 }`}
               >
-                <Icon name={item.icon} size={20} color={isActive ? 'var(--color-tint)' : 'var(--color-text-secondary)'} />
+                <Icon name={item.icon} size={20} color={isActive ? 'var(--color-tint-dark)' : 'currentColor'} />
                 <span className="text-[10px] font-bold mt-1 leading-none">{item.label.split(' ')[0]}</span>
               </Link>
             );
@@ -258,7 +261,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Floating Bottom Cart Status Bar */}
       {!isAuthRoute && cartCount > 0 && (
-        <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-[19.5rem] md:right-6 bg-card border border-border rounded-xl p-4 flex justify-between items-center shadow-2xl z-30 animate-slide-up">
+        <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-[19.5rem] md:right-6 glass-heavy rounded-xl p-4 flex justify-between items-center z-30 animate-slide-up">
           <div className="flex flex-col">
             <span className="text-xs text-text-secondary font-semibold">{cartCount} items in basket</span>
             <span className="text-lg font-extrabold text-tint">₦{cartTotal.toLocaleString()}</span>

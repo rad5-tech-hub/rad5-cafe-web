@@ -123,20 +123,30 @@ export default function Cafe() {
         </div>
 
         {/* Search Bar */}
-        <div className="relative w-full md:w-72">
-          <Input
+        <div className="relative w-full md:w-80">
+          <input
+            type="text"
             placeholder="Search catalog items..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 text-xs"
-            style={{ paddingLeft: '2.5rem' }}
+            className="w-full pl-11 pr-10 py-2.5 text-xs font-semibold bg-bg-element border border-border rounded-xl text-text-main placeholder:text-text-secondary/60 outline-none transition-all duration-200 focus:border-tint focus:ring-2 focus:ring-tint/10 focus:shadow-md cursor-pointer"
           />
-          <div className="absolute top-1/2 left-3.5 -translate-y-1/2 text-text-secondary pointer-events-none">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <div className="absolute top-1/2 left-4 -translate-y-1/2 text-text-secondary/70 pointer-events-none flex items-center justify-center">
+            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </div>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute top-1/2 right-3 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-text-secondary hover:bg-bg-selected/80 hover:text-text-main transition-colors cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
