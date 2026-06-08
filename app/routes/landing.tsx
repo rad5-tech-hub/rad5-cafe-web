@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '~/context/auth-context';
 import { useToast } from '~/context/toast-context';
+import { api } from '~/lib/api';
 
-const APK_URL = 'https://firebasestorage.googleapis.com/v0/b/shield-3f2ba.firebasestorage.app/o/apps%2Fcafe1.1.apk?alt=media&token=d15ab3e4-a65c-47ec-b40c-2da3adb55272';
+const DEFAULT_APK_URL = 'https://firebasestorage.googleapis.com/v0/b/shield-3f2ba.firebasestorage.app/o/apps%2Fcafe1.1.apk?alt=media&token=d15ab3e4-a65c-47ec-b40c-2da3adb55272';
 
 const IMAGES = [
   'https://images.pexels.com/photos/34932768/pexels-photo-34932768.jpeg',
@@ -40,10 +41,23 @@ export default function Landing() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [loggingIn, setLoggingIn] = useState(false);
   const [showApkPopup, setShowApkPopup] = useState(false);
+  const [apkUrl, setApkUrl] = useState(DEFAULT_APK_URL);
 
   useEffect(() => {
     const t = setInterval(() => setActiveIdx(i => (i + 1) % IMAGES.length), 5000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    api.version.check('android')
+      .then((res) => {
+        if (res.success && res.data?.apkLink) {
+          setApkUrl(res.data.apkLink);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch latest version info:', err);
+      });
   }, []);
 
   useEffect(() => {
@@ -57,7 +71,11 @@ export default function Landing() {
   const handleGoogleSignIn = async () => {
     try {
       setLoggingIn(true);
-      const isNewUser = await signInWithGoogle();
+      const result = await signInWithGoogle();
+      if (result.redirected) {
+        return;
+      }
+      const isNewUser = result.isNewUser;
       showToast(isNewUser ? "Welcome! Let's setup your PIN." : 'Welcome back!', 'success');
       navigate(isNewUser ? '/setup-pin' : '/dashboard');
     } catch (error: any) {
@@ -82,7 +100,7 @@ export default function Landing() {
             operatingSystem: 'Android',
             description: 'Smart wallet and instant ordering for RAD5 Café. Secure PIN checkout and real-time inventory.',
             url: 'https://rad5cafe.vercel.app',
-            downloadUrl: APK_URL,
+            downloadUrl: apkUrl,
             offers: { '@type': 'Offer', price: '0', priceCurrency: 'NGN' },
             provider: { '@type': 'Organization', name: 'RAD5 Tech Hub' },
           }),
@@ -186,7 +204,7 @@ export default function Landing() {
             </div>
             <div className="flex flex-col w-full gap-2">
               <a
-                href={APK_URL}
+                href={apkUrl}
                 className="w-full py-3 rounded-xl bg-white text-[#003D99] font-bold text-sm hover:bg-gray-100 transition-all cursor-pointer text-center"
               >
                 Download Current Version

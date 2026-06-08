@@ -14,6 +14,47 @@ import {
 
 import { auth } from '~/lib/firebase';
 import { api } from '~/lib/api';
+import { useToast } from '~/context/toast-context';
+
+export type GoogleSignInResult = {
+  redirected: boolean;
+  isNewUser?: boolean;
+};
+
+export function getFriendlyAuthErrorMessage(error: any): string {
+  if (!error) return 'An unknown error occurred.';
+  const code = error.code || error.message || '';
+  
+  if (code.includes('auth/popup-blocked')) {
+    return 'The sign-in pop-up was blocked by your browser. Redirecting you to complete sign-in...';
+  }
+  if (code.includes('auth/popup-closed-by-user')) {
+    return 'The sign-in window was closed before finishing. Please try again.';
+  }
+  if (code.includes('auth/cancelled-popup-request')) {
+    return 'Sign-in request was cancelled. Please try again.';
+  }
+  if (code.includes('auth/network-request-failed')) {
+    return 'Network connection error. Please check your internet connection and try again.';
+  }
+  if (code.includes('auth/account-exists-with-different-credential')) {
+    return 'An account already exists with this email address but using a different sign-in method.';
+  }
+  if (code.includes('auth/operation-not-allowed')) {
+    return 'Google Sign-In is not enabled for this platform. Please contact administrator.';
+  }
+  if (code.includes('auth/user-disabled')) {
+    return 'Your account has been disabled. Please contact support.';
+  }
+  if (code.includes('auth/internal-error')) {
+    return 'An internal error occurred. Please try again later.';
+  }
+  if (code.includes('auth/invalid-credential')) {
+    return 'Invalid sign-in credentials. Please try again.';
+  }
+
+  return error.message || 'Google Sign-In failed. Please try again.';
+}
 
 type AuthContextType = {
   user: any;
@@ -21,7 +62,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<boolean>;
+  signInWithGoogle: () => Promise<GoogleSignInResult>;
   googleRedirectResult: { isNewUser: boolean } | null;
   consumeGoogleRedirectResult: () => { isNewUser: boolean } | null;
 };
@@ -29,6 +70,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { showToast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [googleRedirectResult, setGoogleRedirectResult] = useState<{ isNewUser: boolean } | null>(null);
@@ -57,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }).catch((err) => {
       console.warn('Redirect sign-in error:', err);
+      showToast(getFriendlyAuthErrorMessage(err), 'error');
     });
   }, []);
 
@@ -74,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
@@ -89,13 +132,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.warn('Backend profile update failed:', err);
         }
       }
-      return isNewUser;
+      return { redirected: false, isNewUser };
     } catch (error: any) {
-      if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      if (error.code === 'auth/popup-blocked') {
+        showToast('The Google Sign-In pop-up was blocked. Redirecting you to complete sign-in...', 'info');
         await signInWithRedirect(auth, provider);
-        return false;
+        return { redirected: true };
       }
-      throw error;
+      
+      const friendlyMessage = getFriendlyAuthErrorMessage(error);
+      const friendlyError = new Error(friendlyMessage);
+      (friendlyError as any).code = error.code;
+      throw friendlyError;
     }
   };
 

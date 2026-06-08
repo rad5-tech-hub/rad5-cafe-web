@@ -37,7 +37,11 @@ export default function Login() {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const isNewUser = await signInWithGoogle();
+      const result = await signInWithGoogle();
+      if (result.redirected) {
+        return;
+      }
+      const isNewUser = result.isNewUser;
       showToast(isNewUser ? "Welcome! Let's setup your PIN." : "Welcome back to RAD5 Café!", 'success');
       navigate(isNewUser ? '/setup-pin' : '/dashboard');
     } catch (error: any) {

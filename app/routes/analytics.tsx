@@ -104,8 +104,20 @@ export default function Analytics() {
     profit: safeNum(d.profit),
     label: (() => {
       try {
+        if (revenuePeriod === 'monthly' && /^\d{4}-\d{2}$/.test(d.period)) {
+          const [y, m] = d.period.split('-');
+          const dt = new Date(Date.UTC(Number(y), Number(m) - 1, 1));
+          return dt.toLocaleDateString('en-NG', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+        }
+        
         const dt = new Date(d.period);
         if (!isNaN(dt.getTime())) {
+          if (revenuePeriod === 'monthly') {
+            return dt.toLocaleDateString('en-NG', { month: 'short', year: 'numeric' });
+          }
+          if (revenuePeriod === 'weekly') {
+            return `Wk of ${dt.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}`;
+          }
           return dt.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
         }
       } catch {}

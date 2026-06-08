@@ -35,7 +35,11 @@ export default function Register() {
   const handleGoogleSignUp = async () => {
     try {
       setLoading(true);
-      const isNewUser = await signInWithGoogle();
+      const result = await signInWithGoogle();
+      if (result.redirected) {
+        return;
+      }
+      const isNewUser = result.isNewUser;
       if (isNewUser) {
         showToast('Account created successfully! Now set up your security PIN.', 'success');
         navigate('/setup-pin');

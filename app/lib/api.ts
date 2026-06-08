@@ -359,6 +359,7 @@ export const api = {
       releaseNotes?: string;
       forceUpdate?: boolean;
     }) => request('/version/update', { method: 'PUT', body: JSON.stringify(body) }),
+    check: (platform = 'android') => request<any>(`/version/check?platform=${platform}`),
   },
 
   // ── Admin Analytics & Users (v1) ──────────────────
