@@ -48,7 +48,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
   if (!isOpen || !product) return null;
 
-  const pid = product.id ?? product._id;
+  const pid = product.id ?? product._id ?? product.productId;
   const cost = parseInt(costPrice, 10) || 0;
   const selling = parseInt(sellingPrice, 10) || 0;
   const lowStockThresholdNum = parseInt(lowStockThreshold, 10) || 0;
