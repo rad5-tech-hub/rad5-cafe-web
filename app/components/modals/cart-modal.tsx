@@ -42,8 +42,6 @@ export const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, onOrderPl
   const [checkingStock, setCheckingStock] = useState(false);
   const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  if (!isOpen) return null;
-
   useEffect(() => {
     if (!isOpen || step !== 'cart' || cart.length === 0) {
       setStockMap({});
@@ -76,6 +74,8 @@ export const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, onOrderPl
     checkStock();
     return () => { cancelled = true; };
   }, [isOpen, step, cart]);
+
+  if (!isOpen) return null;
 
   const updateQuantity = (item: CartItem, delta: number) => {
     if (delta > 0) {
