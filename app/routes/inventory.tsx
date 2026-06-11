@@ -33,6 +33,7 @@ export default function Inventory() {
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Hidden'>('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showRestock, setShowRestock] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +101,9 @@ export default function Inventory() {
     const matchesStatus = statusFilter === 'All'
       || (statusFilter === 'Active' && !isHidden)
       || (statusFilter === 'Hidden' && isHidden);
-    return matchesCategory && matchesStatus;
+    const matchesSearch = !searchQuery
+      || p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesStatus && matchesSearch;
   });
 
 
@@ -163,6 +166,23 @@ export default function Inventory() {
             Restock
           </Button>
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <svg
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary"
+          fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+        >
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input
+          type="text"
+          placeholder="Search products by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full bg-bg-element border border-border text-text-main text-sm pl-10 pr-4 py-2.5 rounded-xl outline-none focus:border-tint placeholder:text-text-secondary transition-colors"
+        />
       </div>
 
       {/* Category Chips Bar */}
