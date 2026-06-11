@@ -98,6 +98,24 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
   const [period, setPeriod] = useState<PeriodOption>('this_month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [appliedParams, setAppliedParams] = useState<{ period?: string; startDate?: string; endDate?: string }>({ period: 'this_month' });
+
+  const handlePeriodChange = (p: PeriodOption) => {
+    setPeriod(p);
+    if (p !== 'custom') {
+      const params = { period: p };
+      setAppliedParams(params);
+      setStartDate('');
+      setEndDate('');
+    }
+  };
+
+  const handleApplyCustom = () => {
+    const params: { period?: string; startDate?: string; endDate?: string } = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    setAppliedParams(params);
+  };
 
   const fetchAnalytics = useCallback(() => {
     if (!productId) return;
@@ -106,15 +124,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
     setLoading(true);
     setError(null);
 
-    const params: { period?: string; startDate?: string; endDate?: string } = {};
-    if (period === 'custom') {
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
-    } else {
-      params.period = period;
-    }
-
-    api.adminDashboard.products.analytics(productId, params)
+    api.adminDashboard.products.analytics(productId, appliedParams)
       .then((res) => {
         if (cancelled) return;
         if (res.success && res.data) {
@@ -131,7 +141,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
       });
 
     return () => { cancelled = true; };
-  }, [productId, period, startDate, endDate]);
+  }, [productId, appliedParams]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -144,6 +154,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
       setPeriod('this_month');
       setStartDate('');
       setEndDate('');
+      setAppliedParams({ period: 'this_month' });
       setData(null);
       setError(null);
     }
@@ -196,7 +207,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
           <div className="flex flex-col gap-2">
             <select
               value={period}
-              onChange={(e) => setPeriod(e.target.value as PeriodOption)}
+              onChange={(e) => handlePeriodChange(e.target.value as PeriodOption)}
               className="bg-bg-element border border-border text-text-main text-sm px-3 py-2 rounded-xl outline-none focus:border-tint transition-colors cursor-pointer appearance-none"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
@@ -227,7 +238,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
                 <Button
                   variant="primary"
                   size="sm"
-                  onClick={() => fetchAnalytics()}
+                  onClick={handleApplyCustom}
                   disabled={!startDate && !endDate}
                 >
                   Apply
