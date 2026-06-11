@@ -5,6 +5,7 @@ import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { RestockModal } from '~/components/modals/restock-modal';
 import { EditProductModal } from '~/components/modals/edit-product-modal';
+import { ProductInfoModal } from '~/components/modals/product-info-modal';
 import { api } from '~/lib/api';
 
 type InventoryProduct = {
@@ -36,6 +37,7 @@ export default function Inventory() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showRestock, setShowRestock] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
+  const [infoProduct, setInfoProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -271,6 +273,14 @@ export default function Inventory() {
                     <Badge label={stockLabel} variant={stockStatus} />
                     <button
                       type="button"
+                      onClick={() => setInfoProduct(product)}
+                      className="text-text-secondary hover:text-tint transition-colors cursor-pointer"
+                      title="Product info"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setEditProduct(product)}
                       className="text-text-secondary hover:text-tint transition-colors cursor-pointer"
                       title="Edit product"
@@ -353,6 +363,13 @@ export default function Inventory() {
         product={editProduct}
         categories={categoriesList}
         onUpdate={handleEditProduct}
+      />
+
+      <ProductInfoModal
+        isOpen={!!infoProduct}
+        onClose={() => setInfoProduct(null)}
+        productId={infoProduct?.id ?? infoProduct?._id ?? ''}
+        productName={infoProduct?.name ?? ''}
       />
     </div>
   );

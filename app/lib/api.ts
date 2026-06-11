@@ -427,6 +427,14 @@ export const api = {
       }) => request<any>('/admin-dashboard/products', { method: 'POST', body: JSON.stringify(body) }),
       restock: (id: string, body: { quantity: number; newCostPrice?: number; pin: string }) =>
         request<any>(`/admin-dashboard/products/${id}/restock`, { method: 'POST', body: JSON.stringify(body) }),
+      analytics: (id: string, params?: { period?: string; startDate?: string; endDate?: string }) => {
+        const qs = new URLSearchParams();
+        if (params?.period) qs.set('period', params.period);
+        if (params?.startDate) qs.set('startDate', params.startDate);
+        if (params?.endDate) qs.set('endDate', params.endDate);
+        const query = qs.toString();
+        return request<any>(`/admin-dashboard/products/${id}/analytics${query ? `?${query}` : ''}`);
+      },
     },
     inventoryTracking: (page = 1, limit = 50) =>
       request<any>(`/admin-dashboard/inventory-tracking?page=${page}&limit=${limit}`),
