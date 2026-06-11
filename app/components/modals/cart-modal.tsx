@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCart, type CartItem } from '~/context/cart-context';
 import { useNotifications } from '~/context/notification-context';
 import { useToast } from '~/context/toast-context';
@@ -12,6 +12,14 @@ interface CartModalProps {
   onClose: () => void;
   onOrderPlaced?: (newBalance: number) => void;
 }
+
+type StockInfo = {
+  productId: string;
+  name: string;
+  inStock: boolean;
+  quantity: number;
+  lowStockThreshold: number;
+};
 
 type OrderResult = {
   orderId: string;
@@ -30,9 +38,44 @@ export const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, onOrderPl
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
+  const [stockMap, setStockMap] = useState<Record<string, StockInfo>>({});
+  const [checkingStock, setCheckingStock] = useState(false);
   const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   if (!isOpen) return null;
+
+  useEffect(() => {
+    if (!isOpen || step !== 'cart' || cart.length === 0) {
+      setStockMap({});
+      return;
+    }
+
+    let cancelled = false;
+    const checkStock = async () => {
+      setCheckingStock(true);
+      try {
+        const items = cart.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+        }));
+        const res = await api.products.checkStock(items);
+        if (cancelled) return;
+        if (res.success && res.data) {
+          const map: Record<string, StockInfo> = {};
+          for (const info of res.data) {
+            map[info.productId] = info;
+          }
+          setStockMap(map);
+        }
+      } catch (err) {
+        console.error('Stock check failed:', err);
+      } finally {
+        if (!cancelled) setCheckingStock(false);
+      }
+    };
+    checkStock();
+    return () => { cancelled = true; };
+  }, [isOpen, step, cart]);
 
   const updateQuantity = (item: CartItem, delta: number) => {
     if (delta > 0) {
@@ -161,6 +204,8 @@ export const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, onOrderPl
     day: 'numeric',
   });
 
+  const outOfStockItems = Object.values(stockMap).filter((s) => !s.inStock);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/60 backdrop-blur-xs">
       <div className="absolute inset-0" onClick={handleDone} />
@@ -208,40 +253,110 @@ export const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, onOrderPl
                 </div>
               ) : (
                 <>
-                  <div className="flex flex-col gap-3 max-h-[30vh] overflow-y-auto">
-                    {cart.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3.5 bg-bg-element border border-border rounded-xl"
-                      >
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="font-semibold text-sm text-text-main truncate">
-                            {item.name}
-                          </span>
-                          <span className="text-xs text-text-secondary">
-                            ₦{item.price.toLocaleString()} × {item.quantity}
-                          </span>
-                          <span className="font-bold text-sm text-tint">
-                            ₦{(item.price * item.quantity).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 border border-border bg-bg-element rounded-lg p-0.5">
-                          <button
-                            onClick={() => updateQuantity(item, -1)}
-                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-bg-selected text-text-main font-bold cursor-pointer"
-                          >
-                            −
-                          </button>
-                          <span className="text-xs font-bold w-6 text-center">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQuantity(item, 1)}
-                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-bg-selected text-text-main font-bold cursor-pointer"
-                          >
-                            +
-                          </button>
-                        </div>
+                  {checkingStock && (
+                    <div className="text-xs text-text-secondary text-center py-1">
+                      Checking stock availability...
+                    </div>
+                  )}
+
+                  {outOfStockItems.length > 0 && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex flex-col gap-2 dark:bg-red-950 dark:border-red-800 dark:text-red-300">
+                      <span className="font-semibold">
+                        {outOfStockItems.length} item{outOfStockItems.length > 1 ? 's' : ''} out of stock:
+                      </span>
+                      <div className="flex flex-col gap-1">
+                        {outOfStockItems.map((item) => (
+                          <div key={item.productId} className="flex items-center justify-between">
+                            <span className="truncate max-w-[60%]">{item.name}</span>
+                            <button
+                              onClick={() => {
+                                removeFromCart(item.productId);
+                                setStockMap((prev) => {
+                                  const next = { ...prev };
+                                  delete next[item.productId];
+                                  return next;
+                                });
+                              }}
+                              className="text-xs font-bold text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 underline cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-3 max-h-[30vh] overflow-y-auto">
+                    {cart.map((item) => {
+                      const stock = stockMap[item.id];
+                      const isOutOfStock = stock && !stock.inStock;
+                      const isLowStock = stock && stock.inStock && stock.quantity <= stock.lowStockThreshold;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-center justify-between p-3.5 border rounded-xl ${
+                            isOutOfStock
+                              ? 'bg-red-50 border-red-300 dark:bg-red-950 dark:border-red-800'
+                              : 'bg-bg-element border-border'
+                          }`}
+                        >
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="font-semibold text-sm text-text-main truncate">
+                              {item.name}
+                            </span>
+                            <span className="text-xs text-text-secondary">
+                              ₦{item.price.toLocaleString()} × {item.quantity}
+                            </span>
+                            <span className="font-bold text-sm text-tint">
+                              ₦{(item.price * item.quantity).toLocaleString()}
+                            </span>
+                            {isOutOfStock && (
+                              <span className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                                Out of stock
+                              </span>
+                            )}
+                            {isLowStock && (
+                              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                Only {stock.quantity} left
+                              </span>
+                            )}
+                          </div>
+                          {isOutOfStock ? (
+                            <button
+                              onClick={() => {
+                                removeFromCart(item.id);
+                                setStockMap((prev) => {
+                                  const next = { ...prev };
+                                  delete next[item.id];
+                                  return next;
+                                });
+                              }}
+                              className="text-xs font-bold text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 px-3 py-1.5 border border-red-300 dark:border-red-700 rounded-lg cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2 border border-border bg-bg-element rounded-lg p-0.5">
+                              <button
+                                onClick={() => updateQuantity(item, -1)}
+                                className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-bg-selected text-text-main font-bold cursor-pointer"
+                              >
+                                −
+                              </button>
+                              <span className="text-xs font-bold w-6 text-center">{item.quantity}</span>
+                              <button
+                                onClick={() => updateQuantity(item, 1)}
+                                className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-bg-selected text-text-main font-bold cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Summary Box */}

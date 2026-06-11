@@ -320,6 +320,11 @@ export const api = {
       request(`/products/${id}/restock`, { method: 'POST', body: JSON.stringify(body) }),
     stockHistory: (id: string) => request(`/products/${id}/stock-history`),
     lowStockAlerts: () => request('/products/alerts/low-stock'),
+    checkStock: (items: { productId: string; quantity: number }[]) =>
+      request<Array<{ productId: string; name: string; inStock: boolean; quantity: number; lowStockThreshold: number }>>('/products/check-stock', {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+      }),
   },
 
   // ── Categories ────────────────────────────────────
