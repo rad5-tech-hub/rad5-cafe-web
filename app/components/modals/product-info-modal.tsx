@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '../ui/button';
 import { api } from '~/lib/api';
+
+type FirestoreTimestamp = { _seconds: number; _nanoseconds: number };
 
 type ProductAnalytics = {
   product: {
@@ -25,7 +27,7 @@ type ProductAnalytics = {
     previousStock: number;
     newStock: number;
     reference: string;
-    createdAt: string;
+    createdAt: string | FirestoreTimestamp;
   }>;
   summary: {
     totalSold: number;
@@ -35,11 +37,53 @@ type ProductAnalytics = {
   };
 };
 
+type PeriodOption = 'this_month' | 'today' | 'this_year' | 'custom';
+
 interface ProductInfoModalProps {
   isOpen: boolean;
   onClose: () => void;
   productId: string;
   productName: string;
+}
+
+const PERIOD_LABELS: Record<PeriodOption, string> = {
+  this_month: 'This Month',
+  today: 'Today',
+  this_year: 'This Year',
+  custom: 'Custom Range',
+};
+
+function toDate(input: string | FirestoreTimestamp | undefined): Date | null {
+  if (!input) return null;
+  if (typeof input === 'string') {
+    const d = new Date(input);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (input._seconds) {
+    return new Date(input._seconds * 1000);
+  }
+  return null;
+}
+
+function formatDate(input: string | FirestoreTimestamp | undefined): string {
+  const d = toDate(input);
+  if (!d) return '—';
+  return d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function toDateInputValue(input: string | FirestoreTimestamp | undefined): string {
+  const d = toDate(input);
+  if (!d) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+function formatPeriodLabel(period: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(period)) return formatDate(period);
+  if (/^\d{4}-\d{2}$/.test(period)) {
+    const [y, m] = period.split('-');
+    return new Date(+y, +m - 1).toLocaleDateString('en-NG', { month: 'long', year: 'numeric' });
+  }
+  return period;
 }
 
 export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
@@ -51,15 +95,26 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
   const [data, setData] = useState<ProductAnalytics | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<PeriodOption>('this_month');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
-  useEffect(() => {
-    if (!isOpen || !productId) return;
+  const fetchAnalytics = useCallback(() => {
+    if (!productId) return;
 
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    api.adminDashboard.products.analytics(productId, { period: 'this_month' })
+    const params: { period?: string; startDate?: string; endDate?: string } = {};
+    if (period === 'custom') {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+    } else {
+      params.period = period;
+    }
+
+    api.adminDashboard.products.analytics(productId, params)
       .then((res) => {
         if (cancelled) return;
         if (res.success && res.data) {
@@ -68,15 +123,31 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
           setError(res.message || 'Failed to load product analytics.');
         }
       })
-      .catch((err) => {
-        if (!cancelled) setError(err.message || 'Failed to load product analytics.');
+      .catch(() => {
+        if (!cancelled) setError('Could not load analytics. Please try again.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
 
     return () => { cancelled = true; };
-  }, [isOpen, productId]);
+  }, [productId, period, startDate, endDate]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const cancel = fetchAnalytics();
+    return cancel;
+  }, [fetchAnalytics, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setPeriod('this_month');
+      setStartDate('');
+      setEndDate('');
+      setData(null);
+      setError(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -97,16 +168,6 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
       case 'sold': return 'text-tint';
       case 'adjusted': return 'text-warning';
       default: return 'text-text-secondary';
-    }
-  };
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '—';
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch {
-      return dateStr;
     }
   };
 
@@ -131,6 +192,50 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+          {/* Period Selector */}
+          <div className="flex flex-col gap-2">
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as PeriodOption)}
+              className="bg-bg-element border border-border text-text-main text-sm px-3 py-2 rounded-xl outline-none focus:border-tint transition-colors cursor-pointer appearance-none"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+                paddingRight: '2rem',
+              }}
+            >
+              {(['this_month', 'today', 'this_year', 'custom'] as PeriodOption[]).map((p) => (
+                <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
+              ))}
+            </select>
+            {period === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="flex-1 bg-bg-element border border-border text-text-main text-xs px-3 py-1.5 rounded-lg outline-none focus:border-tint"
+                />
+                <span className="text-xs text-text-secondary">to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="flex-1 bg-bg-element border border-border text-text-main text-xs px-3 py-1.5 rounded-lg outline-none focus:border-tint"
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => fetchAnalytics()}
+                  disabled={!startDate && !endDate}
+                >
+                  Apply
+                </Button>
+              </div>
+            )}
+          </div>
+
           {loading ? (
             <div className="flex justify-center items-center py-16">
               <svg className="animate-spin h-8 w-8 text-tint" fill="none" viewBox="0 0 24 24">
@@ -139,8 +244,14 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
               </svg>
             </div>
           ) : error ? (
-            <div className="text-center py-10">
-              <p className="text-sm text-error-val font-semibold mb-3">{error}</p>
+            <div className="flex flex-col items-center justify-center py-10 gap-3">
+              <div className="w-12 h-12 rounded-full bg-error-val/10 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-error-val">
+                  <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+                </svg>
+              </div>
+              <p className="text-sm text-text-main font-semibold">Unable to load analytics</p>
+              <p className="text-xs text-text-secondary">{error}</p>
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
           ) : data ? (
@@ -151,7 +262,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
                 <div className="grid grid-cols-2 gap-3 p-4 bg-bg-element border border-border rounded-xl text-sm">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs text-text-secondary">Current Stock</span>
-                    <span className={`font-bold ${data.product.currentStock === 0 ? 'text-error-val' : data.product.currentStock < (10) ? 'text-warning' : 'text-success'}`}>
+                    <span className={`font-bold ${data.product.currentStock === 0 ? 'text-error-val' : data.product.currentStock < 10 ? 'text-warning' : 'text-success'}`}>
                       {data.product.currentStock} units
                     </span>
                   </div>
@@ -211,7 +322,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
                       <tbody>
                         {data.salesByPeriod.map((s, i) => (
                           <tr key={i} className="border-b border-border last:border-b-0 hover:bg-bg-element/50">
-                            <td className="py-2 px-3 font-medium text-text-main">{formatDate(s.period)}</td>
+                            <td className="py-2 px-3 font-medium text-text-main">{formatPeriodLabel(s.period)}</td>
                             <td className="py-2 px-3 text-right text-text-main">{s.totalQuantity}</td>
                             <td className="py-2 px-3 text-right text-text-main">{s.orderCount}</td>
                             <td className="py-2 px-3 text-right font-medium text-tint">₦{s.totalRevenue.toLocaleString()}</td>
@@ -259,7 +370,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
 
               {data.salesByPeriod.length === 0 && data.stockHistory.length === 0 && (
                 <div className="text-center py-6 text-xs text-text-secondary">
-                  No sales or stock history available yet.
+                  No sales or stock history for this period.
                 </div>
               )}
             </>
