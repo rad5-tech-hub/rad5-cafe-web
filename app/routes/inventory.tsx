@@ -32,6 +32,7 @@ export default function Inventory() {
   const [inventoryList, setInventoryList] = useState<any[]>([]);
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Hidden'>('All');
   const [showRestock, setShowRestock] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -92,9 +93,15 @@ export default function Inventory() {
     ...inventoryList.map(p => getCategoryName(p)).filter(Boolean)
   ]))];
 
-  const filtered = selectedCategory === 'All'
-    ? inventoryList
-    : inventoryList.filter((p) => getCategoryName(p).toLowerCase() === selectedCategory.toLowerCase());
+  const filtered = inventoryList.filter((p) => {
+    const matchesCategory = selectedCategory === 'All'
+      || getCategoryName(p).toLowerCase() === selectedCategory.toLowerCase();
+    const isHidden = p.isActive === false;
+    const matchesStatus = statusFilter === 'All'
+      || (statusFilter === 'Active' && !isHidden)
+      || (statusFilter === 'Hidden' && isHidden);
+    return matchesCategory && matchesStatus;
+  });
 
 
 
@@ -175,6 +182,28 @@ export default function Inventory() {
         ))}
       </div>
 
+      {/* Status Filter */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-text-secondary">Status:</span>
+        {(['All', 'Active', 'Hidden'] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => {
+              setStatusFilter(s);
+              setPage(1);
+              fetchInventoryData(1);
+            }}
+            className={`px-3 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer ${
+              statusFilter === s
+                ? 'bg-tint text-white border-tint'
+                : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
       {/* Inventory Listings */}
       {loading ? (
         <div className="flex justify-center items-center py-20">
@@ -220,6 +249,9 @@ export default function Inventory() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {product.isActive === false && (
+                      <Badge label="Hidden" variant="default" />
+                    )}
                     <Badge label={stockLabel} variant={stockStatus} />
                     <button
                       type="button"
