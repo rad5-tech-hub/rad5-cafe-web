@@ -128,6 +128,24 @@ export default function Inventory() {
     }
   };
 
+  const handleRemoveStockProduct = async (productId: string, qty: number, reason: string, pin: string): Promise<boolean> => {
+    try {
+      const res = await api.adminDashboard.products.removeStock(productId, {
+        quantity: qty,
+        reason: reason,
+        pin: pin,
+      });
+      if (res.success) {
+        fetchInventoryData(page);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
   const handleEditProduct = async (productId: string, data: Record<string, any>): Promise<boolean> => {
     try {
       const res = await api.products.update(productId, data);
@@ -274,10 +292,10 @@ export default function Inventory() {
                     <button
                       type="button"
                       onClick={() => setInfoProduct(product)}
-                      className="text-text-secondary hover:text-tint transition-colors cursor-pointer"
+                      className="text-text-secondary hover:text-tint transition-colors cursor-pointer p-1 rounded-md hover:bg-bg-selected"
                       title="Product info"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                     </button>
                     <button
                       type="button"
@@ -355,6 +373,7 @@ export default function Inventory() {
         onClose={() => setShowRestock(false)}
         products={mappedProductsForRestock}
         onRestock={handleRestockProduct}
+        onRemoveStock={handleRemoveStockProduct}
       />
 
       <EditProductModal

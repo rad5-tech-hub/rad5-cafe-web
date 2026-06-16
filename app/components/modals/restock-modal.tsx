@@ -9,6 +9,7 @@ interface RestockModalProps {
   onClose: () => void;
   products: any[];
   onRestock: (productId: string, qty: number, newCost: number | undefined, pin: string) => Promise<boolean>;
+  onRemoveStock?: (productId: string, qty: number, reason: string, pin: string) => Promise<boolean>;
 }
 
 export const RestockModal: React.FC<RestockModalProps> = ({
@@ -16,11 +17,14 @@ export const RestockModal: React.FC<RestockModalProps> = ({
   onClose,
   products,
   onRestock,
+  onRemoveStock,
 }) => {
   const { showToast } = useToast();
+  const [mode, setMode] = useState<'add' | 'remove'>('add');
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('');
   const [newCostPrice, setNewCostPrice] = useState('');
+  const [reason, setReason] = useState('');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -46,22 +50,36 @@ export const RestockModal: React.FC<RestockModalProps> = ({
 
     setLoading(true);
     try {
-      const success = await onRestock(
-        product.id,
-        numericQty,
-        newCostPrice ? parseInt(newCostPrice, 10) : undefined,
-        pin
-      );
+      let success = false;
+      if (mode === 'add') {
+        success = await onRestock(
+          product.id,
+          numericQty,
+          newCostPrice ? parseInt(newCostPrice, 10) : undefined,
+          pin
+        );
+      } else {
+        if (!reason.trim()) {
+          showToast('Reason is required for removing stock.', 'warning');
+          setLoading(false);
+          return;
+        }
+        if (onRemoveStock) {
+          success = await onRemoveStock(product.id, numericQty, reason.trim(), pin);
+        }
+      }
+      
       if (success) {
-        showToast(`Restocked ${numericQty} units of ${product.name}!`, 'success');
+        showToast(mode === 'add' ? `Restocked ${numericQty} units of ${product.name}!` : `Removed ${numericQty} units of ${product.name}!`, 'success');
         setQuantity('');
         setNewCostPrice('');
+        setReason('');
         setPin('');
         setSelectedProduct('');
         onClose();
       }
     } catch (err: any) {
-      showToast(err.message || 'Restocking failed.', 'error');
+      showToast(err.message || 'Action failed.', 'error');
     } finally {
       setLoading(false);
     }
@@ -78,7 +96,7 @@ export const RestockModal: React.FC<RestockModalProps> = ({
       >
         <div className="flex flex-col gap-1">
           <div className="flex justify-between items-start">
-            <h3 className="text-xl font-bold text-text-main">Restock Product</h3>
+            <h3 className="text-xl font-bold text-text-main">{mode === 'add' ? 'Restock Product' : 'Remove Stock'}</h3>
             <button
               onClick={onClose}
               className="text-text-secondary hover:text-text-main font-bold p-1 rounded-full hover:bg-bg-selected cursor-pointer"
@@ -87,8 +105,25 @@ export const RestockModal: React.FC<RestockModalProps> = ({
             </button>
           </div>
           <p className="text-text-secondary text-xs">
-            Increase or decrease stock for cafe inventory items.
+            {mode === 'add' ? 'Increase stock for cafe inventory items.' : 'Log stock reduction due to miscount, damage, or expiry.'}
           </p>
+        </div>
+
+        <div className="flex bg-bg-element p-1 rounded-xl gap-1">
+          <button
+            type="button"
+            onClick={() => setMode('add')}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${mode === 'add' ? 'bg-card shadow-sm text-text-main' : 'text-text-secondary hover:text-text-main'}`}
+          >
+            Add Stock
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('remove')}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${mode === 'remove' ? 'bg-card shadow-sm text-text-main' : 'text-text-secondary hover:text-text-main'}`}
+          >
+            Remove Stock
+          </button>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -124,21 +159,35 @@ export const RestockModal: React.FC<RestockModalProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
             label="Quantity"
-            placeholder="e.g. 10 or -5"
+            placeholder={mode === 'add' ? "e.g. 10" : "e.g. 5"}
             type="number"
+            min="1"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             required
             autoFocus
           />
 
-          <Input
-            label="New Cost Price (optional)"
-            placeholder="Leave blank to keep current"
-            type="number"
-            value={newCostPrice}
-            onChange={(e) => setNewCostPrice(e.target.value)}
-          />
+          {mode === 'add' && (
+            <Input
+              label="New Cost Price (optional)"
+              placeholder="Leave blank to keep current"
+              type="number"
+              value={newCostPrice}
+              onChange={(e) => setNewCostPrice(e.target.value)}
+            />
+          )}
+
+          {mode === 'remove' && (
+            <Input
+              label="Reason for Removal"
+              placeholder="e.g. Miscount, Expired, Damaged"
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required={mode === 'remove'}
+            />
+          )}
 
           <div className="border-t border-border pt-3.5 mt-1 flex flex-col gap-3">
             <Input
@@ -155,12 +204,13 @@ export const RestockModal: React.FC<RestockModalProps> = ({
 
             <Button
               type="submit"
-              variant="primary"
+              variant={mode === 'add' ? 'primary' : 'secondary'}
               size="lg"
               fullWidth={true}
-              disabled={!product || isNaN(numericQty) || numericQty === 0 || !pin || loading}
+              disabled={!product || isNaN(numericQty) || numericQty <= 0 || !pin || loading}
+              className={mode === 'remove' ? 'bg-error-val hover:bg-error-val/90 text-white' : ''}
             >
-              {loading ? 'Restocking...' : `Restock ${numericQty || '0'} units`}
+              {loading ? 'Processing...' : (mode === 'add' ? `Restock ${numericQty || '0'} units` : `Remove ${numericQty || '0'} units`)}
             </Button>
           </div>
         </form>

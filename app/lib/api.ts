@@ -427,6 +427,8 @@ export const api = {
       }) => request<any>('/admin-dashboard/products', { method: 'POST', body: JSON.stringify(body) }),
       restock: (id: string, body: { quantity: number; newCostPrice?: number; pin: string }) =>
         request<any>(`/admin-dashboard/products/${id}/restock`, { method: 'POST', body: JSON.stringify(body) }),
+      removeStock: (id: string, body: { quantity: number; reason: string; pin: string }) =>
+        request<any>(`/admin-dashboard/products/${id}/remove-stock`, { method: 'POST', body: JSON.stringify(body) }),
       analytics: (id: string, params?: { period?: string; startDate?: string; endDate?: string }) => {
         const qs = new URLSearchParams();
         if (params?.period) qs.set('period', params.period);

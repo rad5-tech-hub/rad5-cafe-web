@@ -129,21 +129,18 @@ export default function Sales() {
             Review summary cash flow indexes and transaction checkout rows.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
+        <button
           onClick={() => {
-            setPage(1);
-            fetchSalesData(activeFilter, 1);
+            fetchSalesData(activeFilter, page);
           }}
           disabled={loading}
-          className="cursor-pointer"
+          className="text-text-secondary hover:text-tint transition-colors cursor-pointer p-2 rounded-full hover:bg-bg-selected disabled:opacity-50"
+          title="Refresh Sales"
         >
-          <svg className={`w-4 h-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
           </svg>
-          Refresh
-        </Button>
+        </button>
       </div>
 
       {/* Summary Row */}
