@@ -86,9 +86,9 @@ export default function Sales() {
 
       if (res.success) {
         showToast('Order cancelled and customer refunded successfully!', 'success');
+        setSalesList(prev => prev.map(s => s.id === cancellingSaleId ? { ...s, status: 'cancelled' } : s));
         setCancellingSaleId(null);
         setCancelPin('');
-        fetchSalesData(activeFilter, page);
       } else {
         showToast(res.message || 'Failed to cancel order.', 'error');
       }
@@ -108,8 +108,13 @@ export default function Sales() {
 
       if (res.success) {
         showToast('Order issued successfully!', 'success');
+        if (res.data) {
+          const updatedSale = res.data;
+          setSalesList(prev => prev.map(s => s.id === issuingSaleId ? { ...s, ...updatedSale } : s));
+        } else {
+          setSalesList(prev => prev.map(s => s.id === issuingSaleId ? { ...s, issued: true, status: 'completed' } : s));
+        }
         setIssuingSaleId(null);
-        fetchSalesData(activeFilter, page);
       } else {
         showToast(res.message || 'Failed to issue order.', 'error');
       }

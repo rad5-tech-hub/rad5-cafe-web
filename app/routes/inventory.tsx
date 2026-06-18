@@ -110,6 +110,36 @@ export default function Inventory() {
 
 
 
+  const updateLocalItem = (productId: string, updated: any) => {
+    setInventoryList(prev => prev.map(p => {
+      const pid = p.id ?? p._id;
+      if (pid === productId) {
+        return {
+          ...p,
+          ...updated,
+          stock: updated.currentStock ?? updated.quantity ?? updated.stock ?? p.stock,
+          quantity: updated.currentStock ?? updated.quantity ?? updated.stock ?? p.quantity
+        };
+      }
+      return p;
+    }));
+  };
+
+  const refreshSingleItem = async (productId: string, fallbackData?: any) => {
+    if (fallbackData) {
+      updateLocalItem(productId, fallbackData);
+    } else {
+      try {
+        const res = await api.products.get(productId);
+        if (res.success && res.data) {
+          updateLocalItem(productId, res.data);
+        }
+      } catch (err) {
+        console.error('Failed to refresh item', err);
+      }
+    }
+  };
+
   const handleRestockProduct = async (productId: string, qty: number, newCost: number | undefined, pin: string): Promise<boolean> => {
     try {
       const res = await api.adminDashboard.products.restock(productId, {
@@ -118,7 +148,7 @@ export default function Inventory() {
         pin: pin,
       });
       if (res.success) {
-        fetchInventoryData(page);
+        refreshSingleItem(productId, res.data);
         return true;
       }
       return false;
@@ -136,7 +166,7 @@ export default function Inventory() {
         pin: pin,
       });
       if (res.success) {
-        fetchInventoryData(page);
+        refreshSingleItem(productId, res.data);
         return true;
       }
       return false;
@@ -150,7 +180,7 @@ export default function Inventory() {
     try {
       const res = await api.products.update(productId, data);
       if (res.success) {
-        fetchInventoryData(page);
+        refreshSingleItem(productId, res.data);
         return true;
       }
       return false;
