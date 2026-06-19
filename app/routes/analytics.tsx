@@ -308,7 +308,7 @@ function CustomTab() {
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 items-end">
           <Input label="Start Date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required className="flex-1" />
           <Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required className="flex-1" />
-          <Button type="submit" disabled={loading} className="w-full md:w-auto">
+          <Button type="submit" disabled={loading} className="w-full md:w-auto whitespace-nowrap h-11">
             {loading ? 'Analyzing...' : 'Generate Deep Insights'}
           </Button>
         </form>
