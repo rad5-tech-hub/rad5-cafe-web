@@ -129,6 +129,54 @@ export type ProfitResponse = {
   lifetimeProfit: number;
 };
 
+export type WeeklyAnalyticsResponse = {
+  period: { start: string; end: string };
+  summary: { totalRevenue: number; totalProfit: number; totalSalesCount: number; newCustomers: number };
+  trend: { busiestDay: string; revenueByDay: { date: string; revenue: number; salesCount: number }[] };
+  highlights: {
+    topSellingProduct: { name: string; quantitySold: number; revenue: number };
+    highestMarginProduct: { name: string; marginPercent: number };
+  };
+};
+
+export type MonthlyAnalyticsResponse = {
+  period: { start: string; end: string };
+  summary: { totalRevenue: number; totalProfit: number; totalSalesCount: number; newCustomers: number };
+  trend: { revenueByWeek: { week: string; revenue: number; profit: number }[] };
+  highlights: {
+    topCategories: { categoryName: string; revenue: number; percentageOfTotal: number }[];
+    topSpender: { fullName: string; totalSpent: number; orderCount: number };
+  };
+};
+
+export type CustomAnalyticsResponse = {
+  period: { start: string; end: string };
+  financials: {
+    totalRevenue: number;
+    grossProfit: number;
+    profitMarginPercent: number;
+    averageOrderValue: number;
+    paymentsByMethod: { wallet: number; cash: number; card: number };
+    walletHealth: { totalOutstandingLiability: number };
+  };
+  operations: {
+    busiestHours: { hour: string; orderCount: number }[];
+    busiestDays: { day: string; revenue: number }[];
+  };
+  products: {
+    topCategories: { categoryName: string; revenue: number; profit: number; percentageOfTotal: number }[];
+    highestMarginProducts: { name: string; marginPercent: number; quantitySold: number }[];
+    deadStock: { name: string; daysSinceLastSale: number; currentStock: number }[];
+    frequentlyBoughtTogether: { pair: string[]; timesBoughtTogether: number; pairRevenue: number }[];
+  };
+  customers: {
+    totalActive: number;
+    newVsReturning: { newCustomers: number; returningCustomers: number };
+    retentionMetrics: { averageVisitsPerCustomer: number; customerLifetimeValueAvg: number };
+    topSpenders: { userId: string; fullName: string; orderCount: number; totalSpent: number }[];
+  };
+};
+
 async function getAuthHeaders(): Promise<HeadersInit> {
   const user = auth.currentUser;
   const headers: Record<string, string> = {
@@ -472,6 +520,12 @@ export const api = {
       customers: (limit = 10) =>
         request<CustomersResponse>(`/admin-dashboard/analytics/customers?limit=${limit}`),
       profit: () => request<ProfitResponse>('/admin-dashboard/analytics/profit'),
+      weekly: (limit?: number) =>
+        request<WeeklyAnalyticsResponse>(`/v1/admin/analytics/weekly${limit ? `?limit=${limit}` : ''}`),
+      monthly: (limit?: number) =>
+        request<MonthlyAnalyticsResponse>(`/v1/admin/analytics/monthly${limit ? `?limit=${limit}` : ''}`),
+      custom: (startDate: string, endDate: string) =>
+        request<CustomAnalyticsResponse>(`/v1/admin/analytics/custom?startDate=${startDate}&endDate=${endDate}`),
     },
     alerts: {
       list: () => request<any>('/admin-dashboard/alerts'),

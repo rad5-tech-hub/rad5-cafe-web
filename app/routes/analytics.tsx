@@ -1,27 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '~/components/ui/card';
+import { Icon } from '~/components/ui/icon';
 import { api } from '~/lib/api';
-import type { RevenueDataPoint, TopProduct, TopCustomer, ProfitResponse } from '~/lib/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { WeeklyAnalyticsResponse, MonthlyAnalyticsResponse, CustomAnalyticsResponse } from '~/lib/api';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Input } from '~/components/ui/input';
+import { Button } from '~/components/ui/button';
 
-type Period = 'daily' | 'weekly' | 'monthly';
-
-const periodLabels: Record<Period, string> = {
-  daily: 'Daily',
-  weekly: 'Weekly',
-  monthly: 'Monthly',
-};
-
-const revenuePeriods: { value: Period; label: string }[] = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-];
+type TabType = 'weekly' | 'monthly' | 'custom';
 
 export function meta() {
   return [
-    { title: "Analytics Overview - RAD5 Café" },
-    { name: "description", content: "Review revenues, top selling products, customer insights, and profit margins." },
+    { title: "Advanced Analytics - RAD5 Café" },
+    { name: "description", content: "Deep insights into revenues, products, customers and operations." },
   ];
 }
 
@@ -34,370 +25,444 @@ function fmtCurrency(amount: unknown): string {
   return `₦${safeNum(amount).toLocaleString()}`;
 }
 
-export default function Analytics() {
-  const [revenuePeriod, setRevenuePeriod] = useState<Period>('daily');
-  const [revenueData, setRevenueData] = useState<RevenueDataPoint[]>([]);
-  const [bestSelling, setBestSelling] = useState<TopProduct[]>([]);
-  const [highestProfit, setHighestProfit] = useState<TopProduct[]>([]);
-  const [mostActive, setMostActive] = useState<TopCustomer[]>([]);
-  const [highestSpending, setHighestSpending] = useState<TopCustomer[]>([]);
-  const [profitData, setProfitData] = useState<ProfitResponse | null>(null);
+function StatCard({ label, value, icon, variant = 'default' }: { label: string, value: string, icon: any, variant?: 'default'|'success'|'warning'|'error' }) {
+  const getColors = () => {
+    switch (variant) {
+      case 'success': return 'text-success bg-success/15';
+      case 'warning': return 'text-warning bg-warning/15';
+      case 'error': return 'text-error-val bg-error-val/15';
+      default: return 'text-tint bg-tint/15';
+    }
+  };
+  return (
+    <Card className="flex flex-col gap-2 items-center text-center p-5 select-none hover:scale-[1.02] transition-transform duration-200 shadow-xs">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getColors()}`}>
+        <Icon name={icon} size={20} />
+      </div>
+      <span className="text-xl font-extrabold text-text-main tabular-nums select-all">{value}</span>
+      <span className="text-xs font-semibold text-text-secondary select-all">{label}</span>
+    </Card>
+  );
+}
+
+function WeeklyTab() {
+  const [data, setData] = useState<WeeklyAnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const fetchData = (period: Period) => {
-    setLoading(true);
-    setError(false);
-
-    Promise.all([
-      api.adminDashboard.analytics.revenue(period, 30),
-      api.adminDashboard.analytics.topProducts(10),
-      api.adminDashboard.analytics.customers(10),
-      api.adminDashboard.analytics.profit(),
-    ]).then(([revRes, prodRes, custRes, profitRes]) => {
-      if (revRes.success && Array.isArray(revRes.data)) {
-        setRevenueData(revRes.data);
-      } else {
-        setRevenueData([]);
-      }
-
-      if (prodRes.success && prodRes.data) {
-        setBestSelling(prodRes.data.bestSelling ?? []);
-        setHighestProfit(prodRes.data.highestProfit ?? []);
-      } else {
-        setBestSelling([]);
-        setHighestProfit([]);
-      }
-
-      if (custRes.success && custRes.data) {
-        setMostActive(custRes.data.mostActive ?? []);
-        setHighestSpending(custRes.data.highestSpending ?? []);
-      } else {
-        setMostActive([]);
-        setHighestSpending([]);
-      }
-
-      if (profitRes.success && profitRes.data) {
-        setProfitData(profitRes.data);
-      } else {
-        setProfitData(null);
-      }
-    }).catch((err) => {
-      console.warn('Could not load analytics:', err);
-      setError(true);
-      setRevenueData([]);
-      setBestSelling([]);
-      setHighestProfit([]);
-      setMostActive([]);
-      setHighestSpending([]);
-      setProfitData(null);
-    }).finally(() => setLoading(false));
-  };
-
   useEffect(() => {
-    fetchData(revenuePeriod);
-  }, [revenuePeriod]);
+    setLoading(true);
+    api.adminDashboard.analytics.weekly()
+      .then(res => {
+        if (res.success && res.data) setData(res.data);
+        else setError(true);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const chartData = revenueData.map((d) => ({
-    period: d.period,
-    revenue: safeNum(d.revenue),
-    profit: safeNum(d.profit),
-    label: (() => {
-      try {
-        if (revenuePeriod === 'monthly' && /^\d{4}-\d{2}$/.test(d.period)) {
-          const [y, m] = d.period.split('-');
-          const dt = new Date(Date.UTC(Number(y), Number(m) - 1, 1));
-          return dt.toLocaleDateString('en-NG', { month: 'short', year: 'numeric', timeZone: 'UTC' });
-        }
-        
-        const dt = new Date(d.period);
-        if (!isNaN(dt.getTime())) {
-          if (revenuePeriod === 'monthly') {
-            return dt.toLocaleDateString('en-NG', { month: 'short', year: 'numeric' });
-          }
-          if (revenuePeriod === 'weekly') {
-            return `Wk of ${dt.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}`;
-          }
-          return dt.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
-        }
-      } catch {}
-      return d.period;
-    })(),
-  }));
+  if (loading) return <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>;
+  if (error || !data) return <div className="py-20 text-center text-error-val font-semibold">Failed to load weekly analytics.</div>;
 
   return (
-    <div className="flex flex-col gap-6 select-none max-w-3xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Analytics Dashboard</h1>
-        <p className="text-text-secondary text-xs mt-1">
-          Review sales patterns, customer transactions, profit margins, and revenue charts.
-        </p>
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="Total Revenue" value={fmtCurrency(data.summary.totalRevenue)} icon="dollar" variant="success" />
+        <StatCard label="Total Profit" value={fmtCurrency(data.summary.totalProfit)} icon="trending-up" variant="success" />
+        <StatCard label="Sales Count" value={`${data.summary.totalSalesCount}`} icon="cart" />
+        <StatCard label="New Customers" value={`${data.summary.newCustomers}`} icon="user" variant="warning" />
       </div>
 
-      {error && (
-        <Card className="p-4 text-center text-error-val text-sm font-semibold">
-          Failed to load analytics data. Please try again.
-        </Card>
-      )}
-
-      {/* Revenue Chart with period selector */}
-      <Card padded={false}>
-        <div className="p-6 pb-4 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider">
-            {periodLabels[revenuePeriod]} Revenue
-          </h3>
-          <div className="flex gap-1 bg-bg-element rounded-lg p-0.5">
-            {revenuePeriods.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => setRevenuePeriod(p.value)}
-                className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                  revenuePeriod === p.value
-                    ? 'bg-tint text-white shadow-xs'
-                    : 'text-text-secondary hover:text-text-main'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="col-span-1 md:col-span-2">
+          <div className="p-5 border-b border-border mb-4">
+            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider">Revenue Trend (Last 7 Days)</h3>
           </div>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center items-center h-52">
-            <svg className="animate-spin h-8 w-8 text-tint" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-          </div>
-        ) : revenueData.length === 0 ? (
-          <div className="flex justify-center items-center h-52 text-text-secondary text-xs">
-            No {periodLabels[revenuePeriod].toLowerCase()} revenue data recorded yet.
-          </div>
-        ) : (
-          <div className="px-4 pb-4">
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <div className="px-4 pb-4 h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.trend.revenueByDay}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--color-card)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
-                  formatter={(value: any) => [fmtCurrency(Number(value)), '']}
-                  labelStyle={{ color: 'var(--color-text-secondary)', marginBottom: 4 }}
+                <XAxis dataKey="date" tickFormatter={d => new Date(d).toLocaleDateString('en-NG', { weekday: 'short' })} tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  formatter={(val: any) => [fmtCurrency(val), 'Revenue']}
+                  labelFormatter={d => new Date(d).toLocaleDateString('en-NG', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 12 }}
                 />
                 <Bar dataKey="revenue" fill="var(--color-tint)" radius={[4, 4, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        )}
-      </Card>
-
-      {/* Profit Summary */}
-      <Card padded={false}>
-        <div className="p-6 pb-4">
-          <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider">Profit Summary</h3>
+        </Card>
+        
+        <div className="flex flex-col gap-6">
+          <Card className="flex-1 flex flex-col justify-center p-6">
+            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Highlights</h3>
+            <div className="flex flex-col gap-5">
+              <div>
+                <span className="text-xs text-text-secondary block mb-1">Top Selling Product</span>
+                <p className="font-extrabold text-text-main text-lg">{data.highlights.topSellingProduct.name}</p>
+                <p className="text-xs text-success font-semibold">{data.highlights.topSellingProduct.quantitySold} units sold ({fmtCurrency(data.highlights.topSellingProduct.revenue)})</p>
+              </div>
+              <div>
+                <span className="text-xs text-text-secondary block mb-1">Highest Margin Product</span>
+                <p className="font-extrabold text-text-main text-lg">{data.highlights.highestMarginProduct.name}</p>
+                <p className="text-xs text-tint font-semibold">{data.highlights.highestMarginProduct.marginPercent}% margin</p>
+              </div>
+              <div>
+                <span className="text-xs text-text-secondary block mb-1">Busiest Day</span>
+                <p className="font-extrabold text-text-main text-lg">{data.trend.busiestDay}</p>
+              </div>
+            </div>
+          </Card>
         </div>
-        {loading ? (
-          <div className="flex justify-center items-center py-8">
-            <svg className="animate-spin h-6 w-6 text-tint" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
+      </div>
+    </div>
+  );
+}
+
+function MonthlyTab() {
+  const [data, setData] = useState<MonthlyAnalyticsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    api.adminDashboard.analytics.monthly()
+      .then(res => {
+        if (res.success && res.data) setData(res.data);
+        else setError(true);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>;
+  if (error || !data) return <div className="py-20 text-center text-error-val font-semibold">Failed to load monthly analytics.</div>;
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="Total Revenue" value={fmtCurrency(data.summary.totalRevenue)} icon="dollar" variant="success" />
+        <StatCard label="Total Profit" value={fmtCurrency(data.summary.totalProfit)} icon="trending-up" variant="success" />
+        <StatCard label="Sales Count" value={`${data.summary.totalSalesCount}`} icon="cart" />
+        <StatCard label="New Customers" value={`${data.summary.newCustomers}`} icon="user" variant="warning" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="col-span-1 md:col-span-2">
+          <div className="p-5 border-b border-border mb-4">
+            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider">Revenue & Profit By Week</h3>
           </div>
-        ) : !profitData ? (
-          <div className="text-center py-8 text-text-secondary text-xs px-6">
-            No profit data available yet.
+          <div className="px-4 pb-4 h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.trend.revenueByWeek}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis dataKey="week" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  formatter={(val: any, name: any) => [fmtCurrency(val), name === 'revenue' ? 'Revenue' : 'Profit']}
+                  contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 12 }}
+                />
+                <Bar dataKey="revenue" fill="var(--color-tint)" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                <Bar dataKey="profit" fill="var(--color-success)" radius={[4, 4, 0, 0]} maxBarSize={48} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        ) : (
-          <div className="px-6 pb-6">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-3 bg-bg-element rounded-xl">
-                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Today</span>
-                <p className="text-lg font-extrabold text-success mt-1">{fmtCurrency(profitData.dailyProfit)}</p>
-              </div>
-              <div className="text-center p-3 bg-bg-element rounded-xl">
-                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">This Month</span>
-                <p className="text-lg font-extrabold text-success mt-1">{fmtCurrency(profitData.monthlyProfit)}</p>
-              </div>
-              <div className="text-center p-3 bg-bg-element rounded-xl">
-                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Lifetime</span>
-                <p className="text-lg font-extrabold text-tint mt-1">{fmtCurrency(profitData.lifetimeProfit)}</p>
-              </div>
+        </Card>
+
+        <div className="flex flex-col gap-6">
+          <Card className="flex-1 p-6">
+            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Top Categories</h3>
+            <div className="flex flex-col gap-4">
+              {data.highlights.topCategories.map(cat => (
+                <div key={cat.categoryName} className="flex justify-between items-center">
+                  <div>
+                    <span className="font-semibold text-sm text-text-main">{cat.categoryName}</span>
+                    <span className="text-xs text-text-secondary block">{cat.percentageOfTotal}% of total</span>
+                  </div>
+                  <span className="text-sm font-extrabold text-success">{fmtCurrency(cat.revenue)}</span>
+                </div>
+              ))}
             </div>
-          </div>
-        )}
+            
+            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mt-8 mb-4">Top Spender</h3>
+            <div>
+              <p className="font-extrabold text-text-main text-lg">{data.highlights.topSpender.fullName}</p>
+              <p className="text-xs text-text-secondary font-semibold">{data.highlights.topSpender.orderCount} orders · <span className="text-tint">{fmtCurrency(data.highlights.topSpender.totalSpent)}</span></p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomTab() {
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [data, setData] = useState<CustomAnalyticsResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const handleSearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!startDate || !endDate) return;
+    
+    setLoading(true);
+    setError(false);
+    setHasSearched(true);
+    
+    api.adminDashboard.analytics.custom(startDate, endDate)
+      .then(res => {
+        if (res.success && res.data) setData(res.data);
+        else setError(true);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <Card className="p-5">
+        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 items-end">
+          <Input label="Start Date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required className="flex-1" />
+          <Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required className="flex-1" />
+          <Button type="submit" disabled={loading} className="w-full md:w-auto">
+            {loading ? 'Analyzing...' : 'Generate Deep Insights'}
+          </Button>
+        </form>
       </Card>
 
-      {/* Top Products - Best Selling & Highest Profit */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card padded={false}>
-          <div className="p-6 pb-4">
-            <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider">Best Selling</h3>
-          </div>
-          {loading ? (
-            <div className="flex justify-center items-center py-10">
-              <svg className="animate-spin h-6 w-6 text-tint" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            </div>
-          ) : bestSelling.length === 0 ? (
-            <div className="text-center py-8 text-text-secondary text-xs px-6">
-              No sales data yet.
-            </div>
-          ) : (
-            <div className="px-6 pb-6 divide-y divide-border">
-              {bestSelling.map((p, index) => (
-                <div key={p.id} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-tint/15 text-tint font-bold text-xs">
-                      {index + 1}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-sm text-text-main">{p.name}</span>
-                      <span className="text-xs text-text-secondary">{safeNum(p.totalSold)} units sold</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-extrabold text-text-main select-all">
-                    {fmtCurrency(safeNum(p.sellingPrice) * safeNum(p.totalSold))}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+      {!hasSearched && !loading && (
+        <div className="py-20 text-center text-text-secondary text-sm">
+          Select a date range to generate deep custom insights.
+        </div>
+      )}
 
-        <Card padded={false}>
-          <div className="p-6 pb-4">
-            <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider">Highest Profit</h3>
-          </div>
-          {loading ? (
-            <div className="flex justify-center items-center py-10">
-              <svg className="animate-spin h-6 w-6 text-tint" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+      {loading && <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>}
+      
+      {error && !loading && <div className="py-10 text-center text-error-val font-semibold">Failed to load custom analytics.</div>}
+
+      {data && !loading && (
+        <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+          {/* Financials */}
+          <section>
+            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Financials & Wallet Health</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard label="Total Revenue" value={fmtCurrency(data.financials.totalRevenue)} icon="dollar" variant="success" />
+              <StatCard label="Gross Profit" value={fmtCurrency(data.financials.grossProfit)} icon="trending-up" variant="success" />
+              <StatCard label="Profit Margin" value={`${data.financials.profitMarginPercent}%`} icon="chart-bar" variant="success" />
+              <StatCard label="Avg Order Value" value={fmtCurrency(data.financials.averageOrderValue)} icon="cart" />
             </div>
-          ) : highestProfit.length === 0 ? (
-            <div className="text-center py-8 text-text-secondary text-xs px-6">
-              No profit data yet.
-            </div>
-          ) : (
-            <div className="px-6 pb-6 divide-y divide-border">
-              {highestProfit.map((p, index) => (
-                <div key={p.id} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-success/15 text-success font-bold text-xs">
-                      {index + 1}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-sm text-text-main">{p.name}</span>
-                      <span className="text-xs text-text-secondary">{safeNum(p.totalSold)} sold · ₦{safeNum(p.profitPerUnit)}/unit</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-extrabold text-success select-all">
-                    {fmtCurrency(safeNum(p.profitPerUnit) * safeNum(p.totalSold))}
-                  </span>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <Card className="p-5 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">Outstanding Liability</h3>
+                  <p className="text-xs text-text-secondary">Money sitting in user wallets</p>
                 </div>
-              ))}
+                <span className="text-2xl font-extrabold text-error-val tabular-nums">{fmtCurrency(data.financials.walletHealth.totalOutstandingLiability)}</span>
+              </Card>
+
+              <Card className="p-5 flex items-center gap-6">
+                <div className="flex-1">
+                  <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">Payments By Method</h3>
+                  <div className="flex flex-col gap-2 text-sm">
+                    <div className="flex justify-between"><span className="text-text-main flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-tint" /> Wallet</span> <span className="font-bold text-text-main">{fmtCurrency(data.financials.paymentsByMethod.wallet)}</span></div>
+                    <div className="flex justify-between"><span className="text-text-main flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-success" /> Cash</span> <span className="font-bold text-text-main">{fmtCurrency(data.financials.paymentsByMethod.cash)}</span></div>
+                    <div className="flex justify-between"><span className="text-text-main flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-warning" /> Card</span> <span className="font-bold text-text-main">{fmtCurrency(data.financials.paymentsByMethod.card)}</span></div>
+                  </div>
+                </div>
+                <div className="w-24 h-24">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Wallet', value: data.financials.paymentsByMethod.wallet },
+                          { name: 'Cash', value: data.financials.paymentsByMethod.cash },
+                          { name: 'Card', value: data.financials.paymentsByMethod.card },
+                        ]}
+                        innerRadius={25}
+                        outerRadius={40}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        <Cell fill="var(--color-tint)" />
+                        <Cell fill="var(--color-success)" />
+                        <Cell fill="var(--color-warning)" />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
             </div>
-          )}
-        </Card>
+          </section>
+
+          {/* Operations */}
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="p-5">
+              <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Busiest Hours</h2>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.operations.busiestHours}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                    <XAxis dataKey="hour" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 12 }} />
+                    <Bar dataKey="orderCount" fill="var(--color-tint)" radius={[2, 2, 0, 0]} maxBarSize={32} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <Card className="p-5">
+              <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Busiest Days</h2>
+              <div className="flex flex-col gap-3">
+                {data.operations.busiestDays.map(d => (
+                  <div key={d.day} className="flex justify-between items-center p-3 bg-bg-element rounded-lg">
+                    <span className="font-bold text-text-main">{d.day}</span>
+                    <span className="text-success font-extrabold tabular-nums">{fmtCurrency(d.revenue)}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </section>
+
+          {/* Products */}
+          <section>
+            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Product Intelligence</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="p-5">
+                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">Frequently Bought Together</h3>
+                <div className="flex flex-col gap-4">
+                  {data.products.frequentlyBoughtTogether.map((pair, i) => (
+                    <div key={i} className="flex flex-col gap-1 border-b border-border last:border-0 pb-3 last:pb-0">
+                      <span className="font-bold text-sm text-text-main">{pair.pair.join(' + ')}</span>
+                      <div className="flex justify-between text-xs text-text-secondary">
+                        <span>{pair.timesBoughtTogether} times</span>
+                        <span className="text-success font-semibold">{fmtCurrency(pair.pairRevenue)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {data.products.frequentlyBoughtTogether.length === 0 && (
+                    <span className="text-xs text-text-secondary">Not enough data.</span>
+                  )}
+                </div>
+              </Card>
+
+              <Card className="p-5">
+                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">Highest Margin Products</h3>
+                <div className="flex flex-col gap-3">
+                  {data.products.highestMarginProducts.map(p => (
+                    <div key={p.name} className="flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-sm text-text-main">{p.name}</span>
+                        <span className="text-[10px] text-text-secondary">{p.quantitySold} sold</span>
+                      </div>
+                      <span className="text-sm font-extrabold text-tint">{p.marginPercent}%</span>
+                    </div>
+                  ))}
+                  {data.products.highestMarginProducts.length === 0 && (
+                    <span className="text-xs text-text-secondary">Not enough data.</span>
+                  )}
+                </div>
+              </Card>
+
+              <Card className="p-5 bg-error-val/5 border-error-val/20">
+                <h3 className="text-xs font-bold text-error-val uppercase tracking-wider mb-4">Dead Stock Warning</h3>
+                <div className="flex flex-col gap-3">
+                  {data.products.deadStock.map(p => (
+                    <div key={p.name} className="flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-sm text-text-main">{p.name}</span>
+                        <span className="text-[10px] text-text-secondary">Current Stock: {p.currentStock}</span>
+                      </div>
+                      <span className="text-xs font-bold text-error-val">{p.daysSinceLastSale} days inactive</span>
+                    </div>
+                  ))}
+                  {data.products.deadStock.length === 0 && (
+                    <span className="text-xs text-text-secondary">No dead stock detected.</span>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </section>
+
+          {/* Customers */}
+          <section>
+            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Customer Retention</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <StatCard label="Total Active" value={`${data.customers.totalActive}`} icon="account-group" />
+              <StatCard label="Avg Visits/Customer" value={`${data.customers.retentionMetrics.averageVisitsPerCustomer}`} icon="sync" />
+              <StatCard label="Customer LTV" value={fmtCurrency(data.customers.retentionMetrics.customerLifetimeValueAvg)} icon="dollar" variant="success" />
+              <Card className="p-5 flex items-center justify-center gap-4 shadow-xs">
+                <div className="text-center">
+                  <span className="text-xl font-extrabold text-success block">{data.customers.newVsReturning.newCustomers}</span>
+                  <span className="text-[10px] uppercase font-bold text-text-secondary">New</span>
+                </div>
+                <div className="text-center">
+                  <span className="text-xl font-extrabold text-tint block">{data.customers.newVsReturning.returningCustomers}</span>
+                  <span className="text-[10px] uppercase font-bold text-text-secondary">Returning</span>
+                </div>
+              </Card>
+            </div>
+
+            <Card className="p-5">
+              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">Top Spenders</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {data.customers.topSpenders.map((c, i) => (
+                  <div key={c.userId} className="flex items-center gap-3 p-3 bg-bg-element rounded-lg">
+                    <div className="w-8 h-8 rounded-full bg-tint/20 text-tint flex items-center justify-center font-bold text-xs">{i+1}</div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm text-text-main">{c.fullName}</p>
+                      <p className="text-xs text-text-secondary">{c.orderCount} orders</p>
+                    </div>
+                    <span className="font-extrabold text-success">{fmtCurrency(c.totalSpent)}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </section>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Analytics() {
+  const [activeTab, setActiveTab] = useState<TabType>('weekly');
+
+  return (
+    <div className="flex flex-col gap-6 select-none max-w-5xl mx-auto">
+      <div>
+        <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Analytics Dashboard</h1>
+        <p className="text-text-secondary text-xs mt-1">
+          Review sales patterns, customer transactions, profit margins, and deep operational insights.
+        </p>
       </div>
 
-      {/* Top Customers - Most Active & Highest Spending */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card padded={false}>
-          <div className="p-6 pb-4">
-            <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider">Most Active</h3>
-          </div>
-          {loading ? (
-            <div className="flex justify-center items-center py-10">
-              <svg className="animate-spin h-6 w-6 text-tint" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            </div>
-          ) : mostActive.length === 0 ? (
-            <div className="text-center py-8 text-text-secondary text-xs px-6">
-              No customer activity yet.
-            </div>
-          ) : (
-            <div className="px-6 pb-6 divide-y divide-border">
-              {mostActive.map((c, index) => (
-                <div key={c.userId} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-tint/15 text-tint font-bold text-xs">
-                      {index + 1}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-sm text-text-main">{c.fullName}</span>
-                      <span className="text-xs text-text-secondary">{c.ordersCount} purchases</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-extrabold text-text-main select-all">
-                    {fmtCurrency(c.totalSpent)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card padded={false}>
-          <div className="p-6 pb-4">
-            <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider">Highest Spending</h3>
-          </div>
-          {loading ? (
-            <div className="flex justify-center items-center py-10">
-              <svg className="animate-spin h-6 w-6 text-tint" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            </div>
-          ) : highestSpending.length === 0 ? (
-            <div className="text-center py-8 text-text-secondary text-xs px-6">
-              No spending data yet.
-            </div>
-          ) : (
-            <div className="px-6 pb-6 divide-y divide-border">
-              {highestSpending.map((c, index) => (
-                <div key={c.userId} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-success/15 text-success font-bold text-xs">
-                      {index + 1}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-sm text-text-main">{c.fullName}</span>
-                      <span className="text-xs text-text-secondary">{c.ordersCount} purchases</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-extrabold text-success select-all">
-                    {fmtCurrency(c.totalSpent)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+      <div className="flex gap-1 bg-bg-element rounded-lg p-1 w-max">
+        {(['weekly', 'monthly', 'custom'] as TabType[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-bold rounded-md transition-all cursor-pointer capitalize ${
+              activeTab === tab
+                ? 'bg-tint text-white shadow-xs'
+                : 'text-text-secondary hover:text-text-main'
+            }`}
+          >
+            {tab} Analytics
+          </button>
+        ))}
       </div>
+
+      {activeTab === 'weekly' && <WeeklyTab />}
+      {activeTab === 'monthly' && <MonthlyTab />}
+      {activeTab === 'custom' && <CustomTab />}
     </div>
   );
 }
