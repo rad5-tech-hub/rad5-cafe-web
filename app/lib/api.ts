@@ -129,6 +129,16 @@ export type ProfitResponse = {
   lifetimeProfit: number;
 };
 
+export type DailyAnalyticsResponse = {
+  period: { start: string; end: string };
+  summary: { totalRevenue: number; totalProfit: number; totalSalesCount: number; newCustomers: number };
+  trend: { busiestHour: string; revenueByHour: { hour: string; revenue: number; salesCount: number }[] };
+  highlights: {
+    topSellingProduct: { name: string; quantitySold: number; revenue: number };
+    highestMarginProduct: { name: string; marginPercent: number };
+  };
+};
+
 export type WeeklyAnalyticsResponse = {
   period: { start: string; end: string };
   summary: { totalRevenue: number; totalProfit: number; totalSalesCount: number; newCustomers: number };
@@ -520,12 +530,14 @@ export const api = {
       customers: (limit = 10) =>
         request<CustomersResponse>(`/admin-dashboard/analytics/customers?limit=${limit}`),
       profit: () => request<ProfitResponse>('/admin-dashboard/analytics/profit'),
+      daily: (limit?: number) =>
+        request<DailyAnalyticsResponse>(`/admin-dashboard/analytics/daily${limit ? `?limit=${limit}` : ''}`),
       weekly: (limit?: number) =>
-        request<WeeklyAnalyticsResponse>(`/v1/admin/analytics/weekly${limit ? `?limit=${limit}` : ''}`),
+        request<WeeklyAnalyticsResponse>(`/admin-dashboard/analytics/weekly${limit ? `?limit=${limit}` : ''}`),
       monthly: (limit?: number) =>
-        request<MonthlyAnalyticsResponse>(`/v1/admin/analytics/monthly${limit ? `?limit=${limit}` : ''}`),
+        request<MonthlyAnalyticsResponse>(`/admin-dashboard/analytics/monthly${limit ? `?limit=${limit}` : ''}`),
       custom: (startDate: string, endDate: string) =>
-        request<CustomAnalyticsResponse>(`/v1/admin/analytics/custom?startDate=${startDate}&endDate=${endDate}`),
+        request<CustomAnalyticsResponse>(`/admin-dashboard/analytics/custom?startDate=${startDate}&endDate=${endDate}`),
     },
     alerts: {
       list: () => request<any>('/admin-dashboard/alerts'),

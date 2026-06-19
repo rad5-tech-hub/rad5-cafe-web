@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '~/components/ui/card';
 import { Icon } from '~/components/ui/icon';
 import { api } from '~/lib/api';
-import type { WeeklyAnalyticsResponse, MonthlyAnalyticsResponse, CustomAnalyticsResponse } from '~/lib/api';
+import type { DailyAnalyticsResponse, WeeklyAnalyticsResponse, MonthlyAnalyticsResponse, CustomAnalyticsResponse } from '~/lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
 
-type TabType = 'weekly' | 'monthly' | 'custom';
+type TabType = 'daily' | 'weekly' | 'monthly' | 'custom';
 
 export function meta() {
   return [
@@ -42,6 +42,85 @@ function StatCard({ label, value, icon, variant = 'default' }: { label: string, 
       <span className="text-xl font-extrabold text-text-main tabular-nums select-all">{value}</span>
       <span className="text-xs font-semibold text-text-secondary select-all">{label}</span>
     </Card>
+  );
+}
+
+function DailyTab() {
+  const [data, setData] = useState<DailyAnalyticsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    api.adminDashboard.analytics.daily()
+      .then(res => {
+        if (res.success && res.data) setData(res.data);
+        else setError(true);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>;
+  if (error || !data) return <div className="py-20 text-center text-error-val font-semibold">Failed to load daily analytics.</div>;
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="Total Revenue" value={fmtCurrency(data.summary.totalRevenue)} icon="dollar" variant="success" />
+        <StatCard label="Total Profit" value={fmtCurrency(data.summary.totalProfit)} icon="trending-up" variant="success" />
+        <StatCard label="Sales Count" value={`${data.summary.totalSalesCount}`} icon="cart" />
+        <StatCard label="New Customers" value={`${data.summary.newCustomers}`} icon="user" variant="warning" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="col-span-1 md:col-span-2">
+          <div className="p-5 border-b border-border mb-4">
+            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider">Revenue Trend (Today)</h3>
+          </div>
+          <div className="px-4 pb-4 h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.trend.revenueByHour}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis dataKey="hour" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  formatter={(val: any) => [fmtCurrency(val), 'Revenue']}
+                  contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 12 }}
+                />
+                <Bar dataKey="revenue" fill="var(--color-tint)" radius={[4, 4, 0, 0]} maxBarSize={48} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+        
+        <div className="flex flex-col gap-6">
+          <Card className="flex-1 flex flex-col justify-center p-6">
+            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Highlights</h3>
+            <div className="flex flex-col gap-5">
+              {data.highlights.topSellingProduct ? (
+                <div>
+                  <span className="text-xs text-text-secondary block mb-1">Top Selling Product</span>
+                  <p className="font-extrabold text-text-main text-lg">{data.highlights.topSellingProduct.name}</p>
+                  <p className="text-xs text-success font-semibold">{data.highlights.topSellingProduct.quantitySold} units sold ({fmtCurrency(data.highlights.topSellingProduct.revenue)})</p>
+                </div>
+              ) : null}
+              {data.highlights.highestMarginProduct ? (
+                <div>
+                  <span className="text-xs text-text-secondary block mb-1">Highest Margin Product</span>
+                  <p className="font-extrabold text-text-main text-lg">{data.highlights.highestMarginProduct.name}</p>
+                  <p className="text-xs text-tint font-semibold">{data.highlights.highestMarginProduct.marginPercent.toFixed(1)}% margin</p>
+                </div>
+              ) : null}
+              <div>
+                <span className="text-xs text-text-secondary block mb-1">Busiest Hour</span>
+                <p className="font-extrabold text-text-main text-lg">{data.trend.busiestHour || 'N/A'}</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -433,7 +512,7 @@ function CustomTab() {
 }
 
 export default function Analytics() {
-  const [activeTab, setActiveTab] = useState<TabType>('weekly');
+  const [activeTab, setActiveTab] = useState<TabType>('daily');
 
   return (
     <div className="flex flex-col gap-6 select-none max-w-5xl mx-auto">
@@ -445,7 +524,7 @@ export default function Analytics() {
       </div>
 
       <div className="flex gap-1 bg-bg-element rounded-lg p-1 w-max">
-        {(['weekly', 'monthly', 'custom'] as TabType[]).map((tab) => (
+        {(['daily', 'weekly', 'monthly', 'custom'] as TabType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -460,6 +539,7 @@ export default function Analytics() {
         ))}
       </div>
 
+      {activeTab === 'daily' && <DailyTab />}
       {activeTab === 'weekly' && <WeeklyTab />}
       {activeTab === 'monthly' && <MonthlyTab />}
       {activeTab === 'custom' && <CustomTab />}
