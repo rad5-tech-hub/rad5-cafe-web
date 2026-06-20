@@ -35,13 +35,15 @@ function StatCard({ label, value, icon, variant = 'default' }: { label: string, 
     }
   };
   return (
-    <Card className="flex flex-col gap-2 items-center text-center p-5 select-none hover:scale-[1.02] transition-transform duration-200 shadow-xs">
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getColors()}`}>
-        <Icon name={icon} size={20} />
+    <div className="group flex flex-row items-center gap-4 p-5 select-none hover:bg-bg-selected/30 transition-colors duration-300 w-full cursor-default">
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 flex-shrink-0 ${getColors()}`}>
+        <Icon name={icon} size={22} />
       </div>
-      <span className="text-xl font-extrabold text-text-main tabular-nums select-all">{value}</span>
-      <span className="text-xs font-semibold text-text-secondary select-all">{label}</span>
-    </Card>
+      <div className="flex flex-col items-start min-w-0">
+        <span className="text-xs font-semibold text-text-secondary select-all">{label}</span>
+        <span className="text-xl font-extrabold text-text-main tabular-nums select-all mt-0.5">{value}</span>
+      </div>
+    </div>
   );
 }
 
@@ -66,12 +68,12 @@ function DailyTab() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
         <StatCard label="Total Revenue" value={fmtCurrency(data.summary.totalRevenue)} icon="dollar" variant="success" />
         <StatCard label="Total Profit" value={fmtCurrency(data.summary.totalProfit)} icon="trending-up" variant="success" />
         <StatCard label="Sales Count" value={`${data.summary.totalSalesCount}`} icon="cart" />
         <StatCard label="New Customers" value={`${data.summary.newCustomers}`} icon="user" variant="warning" />
-      </div>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="col-span-1 md:col-span-2">
@@ -145,12 +147,12 @@ function WeeklyTab() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
         <StatCard label="Total Revenue" value={fmtCurrency(data.summary.totalRevenue)} icon="dollar" variant="success" />
         <StatCard label="Total Profit" value={fmtCurrency(data.summary.totalProfit)} icon="trending-up" variant="success" />
         <StatCard label="Sales Count" value={`${data.summary.totalSalesCount}`} icon="cart" />
         <StatCard label="New Customers" value={`${data.summary.newCustomers}`} icon="user" variant="warning" />
-      </div>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="col-span-1 md:col-span-2">
@@ -221,12 +223,12 @@ function MonthlyTab() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
         <StatCard label="Total Revenue" value={fmtCurrency(data.summary.totalRevenue)} icon="dollar" variant="success" />
         <StatCard label="Total Profit" value={fmtCurrency(data.summary.totalProfit)} icon="trending-up" variant="success" />
         <StatCard label="Sales Count" value={`${data.summary.totalSalesCount}`} icon="cart" />
         <StatCard label="New Customers" value={`${data.summary.newCustomers}`} icon="user" variant="warning" />
-      </div>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="col-span-1 md:col-span-2">
@@ -329,12 +331,12 @@ function CustomTab() {
           {/* Financials */}
           <section>
             <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Financials & Wallet Health</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
               <StatCard label="Total Revenue" value={fmtCurrency(data.financials.totalRevenue)} icon="dollar" variant="success" />
               <StatCard label="Gross Profit" value={fmtCurrency(data.financials.grossProfit)} icon="trending-up" variant="success" />
               <StatCard label="Profit Margin" value={`${data.financials.profitMarginPercent}%`} icon="chart-bar" variant="success" />
               <StatCard label="Avg Order Value" value={fmtCurrency(data.financials.averageOrderValue)} icon="cart" />
-            </div>
+            </Card>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <Card className="p-5 flex items-center justify-between">

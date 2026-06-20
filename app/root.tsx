@@ -188,14 +188,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.label}
                 to={item.path}
-                className={`flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
+                className={`group flex items-center justify-between px-4 py-3 text-sm rounded-xl transition-all duration-300 ${
                   isActive
-                    ? 'bg-tint-dark text-white shadow-md shadow-tint-dark/15'
-                    : 'text-black dark:text-white hover:bg-bg-selected hover:text-text-main'
+                    ? 'text-text-main font-extrabold'
+                    : 'text-text-secondary font-semibold hover:bg-bg-selected hover:text-text-main'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon name={item.icon} size={18} color={isActive ? '#FFFFFF' : 'currentColor'} />
+                  <div className={`transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 ${isActive ? 'text-text-main' : 'text-text-secondary group-hover:text-text-main'}`}>
+                    <Icon name={item.icon} size={18} color="currentColor" />
+                  </div>
                   <span>{item.label}</span>
                 </div>
               </Link>

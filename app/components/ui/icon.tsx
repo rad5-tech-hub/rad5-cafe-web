@@ -32,7 +32,10 @@ export type IconName =
   | 'log-out'
   | 'shield-check'
   | 'smartphone'
-  | 'upload';
+  | 'upload'
+  | 'settings'
+  | 'calendar'
+  | 'more-vertical';
 
 
 interface IconProps {
@@ -107,6 +110,12 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.Smartphone;
       case 'upload':
         return Lucide.Upload;
+      case 'settings':
+        return Lucide.Settings;
+      case 'calendar':
+        return Lucide.Calendar;
+      case 'more-vertical':
+        return Lucide.MoreVertical;
       default:
         return Lucide.HelpCircle;
     }
