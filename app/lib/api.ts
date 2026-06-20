@@ -237,18 +237,21 @@ export async function downloadReport(path: string, fileName: string): Promise<vo
     handleUnauthorized();
     throw new Error('Session expired. Please login again.');
   }
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
+  
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.success || !data.downloadUrl) {
     throw new Error(data.message || data.error || `Download failed: ${res.status}`);
   }
-  const blob = await res.blob();
+
+  // Trigger download using the generated URL
+  const downloadUrl = `${BASE_URL}${data.downloadUrl}`;
   const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
+  link.href = downloadUrl;
   link.download = fileName;
+  link.target = '_blank';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(link.href);
 }
 
 export const api = {
