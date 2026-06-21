@@ -180,45 +180,18 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Unified Stats Card matching Logip */}
-        <Card padded={false} className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-border mb-8 shadow-sm">
-          <div className="flex-1 p-6 flex flex-row items-center gap-4 group hover:bg-bg-selected/30 transition-colors cursor-default">
-            <div className="w-12 h-12 rounded-full bg-success/15 text-success flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 flex-shrink-0">
-              <Icon name="dollar" size={22} />
-            </div>
-            <div className="flex flex-col items-start min-w-0">
-              <span className="text-xs font-semibold text-text-secondary select-all">Available Balance</span>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xl font-bold text-text-main tabular-nums select-all">₦{balance.toLocaleString()}</span>
-                <span className="text-[10px] font-bold text-success flex items-center bg-success/10 px-1.5 py-0.5 rounded-md">
-                   + Active
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex-1 p-6 flex flex-row items-center gap-4 group hover:bg-bg-selected/30 transition-colors cursor-default">
-            <div className="w-12 h-12 rounded-full bg-tint/15 text-tint flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 flex-shrink-0">
-              <Icon name="bank" size={22} />
-            </div>
-            <div className="flex flex-col items-start min-w-0">
-              <span className="text-xs font-semibold text-text-secondary select-all">Wallet ID</span>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xl font-bold text-text-main tabular-nums select-all">{walletId}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 p-6 flex flex-row items-center gap-4 group hover:bg-bg-selected/30 transition-colors cursor-pointer" onClick={() => setShowFund(true)}>
-            <div className="w-12 h-12 rounded-full bg-accent/15 text-accent flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 flex-shrink-0">
-              <Icon name="plus" size={22} />
-            </div>
-            <div className="flex flex-col items-start min-w-0 flex-1">
-              <span className="text-xs font-semibold text-text-secondary select-all">Quick Action</span>
-              <span className="text-xl font-bold text-text-main tabular-nums select-all mt-0.5">Fund Wallet</span>
-            </div>
-          </div>
-        </Card>
+        <BalanceDisplay
+          label="Available Balance"
+          amount={balance}
+          subtitle={`Wallet ID: ${walletId}`}
+          actions={[
+            {
+              icon: 'plus',
+              label: 'Fund Wallet',
+              onPress: () => setShowFund(true),
+            },
+          ]}
+        />
 
         {/* Popular Items Area (Where Chart would be in Logip) */}
         <div className="mb-8">
@@ -328,115 +301,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Right Column (Profile & Activity Feed) */}
-      <div className="w-full xl:w-[320px] flex flex-col gap-8">
-        {/* Profile Box matching Logip */}
-        <Card className="flex flex-col items-center text-center p-8 bg-[#F8FAFC] dark:bg-bg-selected/30 border-none rounded-[24px]">
-          <div className="w-24 h-24 rounded-full bg-tint/10 flex items-center justify-center mb-4 relative shadow-sm border-[3px] border-white">
-             <img src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Profile" className="w-full h-full rounded-full object-cover" />
-             <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-error-val border-2 border-white"></div>
-          </div>
-          <h3 className="text-base font-bold text-text-main">{user?.displayName || 'Megan Norton'}</h3>
-          <span className="text-xs font-semibold text-text-secondary mb-6">@{user?.email?.split('@')[0] || 'megnorton'}</span>
-          
-          <div className="flex items-center gap-3">
-             <button className="w-10 h-10 rounded-full bg-white dark:bg-bg-element border border-border flex items-center justify-center hover:bg-bg-selected transition-colors shadow-sm cursor-pointer group">
-                <Icon name="phone" size={16} className="text-text-main group-hover:scale-110 transition-transform" />
-             </button>
-             <button className="w-10 h-10 rounded-full bg-white dark:bg-bg-element border border-border flex items-center justify-center hover:bg-bg-selected transition-colors shadow-sm cursor-pointer group">
-                <Icon name="mail" size={16} className="text-text-main group-hover:scale-110 transition-transform" />
-             </button>
-             <button className="w-10 h-10 rounded-full bg-white dark:bg-bg-element border border-border flex items-center justify-center hover:bg-bg-selected transition-colors shadow-sm cursor-pointer group">
-                <Icon name="more-vertical" size={16} className="text-text-main group-hover:scale-110 transition-transform" />
-             </button>
-          </div>
-        </Card>
 
-        {/* Activity Feed matching Logip */}
-        <div className="flex flex-col flex-1">
-          <div className="flex justify-center mb-6">
-             <h2 className="text-sm font-semibold text-text-main">Activity</h2>
-          </div>
-          
-          <div className="flex flex-col gap-6 relative">
-            <div className="absolute left-4 top-2 bottom-0 w-px bg-border -z-10"></div>
-            
-             <div className="flex gap-4 group">
-                <div className="w-8 h-8 rounded-full border border-border bg-white overflow-hidden flex-shrink-0 mt-0.5">
-                   <img src="https://i.pravatar.cc/150?u=1" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                   <div className="flex justify-between items-start">
-                      <span className="text-sm font-bold text-text-main">Floyd Miles</span>
-                      <span className="text-[10px] font-semibold text-text-secondary whitespace-nowrap pt-0.5">10:15 AM</span>
-                   </div>
-                   <span className="text-xs text-text-secondary mt-0.5">Commented on <span className="text-tint cursor-pointer hover:underline">Stark Project</span></span>
-                   
-                   <div className="mt-3 bg-tint/5 p-3 rounded-xl rounded-tl-none border border-tint/10 relative">
-                     <p className="text-xs text-text-main leading-relaxed font-medium">Hi! Next week we'll start a new project. I'll tell you all the details later</p>
-                     <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-sm border border-border text-[10px]">👍</div>
-                   </div>
-                </div>
-             </div>
-
-             <div className="flex gap-4 group">
-                <div className="w-8 h-8 rounded-full border border-border bg-white overflow-hidden flex-shrink-0 mt-0.5 relative">
-                   <img src="https://i.pravatar.cc/150?u=2" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                   <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-white"></div>
-                </div>
-                <div className="flex flex-col min-w-0 w-full">
-                   <div className="flex justify-between items-start">
-                      <span className="text-sm font-bold text-text-main">Guy Hawkins</span>
-                      <span className="text-[10px] font-semibold text-text-secondary whitespace-nowrap pt-0.5">10:15 AM</span>
-                   </div>
-                   <span className="text-xs text-text-secondary mt-0.5">Added a file to <span className="text-tint cursor-pointer hover:underline">7Heros Project</span></span>
-                   
-                   <div className="mt-3 bg-bg-element border border-border p-3 rounded-xl flex items-center justify-between cursor-pointer hover:bg-bg-selected transition-colors">
-                      <div className="flex items-center gap-3">
-                         <div className="w-6 h-6 rounded-md bg-text-main text-white flex items-center justify-center">
-                            <span className="text-[10px] font-bold">F</span>
-                         </div>
-                         <div className="flex flex-col">
-                            <span className="text-xs font-bold text-text-main">Homepage.fig</span>
-                            <span className="text-[10px] font-semibold text-text-secondary">13.4 Mb</span>
-                         </div>
-                      </div>
-                      <Icon name="arrow-down" size={14} className="text-tint" />
-                   </div>
-                </div>
-             </div>
-
-             <div className="flex gap-4 group">
-                <div className="w-8 h-8 rounded-full border border-border bg-white overflow-hidden flex-shrink-0 mt-0.5">
-                   <img src="https://i.pravatar.cc/150?u=3" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                   <div className="flex justify-between items-start">
-                      <span className="text-sm font-bold text-text-main">Kristin Watson</span>
-                      <span className="text-[10px] font-semibold text-text-secondary whitespace-nowrap pt-0.5">10:15 AM</span>
-                   </div>
-                   <span className="text-xs text-text-secondary mt-0.5">Commented on <span className="text-tint cursor-pointer hover:underline">7Heros Project</span></span>
-                </div>
-             </div>
-
-          </div>
-
-          <div className="mt-auto pt-6">
-             <div className="bg-bg-element border border-border rounded-2xl p-2 flex items-center gap-2 shadow-sm focus-within:border-tint transition-colors">
-                <button className="p-2 text-text-secondary hover:text-text-main transition-colors cursor-pointer">
-                  <Icon name="plus" size={16} />
-                </button>
-                <input type="text" placeholder="Write a message" className="bg-transparent flex-1 text-sm outline-none text-text-main font-medium placeholder:font-normal placeholder:text-text-secondary" />
-                <button className="p-2 text-text-secondary hover:text-text-main transition-colors cursor-pointer">
-                  <Icon name="user" size={16} />
-                </button>
-                <button className="p-2 text-text-secondary hover:text-text-main transition-colors cursor-pointer">
-                  <Icon name="smartphone" size={16} />
-                </button>
-             </div>
-          </div>
-        </div>
-      </div>
 
       {/* Modals Mounting */}
       <FundWalletModal
