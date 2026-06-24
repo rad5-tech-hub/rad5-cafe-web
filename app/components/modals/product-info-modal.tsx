@@ -99,6 +99,10 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [appliedParams, setAppliedParams] = useState<{ period?: string; startDate?: string; endDate?: string }>({ period: 'this_month' });
+  const [activeTab, setActiveTab] = useState<'analytics' | 'purchases'>('analytics');
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(false);
+  const [purchasesLoaded, setPurchasesLoaded] = useState(false);
 
   const handlePeriodChange = (p: PeriodOption) => {
     setPeriod(p);
@@ -143,13 +147,32 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
     return () => { cancelled = true; };
   }, [productId, appliedParams]);
 
+  const fetchPurchases = useCallback(() => {
+    if (!productId || purchasesLoaded) return;
+    setPurchasesLoading(true);
+    api.adminDashboard.products.purchaseHistory({ productId, limit: 50 })
+      .then((res: any) => {
+        if (res.success && res.data) {
+          setPurchases(res.data);
+          setPurchasesLoaded(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setPurchasesLoading(false));
+  }, [productId, purchasesLoaded]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'purchases') {
+      fetchPurchases();
+    }
+  }, [isOpen, activeTab, fetchPurchases]);
+
   useEffect(() => {
     if (!isOpen) return;
     const cancel = fetchAnalytics();
     return cancel;
   }, [fetchAnalytics, isOpen]);
 
-  useEffect(() => {
     if (!isOpen) {
       setPeriod('this_month');
       setStartDate('');
@@ -157,6 +180,9 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
       setAppliedParams({ period: 'this_month' });
       setData(null);
       setError(null);
+      setActiveTab('analytics');
+      setPurchases([]);
+      setPurchasesLoaded(false);
     }
   }, [isOpen]);
 
@@ -202,8 +228,29 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
           </button>
         </div>
 
+        <div className="flex border-b border-border text-sm font-bold mt-2 px-6">
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`pb-3 px-1 border-b-2 transition-colors mr-6 ${
+              activeTab === 'analytics' ? 'border-tint text-tint' : 'border-transparent text-text-secondary hover:text-text-main'
+            }`}
+          >
+            Analytics & Stock
+          </button>
+          <button
+            onClick={() => setActiveTab('purchases')}
+            className={`pb-3 px-1 border-b-2 transition-colors ${
+              activeTab === 'purchases' ? 'border-tint text-tint' : 'border-transparent text-text-secondary hover:text-text-main'
+            }`}
+          >
+            Purchase History
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
-          {/* Period Selector */}
+          {activeTab === 'analytics' ? (
+            <>
+              {/* Period Selector */}
           <div className="flex flex-col gap-2">
             <select
               value={period}
@@ -385,7 +432,50 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
                 </div>
               )}
             </>
-          ) : null}
+          ) : null) : (
+            /* Purchase History Tab */
+            <div className="flex flex-col gap-1">
+              {purchasesLoading ? (
+                <div className="flex justify-center items-center py-16">
+                  <svg className="animate-spin h-8 w-8 text-tint" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                </div>
+              ) : purchases.length === 0 ? (
+                <div className="text-center py-6 text-xs text-text-secondary">
+                  No purchase history found for this product.
+                </div>
+              ) : (
+                <div className="border border-border rounded-xl overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-bg-element border-b border-border">
+                        <th className="text-left py-2 px-3 font-semibold text-text-secondary">Date</th>
+                        <th className="text-left py-2 px-3 font-semibold text-text-secondary">Customer</th>
+                        <th className="text-right py-2 px-3 font-semibold text-text-secondary">Qty</th>
+                        <th className="text-right py-2 px-3 font-semibold text-text-secondary">Total</th>
+                        <th className="text-right py-2 px-3 font-semibold text-text-secondary">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {purchases.map((p, i) => (
+                        <tr key={p.orderId || i} className="border-b border-border last:border-b-0 hover:bg-bg-element/50">
+                          <td className="py-2 px-3 font-medium text-text-main">{formatDate(p.createdAt)}</td>
+                          <td className="py-2 px-3 text-text-main truncate max-w-[100px]">{p.user?.fullName || p.customerName || 'Unknown'}</td>
+                          <td className="py-2 px-3 text-right font-bold text-text-main">{p.quantity}</td>
+                          <td className="py-2 px-3 text-right font-medium text-tint">₦{p.totalPrice?.toLocaleString()}</td>
+                          <td className={`py-2 px-3 text-right font-semibold capitalize ${p.status === 'purchase' || p.status === 'completed' ? 'text-success' : 'text-error-val'}`}>
+                            {p.status?.replace(/_/g, ' ')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

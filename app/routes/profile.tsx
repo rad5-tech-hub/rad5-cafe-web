@@ -8,6 +8,7 @@ import { Card } from '~/components/ui/card';
 import { Button } from '~/components/ui/button';
 import { Icon } from '~/components/ui/icon';
 import { Badge } from '~/components/ui/badge';
+import { PinChangeModal } from '~/components/modals/pin-change-modal';
 import { PinSetupModal } from '~/components/modals/pin-setup-modal';
 
 export function meta() {
@@ -26,6 +27,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [showPinReset, setShowPinReset] = useState(false);
+  const [showPinSetup, setShowPinSetup] = useState(false);
 
   const fetchProfile = () => {
     if (user) {
@@ -115,14 +117,22 @@ export default function Profile() {
 
         {/* Reset Transaction PIN */}
         <button
-          onClick={() => setShowPinReset(true)}
+          onClick={() => {
+            if (profile?.pinSetup) {
+              setShowPinReset(true);
+            } else {
+              setShowPinSetup(true);
+            }
+          }}
           className="flex justify-between items-center px-6 py-4.5 text-sm font-semibold text-text-main hover:bg-bg-selected/35 active:bg-bg-selected/60 transition-colors w-full text-left cursor-pointer"
         >
           <div className="flex items-center gap-3">
             <Icon name="lock" className="text-text-secondary" />
             <div className="flex flex-col gap-0.5">
-              <span>Change Transaction PIN</span>
-              <span className="text-xs text-text-secondary font-medium">Reset your secure 4-digit checkout code</span>
+              <span>{profile?.pinSetup ? 'Change Transaction PIN' : 'Set Up Transaction PIN'}</span>
+              <span className="text-xs text-text-secondary font-medium">
+                {profile?.pinSetup ? 'Reset your secure 4-digit checkout code' : 'Create a 4-digit PIN to secure transactions'}
+              </span>
             </div>
           </div>
           <Icon name="chevron-right" className="text-text-secondary" />
@@ -168,11 +178,20 @@ export default function Profile() {
       </Button>
 
       {/* Pin Reset Modal Mount */}
-      <PinSetupModal
+      <PinChangeModal
         isOpen={showPinReset}
         onDismiss={() => setShowPinReset(false)}
         onDone={() => {
           setShowPinReset(false);
+          fetchProfile();
+        }}
+      />
+
+      <PinSetupModal
+        isOpen={showPinSetup}
+        onDismiss={() => setShowPinSetup(false)}
+        onDone={() => {
+          setShowPinSetup(false);
           fetchProfile();
         }}
       />

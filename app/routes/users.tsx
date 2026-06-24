@@ -78,13 +78,12 @@ export default function Users() {
   const [walletPin, setWalletPin] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
 
-  const [paymentLogs, setPaymentLogs] = useState<PaymentLog[]>([]);
-  const [paymentLogsLoading, setPaymentLogsLoading] = useState(false);
-  const [paymentLogsPage, setPaymentLogsPage] = useState(1);
-  const [paymentLogsTotalPages, setPaymentLogsTotalPages] = useState(1);
-  const [paymentLogsTotal, setPaymentLogsTotal] = useState(0);
-  const paymentLogsLimit = 50;
-
+  const [timeline, setTimeline] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelinePage, setTimelinePage] = useState(1);
+  const [timelineTotalPages, setTimelineTotalPages] = useState(1);
+  const [timelineTotal, setTimelineTotal] = useState(0);
   const limit = 20;
 
   const fetchUsers = useCallback((pageNum: number) => {
@@ -110,20 +109,20 @@ export default function Users() {
     fetchUsers(page);
   }, [page, fetchUsers]);
 
-  const fetchPaymentLogs = (userId: string, pageNum: number) => {
-    setPaymentLogsLoading(true);
-    api.admin.users.paymentLogs(userId, pageNum, paymentLogsLimit)
+  const fetchTimeline = (userId: string, pageNum: number) => {
+    setTimelineLoading(true);
+    api.adminDashboard.users.history(userId, { page: pageNum, limit: 20 })
       .then((res: any) => {
-        const data = res.logs ?? res.data ?? [];
-        setPaymentLogs(Array.isArray(data) ? data : []);
-        setPaymentLogsTotal(res.total ?? 0);
-        setPaymentLogsTotalPages(res.totalPages ?? Math.ceil((res.total ?? 0) / paymentLogsLimit));
+        setTimeline(res.timeline ?? []);
+        setStats(res.stats ?? null);
+        setTimelineTotal(res.total ?? 0);
+        setTimelineTotalPages(res.totalPages ?? 1);
       })
       .catch((err: any) => {
-        console.warn('Could not load payment logs:', err);
-        setPaymentLogs([]);
+        console.warn('Could not load timeline:', err);
+        setTimeline([]);
       })
-      .finally(() => setPaymentLogsLoading(false));
+      .finally(() => setTimelineLoading(false));
   };
 
   const openUserDetail = (user: User) => {
@@ -133,9 +132,10 @@ export default function Users() {
     setWalletAmount('');
     setWalletDesc('');
     setWalletPin('');
-    setPaymentLogs([]);
-    setPaymentLogsPage(1);
-    fetchPaymentLogs(user.id, 1);
+    setTimeline([]);
+    setStats(null);
+    setTimelinePage(1);
+    fetchTimeline(user.id, 1);
   };
 
   const closeUserDetail = () => {
@@ -240,7 +240,7 @@ export default function Users() {
         setWalletDesc('');
         setWalletPin('');
         setShowWalletAdjust(false);
-        fetchPaymentLogs(selectedUser.id, 1);
+        fetchTimeline(selectedUser.id, 1);
       } else {
         showToast(res.message || 'Balance adjustment failed.', 'error');
       }
@@ -251,10 +251,10 @@ export default function Users() {
     }
   };
 
-  const changePaymentLogsPage = (newPage: number) => {
+  const changeTimelinePage = (newPage: number) => {
     if (!selectedUser) return;
-    setPaymentLogsPage(newPage);
-    fetchPaymentLogs(selectedUser.id, newPage);
+    setTimelinePage(newPage);
+    fetchTimeline(selectedUser.id, newPage);
   };
 
   useEffect(() => {
@@ -553,66 +553,80 @@ export default function Users() {
               </form>
             )}
 
-            {/* Payment Logs */}
+            {/* Activity Timeline */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-1 h-5 bg-success rounded-full" />
-                <span className="text-sm font-bold text-text-main">Payment History</span>
+                <div className="w-1 h-5 bg-tint rounded-full" />
+                <span className="text-sm font-bold text-text-main">Activity Timeline</span>
                 <span className="text-[10px] text-text-secondary">
-                  ({paymentLogsTotal} transaction{paymentLogsTotal !== 1 ? 's' : ''})
+                  ({timelineTotal} record{timelineTotal !== 1 ? 's' : ''})
                 </span>
               </div>
 
-              {paymentLogsLoading ? (
+              {stats && (
+                <div className="grid grid-cols-2 gap-2 text-[10px] bg-bg-element p-3 rounded-lg border border-border mb-1">
+                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Total Spent</span><span className="font-bold text-error-val">₦{stats.totalSpent?.toLocaleString() || 0}</span></div>
+                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Total Funded</span><span className="font-bold text-success">₦{stats.totalFunded?.toLocaleString() || 0}</span></div>
+                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Orders</span><span className="font-bold text-text-main">{stats.orderCount || 0}</span></div>
+                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Transactions</span><span className="font-bold text-text-main">{stats.transactionCount || 0}</span></div>
+                </div>
+              )}
+
+              {timelineLoading ? (
                 <div className="flex justify-center items-center py-8">
                   <svg className="animate-spin h-5 w-5 text-tint" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 </div>
-              ) : paymentLogs.length === 0 ? (
+              ) : timeline.length === 0 ? (
                 <div className="text-center py-6 text-text-secondary text-xs">
-                  No payment history for this user.
+                  No activity history for this user.
                 </div>
               ) : (
-                <div className="flex flex-col gap-2 overflow-y-auto max-h-48">
-                  {paymentLogs.map((log) => (
-                    <div key={log.id} className="p-3 bg-bg-element rounded-lg border border-border flex flex-col gap-1.5">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-success">
-                          ₦{log.details.amount.toLocaleString()}
-                        </span>
-                        <Badge label="Top-up" variant="success" />
+                <div className="flex flex-col gap-2 overflow-y-auto max-h-60 pr-1 custom-scrollbar">
+                  {timeline.map((item) => (
+                    <div key={item.id} className="p-3 bg-bg-element rounded-lg border border-border flex flex-col gap-1.5">
+                      <div className="flex justify-between items-start">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-text-main">{item.title}</span>
+                          <span className="text-[10px] text-text-secondary">{item.description}</span>
+                        </div>
+                        <Badge label={item.type.replace('_', ' ')} variant={item.type === 'order' ? 'warning' : item.type === 'audit_log' ? 'default' : 'info'} />
                       </div>
-                      <div className="flex flex-col gap-0.5 text-[10px] text-text-secondary">
-                        <span>Txn: {log.details.transactionId}</span>
-                        <span>Source: {log.details.source}</span>
-                        <span>{new Date(parseDate(log.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className={`text-xs font-bold ${item.amount > 0 ? 'text-success' : item.amount < 0 ? 'text-error-val' : 'text-text-secondary'}`}>
+                          {item.amount ? (item.amount > 0 ? `+₦${item.amount.toLocaleString()}` : `-₦${Math.abs(item.amount).toLocaleString()}`) : '—'}
+                        </span>
+                        <div className="flex flex-col items-end gap-0.5 text-[10px] text-text-secondary">
+                          <span className="font-semibold text-text-main capitalize">{item.status || 'logged'}</span>
+                          <span>{new Date(parseDate(item.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              {paymentLogsTotalPages > 1 && (
-                <div className="flex justify-center items-center gap-2">
+              {timelineTotalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => changePaymentLogsPage(Math.max(1, paymentLogsPage - 1))}
-                    disabled={paymentLogsPage <= 1}
+                    onClick={() => changeTimelinePage(Math.max(1, timelinePage - 1))}
+                    disabled={timelinePage <= 1}
                     className="text-[10px] font-bold cursor-pointer"
                   >
                     Previous
                   </Button>
                   <span className="text-[10px] font-bold text-text-secondary">
-                    {paymentLogsPage} / {paymentLogsTotalPages}
+                    {timelinePage} / {timelineTotalPages}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => changePaymentLogsPage(Math.min(paymentLogsTotalPages, paymentLogsPage + 1))}
-                    disabled={paymentLogsPage >= paymentLogsTotalPages}
+                    onClick={() => changeTimelinePage(Math.min(timelineTotalPages, timelinePage + 1))}
+                    disabled={timelinePage >= timelineTotalPages}
                     className="text-[10px] font-bold cursor-pointer"
                   >
                     Next

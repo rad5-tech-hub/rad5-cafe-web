@@ -11,6 +11,7 @@ import { Button } from '~/components/ui/button';
 import { ProductCard } from '~/components/ui/product-card';
 import { FundWalletModal } from '~/components/modals/fund-wallet-modal';
 import { PinSetupModal } from '~/components/modals/pin-setup-modal';
+import { TransferWalletModal } from '~/components/modals/transfer-wallet-modal';
 
 type Transaction = {
   _id: string;
@@ -45,6 +46,7 @@ export default function Home() {
 
   // Modals Visibility States
   const [showFund, setShowFund] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
 
   const fetchWalletDetails = () => {
@@ -190,6 +192,11 @@ export default function Home() {
               label: 'Fund Wallet',
               onPress: () => setShowFund(true),
             },
+            {
+              icon: 'arrow-up',
+              label: 'Transfer',
+              onPress: () => setShowTransfer(true),
+            },
           ]}
         />
 
@@ -309,6 +316,16 @@ export default function Home() {
         onClose={() => setShowFund(false)}
         userEmail={user?.email || ''}
         onSuccess={handleFundSuccess}
+      />
+
+      <TransferWalletModal
+        isOpen={showTransfer}
+        onClose={() => setShowTransfer(false)}
+        onSuccess={handleFundSuccess}
+        onPinNotSet={() => {
+          setPinSetupNeeded(true);
+          setShowPinSetup(true);
+        }}
       />
 
       <PinSetupModal

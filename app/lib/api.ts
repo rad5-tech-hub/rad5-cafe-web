@@ -283,6 +283,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ reference, provider }),
       }),
+    transfer: (body: { recipientWalletId: string; amount: number; description?: string; pin: string }) =>
+      request<any>('/wallet/transfer', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     transactions: (params?: { type?: string; page?: number; limit?: number }) => {
       const qs = new URLSearchParams();
       if (params?.type) qs.set('type', params.type);
@@ -498,6 +503,27 @@ export const api = {
         const query = qs.toString();
         return request<any>(`/admin-dashboard/products/${id}/analytics${query ? `?${query}` : ''}`);
       },
+      purchaseHistory: (params?: { productId?: string; userId?: string; period?: string; startDate?: string; endDate?: string; page?: number; limit?: number }) => {
+        const qs = new URLSearchParams();
+        if (params?.productId) qs.set('productId', params.productId);
+        if (params?.userId) qs.set('userId', params.userId);
+        if (params?.period) qs.set('period', params.period);
+        if (params?.startDate) qs.set('startDate', params.startDate);
+        if (params?.endDate) qs.set('endDate', params.endDate);
+        if (params?.page) qs.set('page', String(params.page));
+        if (params?.limit) qs.set('limit', String(params.limit));
+        const query = qs.toString();
+        return request<any>(`/admin-dashboard/products/purchase-history${query ? `?${query}` : ''}`);
+      },
+    },
+    users: {
+      history: (id: string, params?: { page?: number; limit?: number }) => {
+        const qs = new URLSearchParams();
+        if (params?.page) qs.set('page', String(params.page));
+        if (params?.limit) qs.set('limit', String(params.limit));
+        const query = qs.toString();
+        return request<any>(`/admin-dashboard/users/${id}/history${query ? `?${query}` : ''}`);
+      }
     },
     inventoryTracking: (page = 1, limit = 50) =>
       request<any>(`/admin-dashboard/inventory-tracking?page=${page}&limit=${limit}`),
