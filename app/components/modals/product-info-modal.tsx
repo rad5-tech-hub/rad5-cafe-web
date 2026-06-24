@@ -173,6 +173,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
     return cancel;
   }, [fetchAnalytics, isOpen]);
 
+  useEffect(() => {
     if (!isOpen) {
       setPeriod('this_month');
       setStartDate('');
@@ -432,7 +433,9 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
                 </div>
               )}
             </>
-          ) : null) : (
+          ) : null}
+            </>
+          ) : (
             /* Purchase History Tab */
             <div className="flex flex-col gap-1">
               {purchasesLoading ? (

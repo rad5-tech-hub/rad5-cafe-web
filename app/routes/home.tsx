@@ -143,7 +143,7 @@ export default function Home() {
     return () => window.removeEventListener('order-placed', handleOrderPlaced);
   }, [user]);
 
-  const handleFundSuccess = (amount: number) => {
+  const handleFundSuccess = (amount?: number) => {
     fetchWalletDetails();
     fetchTransactions();
   };
