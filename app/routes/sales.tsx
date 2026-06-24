@@ -6,6 +6,21 @@ import { Button } from '~/components/ui/button';
 import { useToast } from '~/context/toast-context';
 import { api, type Sale } from '~/lib/api';
 
+function parseDate(val: any): string {
+  if (!val) return new Date().toISOString();
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  }
+  if (typeof val === 'number') return new Date(val).toISOString();
+  if (typeof val === 'object') {
+    if (typeof val.toDate === 'function') return val.toDate().toISOString();
+    if (typeof val._seconds === 'number') return new Date(val._seconds * 1000).toISOString();
+    if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+  }
+  return new Date(val).toISOString();
+}
+
 const filters = [
   { label: 'All', value: 'all' },
   { label: 'Daily', value: 'daily' },
@@ -212,7 +227,7 @@ export default function Sales() {
                     {sale.items.map(item => `${item.productName} (x${item.quantity})`).join(', ')}
                   </span>
                   <span className="text-[10px] text-text-secondary">
-                    {sale.customerName} • {new Date(sale.date).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {sale.customerName} • {new Date(parseDate(sale.date)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
 
@@ -248,13 +263,20 @@ export default function Sales() {
                     <div className="flex flex-col items-end gap-0.5">
                       <Badge label="Issued" variant="success" />
                       {sale.issuedBy && (
-                        <span className="text-[10px] text-text-secondary">
+                        <span 
+                          className="text-[10px] text-text-secondary cursor-pointer hover:text-tint transition-colors"
+                          onClick={() => {
+                            navigator.clipboard.writeText(sale.issuedBy!);
+                            showToast('Copied ID to clipboard!', 'success');
+                          }}
+                          title="Click to copy ID"
+                        >
                           by {sale.issuedBy}
                         </span>
                       )}
                       {sale.issuedAt && (
                         <span className="text-[10px] text-text-secondary">
-                          {new Date(sale.issuedAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(parseDate(sale.issuedAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       )}
                     </div>

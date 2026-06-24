@@ -86,6 +86,14 @@ function formatPeriodLabel(period: string): string {
   return period;
 }
 
+function getCustomerDisplayName(p: any): string {
+  const name = p.user?.fullName || p.customerName || '';
+  if (!name || name.toLowerCase() === 'unkwun customer' || name.toLowerCase() === 'unknown customer' || name.toLowerCase() === 'unknown') {
+    return p.user?.email || p.customerEmail || name || 'Unknown';
+  }
+  return name || 'Unknown';
+}
+
 export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
   isOpen,
   onClose,
@@ -465,7 +473,7 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
                       {purchases.map((p, i) => (
                         <tr key={p.orderId || i} className="border-b border-border last:border-b-0 hover:bg-bg-element/50">
                           <td className="py-2 px-3 font-medium text-text-main">{formatDate(p.createdAt)}</td>
-                          <td className="py-2 px-3 text-text-main truncate max-w-[100px]">{p.user?.fullName || p.customerName || 'Unknown'}</td>
+                          <td className="py-2 px-3 text-text-main truncate max-w-[100px]">{getCustomerDisplayName(p)}</td>
                           <td className="py-2 px-3 text-right font-bold text-text-main">{p.quantity}</td>
                           <td className="py-2 px-3 text-right font-medium text-tint">₦{p.totalPrice?.toLocaleString()}</td>
                           <td className={`py-2 px-3 text-right font-semibold capitalize ${p.status === 'purchase' || p.status === 'completed' ? 'text-success' : 'text-error-val'}`}>

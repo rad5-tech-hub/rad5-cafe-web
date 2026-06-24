@@ -51,6 +51,14 @@ function parseDate(val: any): string {
   return new Date(val).toISOString();
 }
 
+function getDisplayName(user: any): string {
+  const name = user.fullName || '';
+  if (!name || name.toLowerCase() === 'unkwun customer' || name.toLowerCase() === 'unknown customer' || name.toLowerCase() === 'unknown') {
+    return user.email || name || 'Unnamed User';
+  }
+  return name || 'Unnamed User';
+}
+
 export function meta() {
   return [
     { title: "User Management - RAD5 Café" },
@@ -160,8 +168,8 @@ export default function Users() {
     const confirmed = await showConfirm({
       title: user.isActive ? 'Deactivate User' : 'Activate User',
       message: user.isActive
-        ? `Are you sure you want to deactivate ${user.fullName}? They will no longer be able to access their account.`
-        : `Are you sure you want to reactivate ${user.fullName}? They will regain full access to their account.`,
+        ? `Are you sure you want to deactivate ${getDisplayName(user)}? They will no longer be able to access their account.`
+        : `Are you sure you want to reactivate ${getDisplayName(user)}? They will regain full access to their account.`,
       variant: user.isActive ? 'danger' : 'default',
       confirmLabel: user.isActive ? 'Deactivate' : 'Activate',
       cancelLabel: 'Cancel',
@@ -193,8 +201,8 @@ export default function Users() {
     const confirmed = await showConfirm({
       title: isPromoting ? 'Promote to Admin' : 'Remove Admin',
       message: isPromoting
-        ? `Are you sure you want to make ${user.fullName} an admin? They will gain full access to the admin panel.`
-        : `Are you sure you want to remove admin privileges from ${user.fullName}?`,
+        ? `Are you sure you want to make ${getDisplayName(user)} an admin? They will gain full access to the admin panel.`
+        : `Are you sure you want to remove admin privileges from ${getDisplayName(user)}?`,
       variant: isPromoting ? 'default' : 'danger',
       confirmLabel: isPromoting ? 'Make Admin' : 'Remove Admin',
       cancelLabel: 'Cancel',
@@ -230,7 +238,7 @@ export default function Users() {
       const res = await api.adminDashboard.wallet.adjust({
         userId: selectedUser.id,
         amount: Number(walletAmount),
-        description: walletDesc.trim() || `Admin balance adjustment for ${selectedUser.fullName}`,
+        description: walletDesc.trim() || `Admin balance adjustment for ${getDisplayName(selectedUser)}`,
         pin: walletPin,
       });
 
@@ -303,13 +311,13 @@ export default function Users() {
               >
                 <div className="w-10 h-10 rounded-full bg-bg-element border border-border flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-bold text-text-secondary">
-                    {(user.fullName || 'U')[0].toUpperCase()}
+                    {getDisplayName(user)[0].toUpperCase()}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-sm text-text-main truncate">
-                      {user.fullName || 'Unnamed User'}
+                      {getDisplayName(user)}
                     </span>
                     {user.role === 'admin' && (
                       <Badge label="Admin" variant="warning" />
@@ -371,12 +379,12 @@ export default function Users() {
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-12 h-12 rounded-full bg-bg-element border border-border flex items-center justify-center flex-shrink-0">
                   <span className="text-lg font-bold text-text-secondary">
-                    {(selectedUser.fullName || 'U')[0].toUpperCase()}
+                    {getDisplayName(selectedUser)[0].toUpperCase()}
                   </span>
                 </div>
                 <div className="flex flex-col gap-0.5 min-w-0">
                   <h3 className="text-lg font-bold text-text-main truncate">
-                    {selectedUser.fullName || 'Unnamed User'}
+                    {getDisplayName(selectedUser)}
                   </h3>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Badge

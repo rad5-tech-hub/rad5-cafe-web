@@ -25,6 +25,14 @@ function fmtCurrency(amount: unknown): string {
   return `₦${safeNum(amount).toLocaleString()}`;
 }
 
+function getDisplayName(user: any): string {
+  const name = user.fullName || '';
+  if (!name || name.toLowerCase() === 'unkwun customer' || name.toLowerCase() === 'unknown customer' || name.toLowerCase() === 'unknown') {
+    return user.email || name || 'Unknown Customer';
+  }
+  return name || 'Unknown Customer';
+}
+
 function StatCard({ label, value, icon, variant = 'default' }: { label: string, value: string, icon: any, variant?: 'default'|'success'|'warning'|'error' }) {
   const getColors = () => {
     switch (variant) {
@@ -269,7 +277,7 @@ function MonthlyTab() {
             
             <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mt-8 mb-4">Top Spender</h3>
             <div>
-              <p className="font-extrabold text-text-main text-lg">{data.highlights.topSpender.fullName}</p>
+              <p className="font-extrabold text-text-main text-lg">{getDisplayName(data.highlights.topSpender)}</p>
               <p className="text-xs text-text-secondary font-semibold">{data.highlights.topSpender.orderCount} orders · <span className="text-tint">{fmtCurrency(data.highlights.topSpender.totalSpent)}</span></p>
             </div>
           </Card>
@@ -497,7 +505,7 @@ function CustomTab() {
                   <div key={c.userId} className="flex items-center gap-3 p-3 bg-bg-element rounded-lg">
                     <div className="w-8 h-8 rounded-full bg-tint/20 text-tint flex items-center justify-center font-bold text-xs">{i+1}</div>
                     <div className="flex-1">
-                      <p className="font-semibold text-sm text-text-main">{c.fullName}</p>
+                      <p className="font-semibold text-sm text-text-main">{getDisplayName(c)}</p>
                       <p className="text-xs text-text-secondary">{c.orderCount} orders</p>
                     </div>
                     <span className="font-extrabold text-success">{fmtCurrency(c.totalSpent)}</span>
