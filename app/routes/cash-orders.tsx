@@ -338,9 +338,9 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
   const [reconcilingId, setReconcilingId] = useState<string | null>(null);
   
   // Modal state
-  const [selectedOrder, setSelectedOrder] = useState<LimboOrder | null>(null);
+  const [selectedOrdersForReconciliation, setSelectedOrdersForReconciliation] = useState<LimboOrder[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [checkedOrderId, setCheckedOrderId] = useState<string | null>(null);
+  const [checkedOrderIds, setCheckedOrderIds] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -371,8 +371,8 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
   }, [fetchData]);
 
   const handleReconcile = async () => {
-    if (!selectedOrder || !selectedUserId) {
-      showToast('Please select a user to map this order to.', 'warning');
+    if (selectedOrdersForReconciliation.length === 0 || !selectedUserId) {
+      showToast('Please select a user to map these orders to.', 'warning');
       return;
     }
 
@@ -381,23 +381,35 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
 
     const confirmed = await showConfirm({
       title: 'Confirm Reconciliation',
-      message: `Are you sure you want to map order ${selectedOrder.receiptNumber} to ${user.fullName} (${user.email})?`,
-      confirmLabel: 'Reconcile Order',
+      message: `Are you sure you want to map ${selectedOrdersForReconciliation.length === 1 ? `order ${selectedOrdersForReconciliation[0].receiptNumber}` : `${selectedOrdersForReconciliation.length} orders`} to ${user.fullName} (${user.email})?`,
+      confirmLabel: 'Reconcile',
     });
 
     if (!confirmed) return;
 
-    setReconcilingId(selectedOrder.id);
+    setReconcilingId('processing');
     try {
-      const res = await api.adminDashboard.orders.reconcile(selectedOrder.id, selectedUserId);
-      if (res.success) {
-        showToast('Order reconciled successfully', 'success');
-        setSelectedOrder(null);
-        setSelectedUserId('');
-        fetchData(); // Refresh the list
-      } else {
-        showToast(res.message || 'Failed to reconcile order', 'error');
+      let successCount = 0;
+      let errorCount = 0;
+      for (const order of selectedOrdersForReconciliation) {
+        const res = await api.adminDashboard.orders.reconcile(order.id, selectedUserId);
+        if (res.success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
       }
+      
+      if (errorCount === 0) {
+         showToast(`${successCount} order(s) reconciled successfully`, 'success');
+      } else {
+         showToast(`${successCount} reconciled, ${errorCount} failed`, 'warning');
+      }
+      
+      setSelectedOrdersForReconciliation([]);
+      setSelectedUserId('');
+      setCheckedOrderIds([]);
+      fetchData(); // Refresh the list
     } catch (err: any) {
       showToast(err.message || 'An error occurred during reconciliation', 'error');
     } finally {
@@ -428,12 +440,12 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
           <Button 
             variant="outline" 
             onClick={() => {
-              if (!checkedOrderId) {
-                showToast('Please select an order to reconcile.', 'warning');
+              if (checkedOrderIds.length === 0) {
+                showToast('Please select at least one order to reconcile.', 'warning');
                 return;
               }
-              const order = orders.find(o => o.id === checkedOrderId);
-              if (order) setSelectedOrder(order);
+              const selected = orders.filter(o => checkedOrderIds.includes(o.id));
+              setSelectedOrdersForReconciliation(selected);
             }}
           >
             <Icon name="check" size={16} className="mr-2" />
@@ -451,7 +463,17 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
           <table className="w-full text-left text-sm">
             <thead className="bg-bg-element text-text-secondary font-semibold uppercase text-[10px] tracking-wider border-b border-border">
               <tr>
-                <th className="px-4 py-3 w-10 text-center"></th>
+                <th className="px-4 py-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    className="accent-tint w-4 h-4 cursor-pointer"
+                    checked={orders.length > 0 && checkedOrderIds.length === orders.length}
+                    onChange={(e) => {
+                      if (e.target.checked) setCheckedOrderIds(orders.map(o => o.id));
+                      else setCheckedOrderIds([]);
+                    }}
+                  />
+                </th>
                 <th className="px-4 py-3">Receipt</th>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Customer Name</th>
@@ -475,16 +497,24 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
                 orders.map((order) => (
                   <tr 
                     key={order.id} 
-                    className={`transition-colors cursor-pointer ${checkedOrderId === order.id ? 'bg-tint/10' : 'hover:bg-bg-element/50'}`}
-                    onClick={() => setCheckedOrderId(order.id)}
+                    className={`transition-colors cursor-pointer ${checkedOrderIds.includes(order.id) ? 'bg-tint/10' : 'hover:bg-bg-element/50'}`}
+                    onClick={() => {
+                      if (checkedOrderIds.includes(order.id)) {
+                        setCheckedOrderIds(checkedOrderIds.filter(id => id !== order.id));
+                      } else {
+                        setCheckedOrderIds([...checkedOrderIds, order.id]);
+                      }
+                    }}
                   >
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <input 
-                        type="radio" 
-                        name="reconcileOrder" 
-                        checked={checkedOrderId === order.id} 
-                        onChange={() => setCheckedOrderId(order.id)} 
-                        className="accent-tint w-4 h-4"
+                        type="checkbox" 
+                        checked={checkedOrderIds.includes(order.id)} 
+                        onChange={(e) => {
+                          if (e.target.checked) setCheckedOrderIds([...checkedOrderIds, order.id]);
+                          else setCheckedOrderIds(checkedOrderIds.filter(id => id !== order.id));
+                        }} 
+                        className="accent-tint w-4 h-4 cursor-pointer"
                       />
                     </td>
                     <td className="px-4 py-3 font-medium text-text-main">
@@ -508,13 +538,13 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
       </div>
 
       {/* Reconciliation Modal */}
-      {selectedOrder && (
+      {selectedOrdersForReconciliation.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-slide-up border border-border">
             <div className="p-6 border-b border-border flex justify-between items-center">
-              <h3 className="font-extrabold text-lg text-text-main">Reconcile Order</h3>
+              <h3 className="font-extrabold text-lg text-text-main">Reconcile {selectedOrdersForReconciliation.length > 1 ? 'Orders' : 'Order'}</h3>
               <button
-                onClick={() => setSelectedOrder(null)}
+                onClick={() => setSelectedOrdersForReconciliation([])}
                 className="p-2 text-text-secondary hover:bg-bg-selected rounded-full transition-colors"
               >
                 <Icon name="x" size={20} />
@@ -522,18 +552,35 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
             </div>
             <div className="p-6 flex flex-col gap-4">
               <div className="bg-bg-element p-4 rounded-xl border border-border">
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-text-secondary">Receipt</span>
-                  <span className="text-sm font-bold text-text-main">{selectedOrder.receiptNumber}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-text-secondary">Walk-in Name</span>
-                  <span className="text-sm font-bold text-text-main">{selectedOrder.customerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-text-secondary">Order Total</span>
-                  <span className="text-sm font-extrabold text-tint">₦{selectedOrder.total?.toLocaleString() ?? 0}</span>
-                </div>
+                {selectedOrdersForReconciliation.length === 1 ? (
+                  <>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-text-secondary">Receipt</span>
+                      <span className="text-sm font-bold text-text-main">{selectedOrdersForReconciliation[0].receiptNumber}</span>
+                    </div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-text-secondary">Walk-in Name</span>
+                      <span className="text-sm font-bold text-text-main">{selectedOrdersForReconciliation[0].customerName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-text-secondary">Order Total</span>
+                      <span className="text-sm font-extrabold text-tint">₦{selectedOrdersForReconciliation[0].total?.toLocaleString() ?? 0}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-text-secondary">Selected Orders</span>
+                      <span className="text-sm font-bold text-text-main">{selectedOrdersForReconciliation.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-text-secondary">Total Amount</span>
+                      <span className="text-sm font-extrabold text-tint">
+                        ₦{selectedOrdersForReconciliation.reduce((sum, o) => sum + (o.total || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
@@ -558,13 +605,13 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
               </div>
             </div>
             <div className="p-6 bg-bg-element/50 border-t border-border flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setSelectedOrder(null)}>
+              <Button variant="outline" onClick={() => setSelectedOrdersForReconciliation([])}>
                 Cancel
               </Button>
               <Button 
                 variant="primary" 
                 onClick={handleReconcile}
-                disabled={!selectedUserId || reconcilingId === selectedOrder.id}
+                disabled={!selectedUserId || reconcilingId === 'processing'}
               >
                 Confirm Reconciliation
               </Button>
