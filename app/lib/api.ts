@@ -59,6 +59,8 @@ export type Sale = {
   issued: boolean;
   issuedBy: string | null;
   issuedAt: string | null;
+  cancelledBy?: string | null;
+  cancelledAt?: string | null;
   date: string;
 };
 

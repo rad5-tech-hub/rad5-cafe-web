@@ -281,6 +281,27 @@ export default function Sales() {
                       )}
                     </div>
                   )}
+                  {sale.status === 'cancelled' && (sale.cancelledBy || sale.cancelledAt) && (
+                    <div className="flex flex-col items-end gap-0.5 mt-1">
+                      {sale.cancelledBy && (
+                        <span 
+                          className="text-[10px] text-text-secondary cursor-pointer hover:text-error-val transition-colors"
+                          onClick={() => {
+                            navigator.clipboard.writeText(sale.cancelledBy!);
+                            showToast('Copied ID to clipboard!', 'success');
+                          }}
+                          title="Click to copy ID"
+                        >
+                          by {sale.cancelledBy}
+                        </span>
+                      )}
+                      {sale.cancelledAt && (
+                        <span className="text-[10px] text-text-secondary">
+                          {new Date(parseDate(sale.cancelledAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
