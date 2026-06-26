@@ -106,12 +106,12 @@ export default function Cafe() {
       {/* Sticky Categories Bar + Search Box */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-card border border-border p-4 rounded-xl shadow-xs">
         {/* Horizontal Scroll Categories */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1.5 md:pb-0 scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1.5 md:pb-0 scrollbar-none min-w-0 flex-1 w-full md:w-auto">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 text-xs font-bold rounded-full transition-all cursor-pointer ${
+              className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
                 selectedCategory === cat
                   ? 'bg-tint text-white'
                   : 'bg-bg-selected/50 text-text-secondary hover:bg-bg-selected hover:text-text-main'

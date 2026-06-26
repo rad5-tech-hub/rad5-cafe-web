@@ -117,8 +117,8 @@ export function CashOrdersList({
             Review cash orders in limbo and reconcile them with registered user accounts.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={fetchData} disabled={loading} title="Refresh">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+          <Button variant="outline" onClick={fetchData} disabled={loading} title="Refresh" className="w-10 h-10 p-0 flex-shrink-0">
             <Icon name="sync" size={16} className={loading ? 'animate-spin' : ''} />
           </Button>
           <Button 
@@ -131,15 +131,16 @@ export function CashOrdersList({
               const selected = orders.filter(o => checkedOrderIds.includes(o.id));
               setSelectedOrdersForReconciliation(selected);
             }}
+            className="flex-1 md:flex-none"
           >
-            <Icon name="check" size={16} className="mr-2" />
+            <Icon name="check" size={16} className="mr-2 hidden sm:inline" />
             Reconcile
           </Button>
-          <Button variant="outline" onClick={onViewHistory}>
-            <Icon name="clock" size={16} className="mr-2" />
-            Reconciled History
+          <Button variant="outline" onClick={onViewHistory} className="flex-1 md:flex-none">
+            <Icon name="clock" size={16} className="mr-2 hidden sm:inline" />
+            History
           </Button>
-          <Button variant="primary" onClick={onNewCashOrder}>
+          <Button variant="primary" onClick={onNewCashOrder} className="w-full md:w-auto mt-2 md:mt-0">
             <Icon name="plus" size={16} className="mr-2" />
             New Cash Order
           </Button>
