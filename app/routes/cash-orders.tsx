@@ -208,9 +208,6 @@ function CreateCashOrdersView({ onBack }: { onBack: () => void }) {
             <Icon name="arrow-down" size={16} className="mr-2 rotate-90" />
             Back to Orders
           </Button>
-          <Button variant="primary" onClick={handleSaveBatch} disabled={saving || loading}>
-            {saving ? 'Processing...' : 'Save Batch Orders'}
-          </Button>
         </div>
       </div>
 
@@ -321,6 +318,12 @@ function CreateCashOrdersView({ onBack }: { onBack: () => void }) {
             Add Another Order
           </Button>
         </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button variant="primary" onClick={handleSaveBatch} disabled={saving || loading}>
+          {saving ? 'Processing...' : 'Save Batch Orders'}
+        </Button>
       </div>
     </div>
   );
