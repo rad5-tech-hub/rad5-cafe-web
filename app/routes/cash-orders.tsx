@@ -4,6 +4,7 @@ import { useToast } from '~/context/toast-context';
 import { useConfirm } from '~/context/confirm-context';
 import { Button } from '~/components/ui/button';
 import { Icon } from '~/components/ui/icon';
+import { Select } from '~/components/ui/select';
 
 // --- Types for Batch/Cash Orders ---
 type Product = {
@@ -275,21 +276,18 @@ function CreateCashOrdersView({ onBack }: { onBack: () => void }) {
                       ) : null}
 
                       <div className="flex items-center gap-2 mt-1">
-                        <select
-                          className="flex-1 bg-bg-element border border-border rounded-lg px-3 py-2 text-sm text-text-main focus:border-tint focus:ring-1 focus:ring-tint outline-none"
-                          onChange={(e) => {
-                            addItemToOrder(order.id, e.target.value);
-                            e.target.value = ''; // Reset select after adding
+                        <Select
+                          value=""
+                          onChange={(val) => {
+                            addItemToOrder(order.id, val);
                           }}
-                          defaultValue=""
-                        >
-                          <option value="" disabled>+ Add product to order</option>
-                          {products.filter(p => p.inStock).map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} - ₦{p.price.toLocaleString()}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder="+ Add product to order"
+                          options={products.filter(p => p.inStock).map(p => ({
+                            label: `${p.name} - ₦${p.price.toLocaleString()}`,
+                            value: p.id
+                          }))}
+                          className="flex-1 w-full"
+                        />
                       </div>
                     </div>
                   </td>
@@ -587,18 +585,16 @@ function CashOrdersList({ onNewCashOrder }: { onNewCashOrder: () => void }) {
                 <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
                   Select Registered User
                 </label>
-                <select
+                <Select
                   value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full bg-bg-element border border-border rounded-xl px-4 py-3 text-sm text-text-main focus:border-tint focus:ring-1 focus:ring-tint outline-none transition-all"
-                >
-                  <option value="" disabled>Choose a user to credit...</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName} ({u.email})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedUserId(val)}
+                  placeholder="Choose a user to credit..."
+                  options={users.map(u => ({
+                    label: `${u.fullName} (${u.email})`,
+                    value: u.id
+                  }))}
+                  className="w-full"
+                />
                 <p className="text-[11px] text-text-secondary mt-1">
                   The order amount will be added to the system and deducted from their wallet.
                 </p>

@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '~/context/toast-context';
 import { ProductImageUploader } from '../ui/product-image-uploader';
+import { Select } from '../ui/select';
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -128,19 +129,16 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
           <div className="flex flex-col gap-1.5 w-full">
             <label className="text-sm font-semibold text-text-main">Category</label>
-            <select
+            <Select
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="bg-bg-element border border-border text-text-main text-sm outline-none transition-colors duration-200 w-full px-3 py-2.5"
-              style={{ borderRadius: 'var(--radius-md)' }}
-            >
-              <option value="">Select a category</option>
-              {categories.map((cat: any) => (
-                <option key={cat.id || cat._id} value={cat.id || cat._id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setCategoryId(val)}
+              placeholder="Select a category"
+              options={categories.map((cat: any) => ({
+                label: cat.name,
+                value: cat.id || cat._id
+              }))}
+              className="w-full"
+            />
           </div>
 
           <div className="flex flex-col gap-1.5 w-full">

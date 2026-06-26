@@ -4,6 +4,7 @@ import { Card } from '~/components/ui/card';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Icon } from '~/components/ui/icon';
+import { Select } from '~/components/ui/select';
 import { useToast } from '~/context/toast-context';
 import { ProductImageUploader } from '~/components/ui/product-image-uploader';
 import { api } from '~/lib/api';
@@ -145,36 +146,26 @@ export default function AddProduct() {
 
           <div className="flex flex-col gap-1.5 w-full">
             <label className="text-sm font-semibold text-text-main">Category</label>
-            <select
+            <Select
               value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
-                if (e.target.value === '__new__') {
+              onChange={(val) => {
+                setCategory(val);
+                if (val === '__new__') {
                   setNewCategoryName('');
                 }
               }}
               disabled={categoriesLoading}
-              className="bg-bg-element border border-border text-text-main text-sm outline-none transition-colors duration-200 w-full p-3 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{
-                borderWidth: '1.5px',
-                borderRadius: 'var(--radius-md)',
-                padding: '10px 16px',
-              }}
-            >
-              {categoriesLoading ? (
-                <option value="">Loading categories...</option>
-              ) : (
-                <>
-                  <option value="">Select a category</option>
-                  {categoriesList.map((cat) => (
-                    <option key={cat.id || cat._id} value={cat.name}>
-                      {cat.name}
-                    </option>
-                  ))}
-                  <option value="__new__">+ Create New Category...</option>
-                </>
-              )}
-            </select>
+              placeholder={categoriesLoading ? 'Loading categories...' : 'Select a category'}
+              options={
+                categoriesLoading
+                  ? []
+                  : [
+                      ...categoriesList.map((cat) => ({ label: cat.name, value: cat.name })),
+                      { label: '+ Create New Category...', value: '__new__' }
+                    ]
+              }
+              className="w-full"
+            />
           </div>
 
           {category === '__new__' && (

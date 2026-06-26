@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '../ui/button';
+import { Select } from '../ui/select';
 import { api } from '~/lib/api';
 
 type FirestoreTimestamp = { _seconds: number; _nanoseconds: number };
@@ -261,21 +262,15 @@ export const ProductInfoModal: React.FC<ProductInfoModalProps> = ({
             <>
               {/* Period Selector */}
           <div className="flex flex-col gap-2">
-            <select
+            <Select
               value={period}
-              onChange={(e) => handlePeriodChange(e.target.value as PeriodOption)}
-              className="bg-bg-element border border-border text-text-main text-sm px-3 py-2 rounded-xl outline-none focus:border-tint transition-colors cursor-pointer appearance-none"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 12px center',
-                paddingRight: '2rem',
-              }}
-            >
-              {(['this_month', 'today', 'this_year', 'custom'] as PeriodOption[]).map((p) => (
-                <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
-              ))}
-            </select>
+              onChange={(val) => handlePeriodChange(val as PeriodOption)}
+              options={(['this_month', 'today', 'this_year', 'custom'] as PeriodOption[]).map((p) => ({
+                label: PERIOD_LABELS[p],
+                value: p
+              }))}
+              className="w-full"
+            />
             {period === 'custom' && (
               <div className="flex items-center gap-2">
                 <input

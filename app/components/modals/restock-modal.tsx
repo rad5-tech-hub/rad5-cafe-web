@@ -3,6 +3,7 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '~/context/toast-context';
+import { Select } from '../ui/select';
 
 interface RestockModalProps {
   isOpen: boolean;
@@ -128,25 +129,16 @@ export const RestockModal: React.FC<RestockModalProps> = ({
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold text-text-main select-none">Product</label>
-          <select
+          <Select
             value={selectedProduct}
-            onChange={(e) => setSelectedProduct(e.target.value)}
-            className="w-full p-3 bg-bg-element border border-border rounded-xl text-sm font-semibold text-text-main focus:border-tint focus:outline-none transition-colors appearance-none cursor-pointer"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-              backgroundPosition: 'right 0.75rem center',
-              backgroundRepeat: 'no-repeat',
-              backgroundSize: '1.25em 1.25em',
-              paddingRight: '2.5rem',
-            }}
-          >
-            <option value="" disabled>Select a product...</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.stock} units)
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedProduct(val)}
+            placeholder="Select a product..."
+            options={products.map((p) => ({
+              label: `${p.name} (${p.stock} units)`,
+              value: p.id
+            }))}
+            className="w-full"
+          />
         </div>
 
         {product && (
