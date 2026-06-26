@@ -561,6 +561,8 @@ export const api = {
     orders: {
       limbo: (page = 1, limit = 20) =>
         request<any>(`/admin/orders/limbo?page=${page}&limit=${limit}`),
+      reconciled: (page = 1, limit = 20) =>
+        request<any>(`/admin/orders/reconciled?page=${page}&limit=${limit}`),
       reconcile: (orderId: string, customerUserId: string) =>
         request<any>(`/admin/orders/${orderId}/reconcile`, { method: 'POST', body: JSON.stringify({ customerUserId }) }),
     },
