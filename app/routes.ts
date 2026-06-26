@@ -19,4 +19,6 @@ export default [
   route("admin/updates", "routes/updates.tsx"),
   route("history", "routes/history.tsx"),
   route("notifications", "routes/notifications.tsx"),
+  route("admin/batch-orders", "routes/batch-orders.tsx"),
+  route("admin/limbo-orders", "routes/limbo-orders.tsx"),
 ] satisfies RouteConfig;

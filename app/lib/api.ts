@@ -32,6 +32,7 @@ type ApiResponse<T = unknown> = {
   logs?: any[];
   transactions?: any[];
   notifications?: any[];
+  orders?: any[];
   token?: string;
   user?: any;
   balance?: number;
@@ -336,12 +337,16 @@ export const api = {
       request(`/notifications/audit-logs?page=${page}&limit=${limit}`),
   },
 
-  // ── Orders ────────────────────────────────────────
   orders: {
-    place: (items: { productId: string; quantity: number }[], pin: string) =>
+    place: (items: { productId: string; quantity: number }[], pin?: string, customerName?: string, paymentMethod: 'wallet' | 'cash' = 'wallet') =>
       request<any>('/orders', {
         method: 'POST',
-        body: JSON.stringify({ items, pin }),
+        body: JSON.stringify({ items, pin, customerName, paymentMethod }),
+      }),
+    batch: (orders: { customerName: string; paymentMethod: 'cash'; items: { productId: string; quantity: number }[] }[]) =>
+      request<any>('/orders/batch', {
+        method: 'POST',
+        body: JSON.stringify({ orders }),
       }),
     list: (page = 1, limit = 20) =>
       request(`/orders?page=${page}&limit=${limit}`),
@@ -552,6 +557,12 @@ export const api = {
         request<{ balance?: number }>(`/admin-dashboard/sales/${id}/adjust`, { method: 'PUT', body: JSON.stringify(body) }),
       issue: (id: string) =>
         request<Sale>(`/admin-dashboard/sales/${id}/issue`, { method: 'PUT' }),
+    },
+    orders: {
+      limbo: (page = 1, limit = 20) =>
+        request<any>(`/admin/orders/limbo?page=${page}&limit=${limit}`),
+      reconcile: (orderId: string, customerUserId: string) =>
+        request<any>(`/admin/orders/${orderId}/reconcile`, { method: 'POST', body: JSON.stringify({ customerUserId }) }),
     },
     analytics: {
       revenue: (period: 'daily' | 'weekly' | 'monthly' = 'daily', limit = 30) =>
