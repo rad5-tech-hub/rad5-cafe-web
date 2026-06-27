@@ -558,6 +558,17 @@ export const api = {
       issue: (id: string) =>
         request<Sale>(`/admin-dashboard/sales/${id}/issue`, { method: 'PUT' }),
     },
+    salesLedger: {
+      getExpenses: (params?: { page?: number; limit?: number }) => {
+        const qs = new URLSearchParams();
+        if (params?.page) qs.set('page', String(params.page));
+        if (params?.limit) qs.set('limit', String(params.limit));
+        const query = qs.toString();
+        return request<any>(`/admin-dashboard/sales-ledger/expenses${query ? `?${query}` : ''}`);
+      },
+      addExpense: (body: { amount: number; description: string; date: string; pin: string }) =>
+        request<any>('/admin-dashboard/sales-ledger/expenses', { method: 'POST', body: JSON.stringify(body) }),
+    },
     orders: {
       limbo: (page = 1, limit = 20) =>
         request<any>(`/admin/orders/limbo?page=${page}&limit=${limit}`),

@@ -159,6 +159,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     { label: 'Inventory', path: '/inventory', icon: 'package-variant-closed' as const },
     { label: 'Analytics', path: '/analytics', icon: 'trending-up' as const },
     { label: 'Sales Logs', path: '/sales', icon: 'dollar' as const },
+    { label: 'Sales Ledger / Expenses', path: '/admin/expenses', icon: 'dollar' as const },
     { label: 'Cash Orders', path: '/admin/cash-orders', icon: 'dollar' as const },
     { label: 'Users', path: '/admin/users', icon: 'account-group' as const },
     { label: 'Audit Logs', path: '/admin/audit-logs', icon: 'shield-check' as const },

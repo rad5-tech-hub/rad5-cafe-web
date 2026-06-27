@@ -20,4 +20,5 @@ export default [
   route("history", "routes/history.tsx"),
   route("notifications", "routes/notifications.tsx"),
   route("admin/cash-orders", "routes/cash-orders.tsx"),
+  route("admin/expenses", "routes/expenses.tsx"),
 ] satisfies RouteConfig;
