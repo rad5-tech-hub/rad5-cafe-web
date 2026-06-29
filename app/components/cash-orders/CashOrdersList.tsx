@@ -166,19 +166,20 @@ export function CashOrdersList({
                 <th className="px-4 py-3">Receipt</th>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Customer Name</th>
+                <th className="px-4 py-3">Products</th>
                 <th className="px-4 py-3 text-right">Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && orders.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-text-secondary">
+                  <td colSpan={6} className="text-center py-10 text-text-secondary">
                     Loading orders...
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-text-secondary">
+                  <td colSpan={6} className="text-center py-10 text-text-secondary">
                     No limbo orders found. All caught up!
                   </td>
                 </tr>
@@ -214,6 +215,19 @@ export function CashOrdersList({
                     </td>
                     <td className="px-4 py-3 text-text-main">
                       {order.customerName || 'Walk-in Customer'}
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary text-xs">
+                      {order.items && order.items.length > 0 ? (
+                        <div className="flex flex-col gap-0.5">
+                          {order.items.map((item: any, idx: number) => (
+                            <span key={idx} className="line-clamp-1" title={item.productName || item.name}>
+                              {item.quantity}x {item.productName || item.name || 'Product'}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span>No items</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-tint">
                       ₦{order.total?.toLocaleString() ?? 0}
