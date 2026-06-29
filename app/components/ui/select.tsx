@@ -40,8 +40,12 @@ export function Select({
       }
     }
     
-    function handleScroll() {
+    function handleScroll(event: Event) {
       if (isOpen) {
+        // Don't close if scrolling inside the dropdown itself
+        if (dropdownRef.current && dropdownRef.current.contains(event.target as Node)) {
+          return;
+        }
         setIsOpen(false);
       }
     }
