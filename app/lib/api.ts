@@ -247,7 +247,8 @@ export async function downloadReport(path: string, fileName: string): Promise<vo
   }
 
   // Trigger download using the generated URL
-  const downloadUrl = `${BASE_URL}${data.downloadUrl}`;
+  const baseUrlRoot = BASE_URL.endsWith('/api') ? BASE_URL.slice(0, -4) : BASE_URL;
+  const downloadUrl = `${baseUrlRoot}${data.downloadUrl}`;
   const link = document.createElement('a');
   link.href = downloadUrl;
   link.download = fileName;
