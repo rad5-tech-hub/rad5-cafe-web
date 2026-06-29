@@ -21,6 +21,7 @@ export type BatchOrder = {
 export type LimboOrder = {
   id: string;
   receiptNumber: string;
+  userName?: string;
   customerName: string;
   total: number;
   items: any[];

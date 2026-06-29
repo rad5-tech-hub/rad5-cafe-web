@@ -166,6 +166,7 @@ export function CashOrdersList({
                 <th className="px-4 py-3">Receipt</th>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Customer Name</th>
+                <th className="px-4 py-3">Entered By</th>
                 <th className="px-4 py-3">Products</th>
                 <th className="px-4 py-3 text-right">Total</th>
               </tr>
@@ -173,13 +174,13 @@ export function CashOrdersList({
             <tbody className="divide-y divide-border">
               {loading && orders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-text-secondary">
+                  <td colSpan={7} className="text-center py-10 text-text-secondary">
                     Loading orders...
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-text-secondary">
+                  <td colSpan={7} className="text-center py-10 text-text-secondary">
                     No limbo orders found. All caught up!
                   </td>
                 </tr>
@@ -215,6 +216,9 @@ export function CashOrdersList({
                     </td>
                     <td className="px-4 py-3 text-text-main">
                       {order.customerName || 'Walk-in Customer'}
+                    </td>
+                    <td className="px-4 py-3 text-text-main">
+                      {order.userName || 'Unknown'}
                     </td>
                     <td className="px-4 py-3 text-text-secondary text-xs">
                       {order.items && order.items.length > 0 ? (
