@@ -443,6 +443,7 @@ export function CashOrdersList({
                   value={deleteReason}
                   onChange={(e) => setDeleteReason(e.target.value)}
                   placeholder="E.g. Duplicate order, mistake..."
+                  autoComplete="off"
                   className="w-full bg-bg-main border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-tint transition-colors text-text-main placeholder:text-text-secondary/50"
                 />
               </div>
@@ -457,6 +458,7 @@ export function CashOrdersList({
                   onChange={(e) => setDeletePin(e.target.value)}
                   placeholder="Enter 4-digit PIN"
                   maxLength={4}
+                  autoComplete="new-password"
                   className="w-full bg-bg-main border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-tint transition-colors text-text-main placeholder:text-text-secondary/50"
                 />
                 <p className="text-[11px] text-text-secondary mt-1">
