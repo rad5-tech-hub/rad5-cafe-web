@@ -577,6 +577,8 @@ export const api = {
         request<any>(`/admin/orders/reconciled?page=${page}&limit=${limit}`),
       reconcile: (orderId: string, customerUserId: string) =>
         request<any>(`/admin/orders/${orderId}/reconcile`, { method: 'POST', body: JSON.stringify({ customerUserId }) }),
+      delete: (orderId: string, body: { reason: string; pin: string }) =>
+        request<any>(`/admin/orders/${orderId}`, { method: 'DELETE', body: JSON.stringify(body) }),
     },
     analytics: {
       revenue: (period: 'daily' | 'weekly' | 'monthly' = 'daily', limit = 30) =>

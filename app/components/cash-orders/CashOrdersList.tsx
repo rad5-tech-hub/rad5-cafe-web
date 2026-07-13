@@ -23,7 +23,10 @@ export function CashOrdersList({
   
   // Modal state
   const [selectedOrdersForReconciliation, setSelectedOrdersForReconciliation] = useState<LimboOrder[]>([]);
+  const [selectedOrdersForDeletion, setSelectedOrdersForDeletion] = useState<LimboOrder[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [deleteReason, setDeleteReason] = useState<string>('');
+  const [deletePin, setDeletePin] = useState<string>('');
   const [checkedOrderIds, setCheckedOrderIds] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
@@ -101,6 +104,51 @@ export function CashOrdersList({
     }
   };
 
+  const handleDelete = async () => {
+    if (selectedOrdersForDeletion.length === 0 || !deleteReason || !deletePin) {
+      showToast('Please provide a reason and your PIN.', 'warning');
+      return;
+    }
+
+    const confirmed = await showConfirm({
+      title: 'Confirm Deletion',
+      message: `Are you sure you want to delete ${selectedOrdersForDeletion.length === 1 ? `order ${selectedOrdersForDeletion[0].receiptNumber}` : `${selectedOrdersForDeletion.length} orders`}? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+    });
+
+    if (!confirmed) return;
+
+    setReconcilingId('processing');
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      for (const order of selectedOrdersForDeletion) {
+        const res = await api.adminDashboard.orders.delete(order.id, { reason: deleteReason, pin: deletePin });
+        if (res.success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      }
+      
+      if (errorCount === 0) {
+         showToast(`${successCount} order(s) deleted successfully`, 'success');
+      } else {
+         showToast(`${successCount} deleted, ${errorCount} failed`, 'warning');
+      }
+      
+      setSelectedOrdersForDeletion([]);
+      setDeleteReason('');
+      setDeletePin('');
+      setCheckedOrderIds([]);
+      fetchData(); // Refresh the list
+    } catch (err: any) {
+      showToast(err.message || 'An error occurred during deletion', 'error');
+    } finally {
+      setReconcilingId(null);
+    }
+  };
+
   const formatDate = (dateObj: any) => {
     if (!dateObj) return 'N/A';
     if (typeof dateObj === 'string') return new Date(dateObj).toLocaleString();
@@ -135,6 +183,21 @@ export function CashOrdersList({
           >
             <Icon name="check" size={16} className="mr-2 hidden sm:inline" />
             Reconcile
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              if (checkedOrderIds.length === 0) {
+                showToast('Please select at least one order to delete.', 'warning');
+                return;
+              }
+              const selected = orders.filter(o => checkedOrderIds.includes(o.id));
+              setSelectedOrdersForDeletion(selected);
+            }}
+            className="flex-1 md:flex-none text-red-500 border-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+          >
+            <Icon name="trash" size={16} className="mr-2 hidden sm:inline" />
+            Delete
           </Button>
           <Button variant="outline" onClick={onViewHistory} className="flex-1 md:flex-none">
             <Icon name="clock" size={16} className="mr-2 hidden sm:inline" />
@@ -319,6 +382,106 @@ export function CashOrdersList({
                 disabled={!selectedUserId || reconcilingId === 'processing'}
               >
                 Confirm Reconciliation
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deletion Modal */}
+      {selectedOrdersForDeletion.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-slide-up border border-border">
+            <div className="p-6 border-b border-border flex justify-between items-center">
+              <h3 className="font-extrabold text-lg text-text-main">Delete {selectedOrdersForDeletion.length > 1 ? 'Orders' : 'Order'}</h3>
+              <button
+                onClick={() => {
+                  setSelectedOrdersForDeletion([]);
+                  setDeleteReason('');
+                  setDeletePin('');
+                }}
+                className="p-2 text-text-secondary hover:bg-bg-selected rounded-full transition-colors"
+              >
+                <Icon name="x" size={20} />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <div className="bg-bg-element p-4 rounded-xl border border-border">
+                {selectedOrdersForDeletion.length === 1 ? (
+                  <>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-text-secondary">Receipt</span>
+                      <span className="text-sm font-bold text-text-main">{selectedOrdersForDeletion[0].receiptNumber}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-text-secondary">Order Total</span>
+                      <span className="text-sm font-extrabold text-tint">₦{selectedOrdersForDeletion[0].total?.toLocaleString() ?? 0}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-text-secondary">Selected Orders</span>
+                      <span className="text-sm font-bold text-text-main">{selectedOrdersForDeletion.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-text-secondary">Total Amount</span>
+                      <span className="text-sm font-extrabold text-tint">
+                        ₦{selectedOrdersForDeletion.reduce((sum, o) => sum + (o.total || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                  Reason for Deletion
+                </label>
+                <input
+                  type="text"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="E.g. Duplicate order, mistake..."
+                  className="w-full bg-bg-main border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-tint transition-colors text-text-main placeholder:text-text-secondary/50"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                  Admin PIN
+                </label>
+                <input
+                  type="password"
+                  value={deletePin}
+                  onChange={(e) => setDeletePin(e.target.value)}
+                  placeholder="Enter 4-digit PIN"
+                  maxLength={4}
+                  className="w-full bg-bg-main border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-tint transition-colors text-text-main placeholder:text-text-secondary/50"
+                />
+                <p className="text-[11px] text-text-secondary mt-1">
+                  This action is permanent. The order will be marked as cancelled.
+                </p>
+              </div>
+            </div>
+            <div className="p-6 bg-bg-element/50 border-t border-border flex justify-end gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedOrdersForDeletion([]);
+                  setDeleteReason('');
+                  setDeletePin('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleDelete}
+                disabled={!deleteReason || !deletePin || reconcilingId === 'processing'}
+                className="bg-red-500 hover:bg-red-600 text-white border-transparent"
+              >
+                Confirm Deletion
               </Button>
             </div>
           </div>
