@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router';
 import { Card } from '~/components/ui/card';
 import { Icon } from '~/components/ui/icon';
 import { api } from '~/lib/api';
@@ -525,6 +526,7 @@ function AccountingTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [manualQuantities, setManualQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setLoading(true);
@@ -535,20 +537,76 @@ function AccountingTab() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
+
+    const saved = localStorage.getItem('manual_product_quantities');
+    if (saved) {
+      try {
+        setManualQuantities(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error parsing manual quantities:', e);
+      }
+    }
   }, []);
 
   if (loading) return <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>;
   if (error || !data) return <div className="py-20 text-center text-error-val font-semibold">Failed to load accounting analytics.</div>;
 
+  const computedDetails = data.details.map((item: any) => {
+    const manualQty = manualQuantities[item.productId];
+    const hasManual = manualQty !== undefined && manualQty !== null && !isNaN(manualQty);
+    const quantity = hasManual ? manualQty : item.quantityAdded;
+    
+    // Derived unit rates
+    const sellingPrice = item.sellingPrice ?? (item.quantityAdded > 0 ? item.expectedRevenue / item.quantityAdded : 0);
+    const costPrice = item.costPrice ?? (sellingPrice - (item.quantityAdded > 0 ? item.expectedProfit / item.quantityAdded : 0));
+
+    const expectedRevenue = quantity * sellingPrice;
+    const expectedProfit = quantity * (sellingPrice - costPrice);
+
+    return {
+      ...item,
+      quantity,
+      hasManual,
+      expectedRevenue,
+      expectedProfit
+    };
+  });
+
+  const computedTotals = computedDetails.reduce((acc: any, curr: any) => {
+    acc.expectedRevenue += curr.expectedRevenue;
+    acc.expectedProfit += curr.expectedProfit;
+    acc.actualizedRevenue += curr.actualizedRevenue;
+    acc.actualizedProfit += curr.actualizedProfit;
+    acc.limboAmount += curr.limboAmount;
+    return acc;
+  }, {
+    expectedRevenue: 0,
+    expectedProfit: 0,
+    actualizedRevenue: 0,
+    actualizedProfit: 0,
+    limboAmount: 0
+  });
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
-        <StatCard label="Total Expected Rev" value={fmtCurrency(data.totals.expectedRevenue)} icon="dollar" variant="success" />
-        <StatCard label="Total Actual Rev" value={fmtCurrency(data.totals.actualizedRevenue)} icon="trending-up" variant="success" />
-        <StatCard label="Limbo Amount" value={fmtCurrency(data.totals.limboAmount)} icon="alert-circle" variant="warning" />
-        <StatCard label="Actual Profit" value={fmtCurrency(data.totals.actualizedProfit)} icon="cash" />
+        <StatCard label="Total Expected Rev" value={fmtCurrency(computedTotals.expectedRevenue)} icon="dollar" variant="success" />
+        <StatCard label="Total Actual Rev" value={fmtCurrency(computedTotals.actualizedRevenue)} icon="trending-up" variant="success" />
+        <StatCard label="Limbo Amount" value={fmtCurrency(computedTotals.limboAmount)} icon="alert-circle" variant="warning" />
+        <StatCard label="Actual Profit" value={fmtCurrency(computedTotals.actualizedProfit)} icon="cash" />
       </Card>
       
+      <div className="flex justify-between items-center bg-transparent">
+        <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider">Product Accounting & Reconciliation</h3>
+        <Link 
+          to="/analytics/accounting/manual"
+          className="flex items-center gap-2 bg-tint hover:bg-tint/90 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs transition-all duration-200 cursor-pointer"
+        >
+          <Icon name="edit" size={14} />
+          <span>Manual Quantities</span>
+        </Link>
+      </div>
+
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
@@ -556,6 +614,7 @@ function AccountingTab() {
               <tr>
                 <th className="px-4 py-3 font-semibold text-text-secondary sticky left-0 bg-bg-element z-10">Product</th>
                 <th className="px-4 py-3 font-semibold text-text-secondary text-right">Qty Added</th>
+                <th className="px-4 py-3 font-semibold text-text-secondary text-right text-tint">Manual Qty</th>
                 <th className="px-4 py-3 font-semibold text-text-secondary text-right">Expected Rev</th>
                 <th className="px-4 py-3 font-semibold text-text-secondary text-right">Expected Profit</th>
                 <th className="px-4 py-3 font-semibold text-text-secondary text-right">Actual Rev</th>
@@ -565,10 +624,13 @@ function AccountingTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {data.details.map((item: any) => (
+              {computedDetails.map((item: any) => (
                 <tr key={item.productId} className="hover:bg-bg-element/50 transition-colors">
                   <td className="px-4 py-3 font-medium text-text-main sticky left-0 bg-card z-10">{item.productName}</td>
                   <td className="px-4 py-3 text-right text-text-secondary">{item.quantityAdded}</td>
+                  <td className={`px-4 py-3 text-right font-bold transition-all duration-200 ${item.hasManual ? 'text-tint bg-tint/5 scale-102' : 'text-text-secondary/30 font-normal'}`}>
+                    {item.hasManual ? item.quantity : '—'}
+                  </td>
                   <td className="px-4 py-3 text-right text-success">{fmtCurrency(item.expectedRevenue)}</td>
                   <td className="px-4 py-3 text-right text-success">{fmtCurrency(item.expectedProfit)}</td>
                   <td className="px-4 py-3 text-right font-medium text-text-main">{fmtCurrency(item.actualizedRevenue)}</td>
@@ -586,7 +648,9 @@ function AccountingTab() {
 }
 
 export default function Analytics() {
-  const [activeTab, setActiveTab] = useState<TabType>('daily');
+  const location = useLocation();
+  const defaultTab = (location.state as any)?.tab || 'daily';
+  const [activeTab, setActiveTab] = useState<TabType>(defaultTab);
 
   return (
     <div className="flex flex-col gap-6 select-none max-w-5xl mx-auto">

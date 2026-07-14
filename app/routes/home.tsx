@@ -9,6 +9,7 @@ import { Icon } from '~/components/ui/icon';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { ProductCard } from '~/components/ui/product-card';
+import { ProductGalleryModal } from '~/components/ui/product-gallery-modal';
 import { FundWalletModal } from '~/components/modals/fund-wallet-modal';
 import { PinSetupModal } from '~/components/modals/pin-setup-modal';
 import { TransferWalletModal } from '~/components/modals/transfer-wallet-modal';
@@ -34,7 +35,7 @@ export default function Home() {
   const { user } = useAuth();
   const { cart, addToCart, removeFromCart, getItemQuantity, cartCount, cartTotal } = useCart();
 
-  const [balance, setBalance] = useState(12500);
+  const [balance, setBalance] = useState(0);
   const [walletId, setWalletId] = useState('RAD500000');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingBalance, setLoadingBalance] = useState(false);
@@ -43,6 +44,9 @@ export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [popularItems, setPopularItems] = useState<any[]>([]);
   const [loadingPopular, setLoadingPopular] = useState(false);
+
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   // Modals Visibility States
   const [showFund, setShowFund] = useState(false);
@@ -216,13 +220,17 @@ export default function Home() {
                   <div key={i} className="shimmer h-44 rounded-xl" />
                 ))
               ) : popularItems.length > 0 ? (
-                popularItems.map((item) => (
+                popularItems.map((item, idx) => (
                   <div key={item.id} className="h-44">
                     <ProductCard
                       item={item}
                       quantity={getItemQuantity(item.id)}
                       onAdd={addToCart}
                       onRemove={removeFromCart}
+                      onImageClick={() => {
+                        setGalleryIndex(idx);
+                        setGalleryOpen(true);
+                      }}
                     />
                   </div>
                 ))
@@ -335,6 +343,14 @@ export default function Home() {
           setShowPinSetup(false);
           setPinSetupNeeded(false);
         }}
+      />
+
+      <ProductGalleryModal
+        isOpen={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        items={popularItems}
+        initialIndex={galleryIndex}
+        onAddToCart={addToCart}
       />
     </div>
   );

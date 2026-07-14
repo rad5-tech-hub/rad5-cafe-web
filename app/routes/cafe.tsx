@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useCart } from '~/context/cart-context';
 import { api } from '~/lib/api';
 import { ProductCard } from '~/components/ui/product-card';
+import { ProductGalleryModal } from '~/components/ui/product-gallery-modal';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -32,6 +33,9 @@ export default function Cafe() {
   const [productsList, setProductsList] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
   const [loading, setLoading] = useState(false);
+
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   useEffect(() => {
     setLoading(true);
@@ -167,7 +171,7 @@ export default function Cafe() {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
-          {filteredProducts.map((product) => (
+          {filteredProducts.map((product, idx) => (
             <div key={product.id} className="aspect-square">
               <ProductCard
                 item={product}
@@ -175,6 +179,10 @@ export default function Cafe() {
                 inStock={product.inStock}
                 onAdd={addToCart}
                 onRemove={removeFromCart}
+                onImageClick={() => {
+                  setGalleryIndex(idx);
+                  setGalleryOpen(true);
+                }}
               />
             </div>
           ))}
@@ -182,6 +190,13 @@ export default function Cafe() {
       )}
 
 
+      <ProductGalleryModal
+        isOpen={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        items={filteredProducts}
+        initialIndex={galleryIndex}
+        onAddToCart={addToCart}
+      />
     </div>
   );
 }

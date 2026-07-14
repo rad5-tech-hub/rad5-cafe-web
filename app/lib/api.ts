@@ -599,6 +599,7 @@ export const api = {
       accounting: () =>
         request<any>('/admin-dashboard/analytics/accounting'),
     },
+    rewards: (page = 1, limit = 50) => request<any>(`/admin-dashboard/rewards?page=${page}&limit=${limit}`),
     alerts: {
       list: () => request<any>('/admin-dashboard/alerts'),
       acknowledge: (id: string) =>

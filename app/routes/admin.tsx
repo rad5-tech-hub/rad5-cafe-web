@@ -341,6 +341,15 @@ export default function Admin() {
             <Icon name="file-document" size={24} className="text-warning" />
             <span className="text-xs font-bold text-text-main">Export Reports</span>
           </Link>
+
+          <Link
+            to="/admin/rewards"
+            className="flex flex-col items-center justify-center p-5 bg-card border border-border rounded-2xl hover:bg-bg-selected/35 hover:scale-[1.03] transition-all text-center gap-2 shadow-xs"
+            style={{ borderRadius: 'var(--radius-lg)' }}
+          >
+            <Icon name="star-circle" size={24} className="text-success" />
+            <span className="text-xs font-bold text-text-main">Rewards Given</span>
+          </Link>
         </div>
       </div>
 

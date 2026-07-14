@@ -74,7 +74,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   const isAuthRoute = ['/', '/login', '/register', '/setup-pin'].includes(location.pathname);
   const isAdminRoute = location.pathname.startsWith('/admin') || 
-                       ['/inventory', '/analytics', '/sales', '/reports'].includes(location.pathname);
+                       ['/inventory', '/analytics', '/sales', '/reports', '/accounting'].includes(location.pathname);
 
   // Check user profile for admin role
   useEffect(() => {
@@ -158,6 +158,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     { label: 'Admin Panel', path: '/admin', icon: 'chart-bar' as const },
     { label: 'Inventory', path: '/inventory', icon: 'package-variant-closed' as const },
     { label: 'Analytics', path: '/analytics', icon: 'trending-up' as const },
+    { label: 'Accounting', path: '/accounting', icon: 'cash' as const },
     { label: 'Sales Logs', path: '/sales', icon: 'dollar' as const },
     { label: 'Sales Ledger / Expenses', path: '/admin/expenses', icon: 'dollar' as const },
     { label: 'Cash Orders', path: '/admin/cash-orders', icon: 'dollar' as const },
@@ -247,7 +248,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <nav className="md:hidden sticky bottom-0 w-full h-16 glass flex items-center px-2 z-20 shadow-lg overflow-x-auto scrollbar-none snap-x">
           <div className="flex items-center justify-around min-w-full gap-2 px-2">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path || (item.path === '/admin' && ['/admin', '/admin/users', '/admin/audit-logs', '/inventory', '/analytics', '/sales', '/reports'].includes(location.pathname));
+              const isActive = location.pathname === item.path || (item.path === '/admin' && ['/admin', '/admin/users', '/admin/audit-logs', '/inventory', '/analytics', '/sales', '/reports', '/accounting'].includes(location.pathname));
               return (
                 <Link
                   key={item.label}

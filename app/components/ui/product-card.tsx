@@ -13,6 +13,7 @@ type ProductCardProps = {
   inStock?: boolean;
   onAdd: (item: Omit<CartItem, 'quantity'>) => void;
   onRemove: (itemId: string) => void;
+  onImageClick?: () => void;
   renderImage?: (uri: string) => React.ReactNode;
   children?: React.ReactNode;
 };
@@ -23,6 +24,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   inStock = true,
   onAdd,
   onRemove,
+  onImageClick,
   children,
 }) => {
   return (
@@ -38,7 +40,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <img
         src={item.image}
         alt={item.name}
-        className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-transform duration-500 hover:scale-105"
+        onClick={(e) => {
+          if (onImageClick) {
+            e.stopPropagation();
+            onImageClick();
+          }
+        }}
+        className={`absolute inset-0 w-full h-full object-cover select-none transition-transform duration-500 hover:scale-105 ${onImageClick ? 'cursor-pointer' : 'pointer-events-none'}`}
       />
       {/* Bottom Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent pointer-events-none" />
