@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db } from '~/lib/firebase';
 import { api } from '~/lib/api';
 import { Card } from '~/components/ui/card';
 import { Icon } from '~/components/ui/icon';
@@ -115,6 +117,35 @@ export default function Admin() {
           }
         }).catch(() => {});
       });
+
+    // Request Notification permission
+    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+
+    // Set up Firebase listener for new orders
+    const ordersRef = collection(db, 'orders');
+    const q = query(ordersRef, orderBy('createdAt', 'desc'), limit(1));
+    
+    let initialLoad = true;
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (initialLoad) {
+        initialLoad = false;
+        return;
+      }
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const order = change.doc.data();
+          if ('Notification' in window && Notification.permission === 'granted') {
+            const itemsStr = order.items?.map((i: any) => `${i.quantity}x ${i.productName}`).join(', ');
+            const body = `Customer: ${order.customerName || 'Unknown'}\nProducts: ${itemsStr}`;
+            new Notification('New Order Placed!', { body });
+          }
+        }
+      });
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handleAcknowledgeAlert = async (id: string) => {

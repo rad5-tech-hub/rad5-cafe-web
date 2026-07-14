@@ -27,7 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   return (
     <div
-      className={`relative w-full h-full min-h-[180px] bg-bg-element border border-border flex flex-col justify-end overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.03] select-none ${
+      className={`relative w-full h-full bg-bg-element border border-border flex flex-col justify-end overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.03] select-none ${
         !inStock ? 'opacity-65 grayscale-[30%]' : ''
       }`}
       style={{

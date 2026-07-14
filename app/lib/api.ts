@@ -596,6 +596,8 @@ export const api = {
         request<MonthlyAnalyticsResponse>(`/admin-dashboard/analytics/monthly${limit ? `?limit=${limit}` : ''}`),
       custom: (startDate: string, endDate: string) =>
         request<CustomAnalyticsResponse>(`/admin-dashboard/analytics/custom?startDate=${startDate}&endDate=${endDate}`),
+      accounting: () =>
+        request<any>('/admin-dashboard/analytics/accounting'),
     },
     alerts: {
       list: () => request<any>('/admin-dashboard/alerts'),

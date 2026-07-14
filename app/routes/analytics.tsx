@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
 
-type TabType = 'daily' | 'weekly' | 'monthly' | 'custom';
+type TabType = 'daily' | 'weekly' | 'monthly' | 'custom' | 'accounting';
 
 export function meta() {
   return [
@@ -521,6 +521,70 @@ function CustomTab() {
   );
 }
 
+function AccountingTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    api.adminDashboard.analytics.accounting()
+      .then(res => {
+        if (res.success && res.data) setData(res.data);
+        else setError(true);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>;
+  if (error || !data) return <div className="py-20 text-center text-error-val font-semibold">Failed to load accounting analytics.</div>;
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+        <StatCard label="Total Expected Rev" value={fmtCurrency(data.totals.expectedRevenue)} icon="dollar" variant="success" />
+        <StatCard label="Total Actual Rev" value={fmtCurrency(data.totals.actualizedRevenue)} icon="trending-up" variant="success" />
+        <StatCard label="Limbo Amount" value={fmtCurrency(data.totals.limboAmount)} icon="alert-circle" variant="warning" />
+        <StatCard label="Actual Profit" value={fmtCurrency(data.totals.actualizedProfit)} icon="cash" />
+      </Card>
+      
+      <Card className="p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-bg-element border-b border-border">
+              <tr>
+                <th className="px-4 py-3 font-semibold text-text-secondary sticky left-0 bg-bg-element z-10">Product</th>
+                <th className="px-4 py-3 font-semibold text-text-secondary text-right">Qty Added</th>
+                <th className="px-4 py-3 font-semibold text-text-secondary text-right">Expected Rev</th>
+                <th className="px-4 py-3 font-semibold text-text-secondary text-right">Expected Profit</th>
+                <th className="px-4 py-3 font-semibold text-text-secondary text-right">Actual Rev</th>
+                <th className="px-4 py-3 font-semibold text-text-secondary text-right">Actual Profit</th>
+                <th className="px-4 py-3 font-semibold text-text-secondary text-right">Limbo Qty</th>
+                <th className="px-4 py-3 font-semibold text-text-secondary text-right">Limbo Amt</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {data.details.map((item: any) => (
+                <tr key={item.productId} className="hover:bg-bg-element/50 transition-colors">
+                  <td className="px-4 py-3 font-medium text-text-main sticky left-0 bg-card z-10">{item.productName}</td>
+                  <td className="px-4 py-3 text-right text-text-secondary">{item.quantityAdded}</td>
+                  <td className="px-4 py-3 text-right text-success">{fmtCurrency(item.expectedRevenue)}</td>
+                  <td className="px-4 py-3 text-right text-success">{fmtCurrency(item.expectedProfit)}</td>
+                  <td className="px-4 py-3 text-right font-medium text-text-main">{fmtCurrency(item.actualizedRevenue)}</td>
+                  <td className="px-4 py-3 text-right font-medium text-text-main">{fmtCurrency(item.actualizedProfit)}</td>
+                  <td className="px-4 py-3 text-right text-warning">{item.limboQuantity}</td>
+                  <td className="px-4 py-3 text-right text-warning">{fmtCurrency(item.limboAmount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export default function Analytics() {
   const [activeTab, setActiveTab] = useState<TabType>('daily');
 
@@ -533,8 +597,8 @@ export default function Analytics() {
         </p>
       </div>
 
-      <div className="flex gap-1 bg-bg-element rounded-lg p-1 w-max">
-        {(['daily', 'weekly', 'monthly', 'custom'] as TabType[]).map((tab) => (
+      <div className="flex gap-1 bg-bg-element rounded-lg p-1 w-max overflow-x-auto max-w-full">
+        {(['daily', 'weekly', 'monthly', 'custom', 'accounting'] as TabType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -553,6 +617,7 @@ export default function Analytics() {
       {activeTab === 'weekly' && <WeeklyTab />}
       {activeTab === 'monthly' && <MonthlyTab />}
       {activeTab === 'custom' && <CustomTab />}
+      {activeTab === 'accounting' && <AccountingTab />}
     </div>
   );
 }

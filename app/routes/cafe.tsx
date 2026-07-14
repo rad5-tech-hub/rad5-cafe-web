@@ -168,7 +168,7 @@ export default function Cafe() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="h-44">
+            <div key={product.id} className="aspect-square">
               <ProductCard
                 item={product}
                 quantity={getItemQuantity(product.id)}
