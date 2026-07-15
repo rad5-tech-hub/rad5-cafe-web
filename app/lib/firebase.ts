@@ -62,14 +62,6 @@ export async function getWebPushToken(): Promise<string | null> {
     // Wait for the service worker to be ready
     await navigator.serviceWorker.ready;
 
-    // Send Firebase config to the service worker (no hardcoded keys in the SW file)
-    if (registration.active) {
-      registration.active.postMessage({
-        type: 'FIREBASE_CONFIG',
-        config: firebaseConfig,
-      });
-    }
-
     const token = await getToken(messaging, {
       vapidKey,
       serviceWorkerRegistration: registration,

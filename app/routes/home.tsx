@@ -288,7 +288,9 @@ export default function Home() {
                           />
                         </div>
                         <div className="flex items-center gap-4 md:gap-8 flex-1">
-                           <span className="font-semibold text-sm text-text-main w-1/3">{tx.type}</span>
+                           <span className="font-semibold text-sm text-text-main w-1/3 capitalize">
+                             {tx.type === 'reward' && tx.amount < 0 ? 'Reward Reversal' : tx.type}
+                           </span>
                            <div className="flex items-center gap-2 w-1/4 hidden md:flex">
                              <div className={`w-2 h-2 rounded-full ${isFailed ? 'bg-error-val' : isDebit ? 'bg-accent' : 'bg-success'}`}></div>
                              <span className="text-xs font-semibold text-text-main capitalize">{tx.status}</span>
@@ -302,7 +304,7 @@ export default function Home() {
                       <div className="flex items-center gap-4">
                         <span
                           className={`font-bold text-sm select-all ${
-                            isFailed ? 'text-text-secondary line-through' : isDebit ? 'text-text-main' : 'text-success'
+                            isFailed ? 'text-text-secondary line-through' : isDebit ? 'text-accent' : 'text-success'
                           }`}
                         >
                           {isDebit ? '-' : '+'}₦{Math.abs(tx.amount).toLocaleString()}

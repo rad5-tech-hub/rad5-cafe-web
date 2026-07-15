@@ -27,13 +27,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const registeredRef = useRef(false);
   const foregroundListenerRef = useRef<(() => void) | null>(null);
 
-  // Check initial permission status
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPermissionStatus(Notification.permission);
-    }
-  }, []);
-
   // Request browser notification permission
   const requestPermission = useCallback(async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -116,6 +109,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       console.error('[FCM] Registration failed:', err);
     }
   }, [showToast]);
+
+  // Check initial permission status and auto-register if already granted
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPermissionStatus(Notification.permission);
+      if (Notification.permission === 'granted') {
+        registerWebPush();
+      }
+    }
+  }, [registerWebPush]);
 
   // Show a local notification (toast + browser notification)
   const notify = useCallback(

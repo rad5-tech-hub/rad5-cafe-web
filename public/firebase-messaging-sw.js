@@ -2,39 +2,38 @@
 /* eslint-disable no-undef */
 
 // Firebase Messaging Service Worker for background push notifications
-// Config is passed from the main app via postMessage — no hardcoded credentials.
+// Initialized directly with public config keys for background wake-up support.
 
-importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
-let isInitialized = false;
+const firebaseConfig = {
+  apiKey: "AIzaSyBKgOavgM86MoUON7F2TW4yrmgg8bbXOE0",
+  authDomain: "shield-3f2ba.firebaseapp.com",
+  projectId: "shield-3f2ba",
+  storageBucket: "shield-3f2ba.firebasestorage.app",
+  messagingSenderId: "655121686902",
+  appId: "1:655121686902:android:c748d3f15831445c595a57",
+};
 
-// Receive Firebase config from the main app
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'FIREBASE_CONFIG' && !isInitialized) {
-    firebase.initializeApp(event.data.config);
-    const messaging = firebase.messaging();
+firebase.initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
 
-    // Handle background messages (when the tab is not focused or closed)
-    messaging.onBackgroundMessage((payload) => {
-      console.log('[firebase-messaging-sw] Background message received:', payload);
+// Handle background messages (when the tab is not focused or closed)
+messaging.onBackgroundMessage((payload) => {
+  console.log('[firebase-messaging-sw] Background message received:', payload);
 
-      const title = payload.notification?.title || 'RAD5 Café';
-      const options = {
-        body: payload.notification?.body || 'You have a new notification',
-        icon: '/RAD5 Cafe.svg',
-        badge: '/RAD5 Cafe.svg',
-        data: payload.data || {},
-        tag: 'rad5-cafe-notification',
-        renotify: true,
-      };
+  const title = payload.notification?.title || 'RAD5 Café';
+  const options = {
+    body: payload.notification?.body || 'You have a new notification',
+    icon: '/RAD5 Cafe.svg',
+    badge: '/RAD5 Cafe.svg',
+    data: payload.data || {},
+    tag: 'rad5-cafe-notification',
+    renotify: true,
+  };
 
-      self.registration.showNotification(title, options);
-    });
-
-    isInitialized = true;
-    console.log('[firebase-messaging-sw] Initialized via postMessage.');
-  }
+  self.registration.showNotification(title, options);
 });
 
 // Handle notification click — open or focus the app

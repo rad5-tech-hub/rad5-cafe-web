@@ -170,7 +170,9 @@ export default function History() {
                       />
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-sm md:text-base text-text-main">{tx.type}</span>
+                      <span className="font-semibold text-sm md:text-base text-text-main capitalize">
+                        {tx.type === 'reward' && tx.amount < 0 ? 'Reward Reversal' : tx.type}
+                      </span>
                       <span className="text-xs text-text-secondary">{formatTxDate(tx.createdAt)}</span>
                     </div>
                   </div>
