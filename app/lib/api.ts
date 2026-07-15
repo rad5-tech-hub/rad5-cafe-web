@@ -192,6 +192,10 @@ export type CustomAnalyticsResponse = {
 };
 
 async function getAuthHeaders(): Promise<HeadersInit> {
+  if (typeof window !== 'undefined') {
+    await auth.authStateReady();
+  }
+  
   const user = auth.currentUser;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
