@@ -10,6 +10,7 @@ import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
 import { useToast } from '~/context/toast-context';
 import { AdminPinSetupModal } from '~/components/modals/admin-pin-setup-modal';
+import { useNotifications } from '~/context/notification-context';
 
 export function meta() {
   return [
@@ -54,6 +55,7 @@ function StatCard({ label, value, icon, variant = 'default' }: StatCardProps) {
 export default function Admin() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { permissionStatus, registerWebPush } = useNotifications();
   const [stats, setStats] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,6 +284,34 @@ export default function Admin() {
         </div>
         <Badge label="Active Today" variant="success" />
       </div>
+
+      {permissionStatus !== 'granted' && (
+        <div className="bg-tint/10 border border-tint/25 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 select-none">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-tint/20 text-tint flex items-center justify-center flex-shrink-0 animate-pulse-slow">
+              <Icon name="bell" size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-text-main">Enable Web Notifications</h3>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Receive real-time orders, cash-order reconciliations, and low stock alerts directly in your browser.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              registerWebPush().then(() => {
+                showToast('Push notifications registration triggered.', 'success');
+              }).catch(() => {
+                showToast('Failed to trigger notification registration.', 'error');
+              });
+            }}
+            className="px-4 py-2 bg-tint hover:bg-tint/90 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+          >
+            Enable Notifications
+          </button>
+        </div>
+      )}
 
       {/* Today Performance widgets */}
       <div className="flex flex-col gap-3">

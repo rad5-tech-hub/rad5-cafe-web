@@ -149,6 +149,7 @@ export type WeeklyAnalyticsResponse = {
   highlights: {
     topSellingProduct: { name: string; quantitySold: number; revenue: number };
     highestMarginProduct: { name: string; marginPercent: number };
+    topSpender: { fullName: string; totalSpent: number; orderCount: number } | null;
   };
 };
 
@@ -477,6 +478,7 @@ export const api = {
       downloadTransactions: (userId?: string) =>
         downloadReport(`/admin/transactions${userId ? `?userId=${userId}` : ''}`, `transactions-report-${Date.now()}.xlsx`),
     },
+    rewards: (page = 1, limit = 50) => request<any>(`/admin-dashboard/rewards?page=${page}&limit=${limit}`),
   },
 
   // ── Admin Dashboard (v2) ──────────────────────────

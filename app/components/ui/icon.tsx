@@ -9,6 +9,8 @@ export type IconName =
   | 'arrow-up'
   | 'check'
   | 'chevron-right'
+  | 'chevron-left'
+  | 'chevron-down'
   | 'trending-up'
   | 'cart'
   | 'plus'
@@ -35,7 +37,13 @@ export type IconName =
   | 'upload'
   | 'settings'
   | 'calendar'
-  | 'more-vertical';
+  | 'more-vertical'
+  | 'star-circle'
+  | 'star-outline'
+  | 'loading'
+  | 'clock'
+  | 'cash'
+  | 'shopping-cart';
 
 
 interface IconProps {
@@ -62,6 +70,10 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.Check;
       case 'chevron-right':
         return Lucide.ChevronRight;
+      case 'chevron-left':
+        return Lucide.ChevronLeft;
+      case 'chevron-down':
+        return Lucide.ChevronDown;
       case 'trending-up':
         return Lucide.TrendingUp;
       case 'cart':
@@ -116,6 +128,18 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.Calendar;
       case 'more-vertical':
         return Lucide.MoreVertical;
+      case 'star-circle':
+        return Lucide.Award;
+      case 'star-outline':
+        return Lucide.Star;
+      case 'loading':
+        return Lucide.Loader2;
+      case 'clock':
+        return Lucide.Clock;
+      case 'cash':
+        return Lucide.Banknote;
+      case 'shopping-cart':
+        return Lucide.ShoppingCart;
       default:
         return Lucide.HelpCircle;
     }

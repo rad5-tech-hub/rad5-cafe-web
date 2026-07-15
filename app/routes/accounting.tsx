@@ -258,14 +258,20 @@ function CustomersTab() {
         
         <h3 className="font-bold text-text-secondary uppercase text-xs mt-8 mb-4">Notable Customers</h3>
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3 p-3 bg-bg-element/50 rounded-lg">
-            <div className="w-10 h-10 rounded-full bg-tint/20 text-tint flex items-center justify-center font-bold">1</div>
-            <div className="flex-1">
-              <p className="font-semibold text-text-main text-sm">Top Spender: {getDisplayName(weekly.highlights.topSpender)}</p>
-              <p className="text-xs text-text-secondary">Highest spender this week</p>
+          {weekly.highlights.topSpender ? (
+            <div className="flex items-center gap-3 p-3 bg-bg-element/50 rounded-lg">
+              <div className="w-10 h-10 rounded-full bg-tint/20 text-tint flex items-center justify-center font-bold">1</div>
+              <div className="flex-1">
+                <p className="font-semibold text-text-main text-sm">Top Spender: {getDisplayName(weekly.highlights.topSpender)}</p>
+                <p className="text-xs text-text-secondary">Highest spender this week</p>
+              </div>
+              <span className="font-extrabold text-success">{fmtCurrency(weekly.highlights.topSpender.totalSpent)}</span>
             </div>
-            <span className="font-extrabold text-success">{fmtCurrency(weekly.highlights.topSpender.totalSpent)}</span>
-          </div>
+          ) : (
+            <div className="text-center py-6 text-text-secondary text-xs bg-bg-element/30 rounded-lg border border-dashed border-border">
+              No spender data available for this week.
+            </div>
+          )}
         </div>
       </Card>
     </div>

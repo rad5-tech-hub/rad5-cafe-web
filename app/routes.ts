@@ -17,6 +17,7 @@ export default [
   route("analytics/accounting/manual", "routes/manual-accounting.tsx"),
   route("sales", "routes/sales.tsx"),
   route("reports", "routes/reports.tsx"),
+  route("accounting", "routes/accounting.tsx"),
   route("admin/updates", "routes/updates.tsx"),
   route("history", "routes/history.tsx"),
   route("notifications", "routes/notifications.tsx"),

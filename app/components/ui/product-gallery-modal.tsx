@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Icon } from './icon';
+import { useCart } from '~/context/cart-context';
 
 type CartItem = {
   id: string;
@@ -13,7 +14,7 @@ type ProductGalleryModalProps = {
   onClose: () => void;
   items: CartItem[];
   initialIndex?: number;
-  onAddToCart: (item: CartItem) => void;
+  onAddToCart?: (item: CartItem) => void;
 };
 
 export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
@@ -21,8 +22,8 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
   onClose,
   items,
   initialIndex = 0,
-  onAddToCart,
 }) => {
+  const { cart, addToCart, removeFromCart, getItemQuantity, cartCount, cartTotal } = useCart();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -63,7 +64,7 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onAddToCart(currentItem);
+    addToCart(currentItem);
     
     // Optional: visual feedback
     const btn = e.currentTarget as HTMLButtonElement;
@@ -80,8 +81,16 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
     >
       {/* Top Header / Close Button */}
       <div className="absolute top-0 w-full flex justify-between items-center p-4 z-10 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
-        <div className="text-white text-sm font-semibold pointer-events-auto bg-black/40 px-3 py-1.5 rounded-full border border-white/10 shadow-sm backdrop-blur-md">
-          {currentIndex + 1} / {items.length}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <div className="text-white text-sm font-semibold bg-black/40 px-3 py-1.5 rounded-full border border-white/10 shadow-sm backdrop-blur-md">
+            {currentIndex + 1} / {items.length}
+          </div>
+          {cartCount > 0 && (
+            <div className="text-white text-sm font-bold bg-tint px-3 py-1.5 rounded-full border border-tint/25 shadow-lg flex items-center gap-1.5 animate-pulse-slow">
+              <Icon name="shopping-cart" size={14} />
+              <span>{cartCount} in cart (₦{cartTotal.toLocaleString()})</span>
+            </div>
+          )}
         </div>
         <button 
           onClick={onClose}
@@ -122,13 +131,39 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
                <span className="text-white font-bold text-lg leading-tight">{currentItem.name}</span>
                <span className="text-tint font-extrabold text-xl mt-0.5">₦{currentItem.price.toLocaleString()}</span>
              </div>
-             <button
-               onClick={handleAdd}
-               className="bg-tint hover:bg-tint/90 text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 transition-transform shadow-lg shadow-tint/30"
-             >
-               <Icon name="shopping-cart" size={18} />
-               <span>Add</span>
-             </button>
+             {getItemQuantity(currentItem.id) > 0 ? (
+               <div className="flex items-center gap-2 bg-black/75 rounded-xl p-0.5 border border-white/10">
+                 <button
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     removeFromCart(currentItem.id);
+                   }}
+                   className="w-8 h-8 flex items-center justify-center rounded-full bg-tint hover:bg-tint/90 active:scale-95 text-white font-bold text-base cursor-pointer"
+                 >
+                   −
+                 </button>
+                 <span className="text-white font-bold text-sm min-w-[20px] text-center">
+                   {getItemQuantity(currentItem.id)}
+                 </span>
+                 <button
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     addToCart(currentItem);
+                   }}
+                   className="w-8 h-8 flex items-center justify-center rounded-full bg-tint hover:bg-tint/90 active:scale-95 text-white font-bold text-base cursor-pointer"
+                 >
+                   +
+                 </button>
+               </div>
+             ) : (
+               <button
+                 onClick={handleAdd}
+                 className="bg-tint hover:bg-tint/90 text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 transition-transform shadow-lg shadow-tint/30 cursor-pointer"
+               >
+                 <Icon name="shopping-cart" size={18} />
+                 <span>Add</span>
+               </button>
+             )}
            </div>
         </div>
       </div>
