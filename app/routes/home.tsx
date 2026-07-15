@@ -13,6 +13,7 @@ import { ProductGalleryModal } from '~/components/ui/product-gallery-modal';
 import { FundWalletModal } from '~/components/modals/fund-wallet-modal';
 import { PinSetupModal } from '~/components/modals/pin-setup-modal';
 import { TransferWalletModal } from '~/components/modals/transfer-wallet-modal';
+import { useNotifications } from '~/context/notification-context';
 
 type Transaction = {
   _id: string;
@@ -34,6 +35,7 @@ export function meta() {
 export default function Home() {
   const { user } = useAuth();
   const { cart, addToCart, removeFromCart, getItemQuantity, cartCount, cartTotal } = useCart();
+  const { permissionStatus, registerWebPush } = useNotifications();
 
   const [balance, setBalance] = useState(0);
   const [walletId, setWalletId] = useState('RAD500000');
@@ -166,6 +168,29 @@ export default function Home() {
     <div className="flex flex-col xl:flex-row gap-8 w-full">
       {/* Left Column (Main) */}
       <div className="flex-1 flex flex-col min-w-0">
+        {permissionStatus !== 'granted' && (
+          <div className="bg-tint/10 border border-tint/25 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 select-none">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-tint/20 text-tint flex items-center justify-center flex-shrink-0 animate-pulse-slow">
+                <Icon name="bell" size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-text-main">Get Order Updates</h3>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Enable push notifications to get real-time alerts when your orders are completed, cancelled, or when you receive wallet transfers.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                registerWebPush().catch(() => {});
+              }}
+              className="px-4 py-2 bg-tint hover:bg-tint/90 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+            >
+              Enable Notifications
+            </button>
+          </div>
+        )}
         {/* Header matching Logip */}
         <div className="flex justify-between items-start mb-8">
           <div>
