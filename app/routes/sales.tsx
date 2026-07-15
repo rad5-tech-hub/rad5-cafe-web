@@ -257,22 +257,24 @@ export default function Sales() {
                     )}
                   </div>
                   
-                  {sale.status === 'completed' && !sale.issued && (
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mt-1">
+                    {sale.status === 'completed' && !sale.issued && (
                       <button
                         onClick={() => setIssuingSaleId(sale.id)}
-                        className="text-[10px] font-bold text-success hover:underline cursor-pointer border border-success/30 hover:border-success/80 py-1 px-2 rounded-lg bg-success/5 transition-all mt-1"
+                        className="text-[10px] font-bold text-success hover:underline cursor-pointer border border-success/30 hover:border-success/80 py-1 px-2 rounded-lg bg-success/5 transition-all"
                       >
                         Issue
                       </button>
+                    )}
+                    {(sale.status === 'completed' || sale.status === 'cancelled') && (
                       <button
                         onClick={() => setCancellingSaleId(sale.id)}
-                        className="text-[10px] font-bold text-error-val hover:underline cursor-pointer border border-error-val/30 hover:border-error-val/80 py-1 px-2 rounded-lg bg-error-val/5 transition-all mt-1"
+                        className="text-[10px] font-bold text-error-val hover:underline cursor-pointer border border-error-val/30 hover:border-error-val/80 py-1 px-2 rounded-lg bg-error-val/5 transition-all"
                       >
                         Cancel & Refund
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                   {sale.status === 'completed' && sale.issued && (
                     <div className="flex flex-col items-end gap-0.5">
                       <Badge label="Issued" variant="success" />

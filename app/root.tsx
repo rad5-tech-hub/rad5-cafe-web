@@ -37,7 +37,7 @@ export const links: Route.LinksFunction = () => [
   },
   { rel: "icon", href: "/RAD5 Cafe.svg", type: "image/svg+xml" },
   { rel: "apple-touch-icon", href: "/RAD5 Cafe.svg" },
-  { rel: "canonical", href: "https://rad5cafe.vercel.app" },
+  { rel: "canonical", href: "https://cafe.rad5.com.ng" },
 ];
 
 export const meta: Route.MetaFunction = () => [
@@ -51,7 +51,7 @@ export const meta: Route.MetaFunction = () => [
   { property: "og:title", content: "RAD5 Café — Smart Wallet & Ordering" },
   { property: "og:description", content: "Download the app or order online. Smart wallet, instant checkout, real-time inventory." },
   { property: "og:type", content: "website" },
-  { property: "og:url", content: "https://rad5cafe.vercel.app" },
+  { property: "og:url", content: "https://cafe.rad5.com.ng" },
   { property: "og:image", content: "https://images.pexels.com/photos/34932768/pexels-photo-34932768.jpeg" },
   { property: "og:image:width", content: "1200" },
   { property: "og:image:height", content: "630" },
@@ -71,6 +71,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const { registerWebPush, permissionStatus } = useNotifications();
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [appUpdateInfo, setAppUpdateInfo] = useState<any>(null);
   const [showBanner, setShowBanner] = useState(false);
 
@@ -81,17 +82,20 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Check user profile for admin role
   useEffect(() => {
     if (user) {
+      setProfileLoading(true);
       api.auth.me().then((res) => {
         if (res.success && res.data) {
           setProfile(res.data);
-          if (res.data.role === 'admin') {
+          if (res.data.role === 'admin' || user.email === 'admin@rad5.cafe' || res.data.email === 'admin@rad5.cafe') {
             setIsAdmin(true);
           }
         }
-      }).catch(() => {});
+      }).catch(() => {})
+        .finally(() => setProfileLoading(false));
     } else {
       setIsAdmin(false);
       setProfile(null);
+      setProfileLoading(false);
     }
   }, [user]);
 
@@ -149,14 +153,38 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Auth Redirection Guard
-  useEffect(() => {
-    if (!loading && !user && !isAuthRoute) {
-      navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+  const handleSwitchToPersonal = async () => {
+    try {
+      await signOut();
+      showToast('Sign in with Google to access your personal account.', 'info');
+      navigate('/login');
+    } catch (err) {
+      showToast('Failed to switch. Please try again.', 'error');
     }
-  }, [user, loading, isAuthRoute, navigate, location.pathname]);
+  };
 
-  if (loading) {
+  const handleSwitchToAdmin = async () => {
+    try {
+      await signOut();
+      showToast('Sign in with admin credentials to continue.', 'info');
+      navigate('/login?redirect=/admin');
+    } catch (err) {
+      showToast('Failed to switch. Please try again.', 'error');
+    }
+  };
+
+  // Auth & Admin Redirection Guard
+  useEffect(() => {
+    if (!loading && !profileLoading) {
+      if (!user && !isAuthRoute) {
+        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+      } else if (user && isAdminRoute && !isAdmin) {
+        navigate('/dashboard');
+      }
+    }
+  }, [user, loading, profileLoading, isAuthRoute, isAdminRoute, isAdmin, navigate, location.pathname]);
+
+  if (loading || (profileLoading && isAdminRoute)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-bg-page gap-4">
         <svg
@@ -245,8 +273,25 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
         </nav>
 
-        {/* Bottom Sign Out Area */}
-        <div className="p-4 border-t border-border/50 mt-auto">
+        {/* Bottom Switch & Sign Out Area */}
+        <div className="p-4 border-t border-border/50 mt-auto flex flex-col gap-1.5">
+          {isAdmin ? (
+            <button
+              onClick={handleSwitchToPersonal}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold text-tint hover:bg-tint/10 rounded-xl transition-all duration-200 cursor-pointer"
+            >
+              <Icon name="sync" size={18} color="var(--color-tint)" />
+              <span>Switch to Personal</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleSwitchToAdmin}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold text-tint hover:bg-tint/10 rounded-xl transition-all duration-200 cursor-pointer"
+            >
+              <Icon name="shield-check" size={18} color="var(--color-tint)" />
+              <span>Switch to Admin</span>
+            </button>
+          )}
           <button
             onClick={handleSignOut}
             className="flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold text-error-val hover:bg-error-val/10 rounded-xl transition-all duration-200 cursor-pointer"
