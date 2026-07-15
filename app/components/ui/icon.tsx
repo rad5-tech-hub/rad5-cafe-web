@@ -35,6 +35,7 @@ export type IconName =
   | 'shield-check'
   | 'smartphone'
   | 'upload'
+  | 'download'
   | 'settings'
   | 'calendar'
   | 'more-vertical'
@@ -122,6 +123,8 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.Smartphone;
       case 'upload':
         return Lucide.Upload;
+      case 'download':
+        return Lucide.Download;
       case 'settings':
         return Lucide.Settings;
       case 'calendar':

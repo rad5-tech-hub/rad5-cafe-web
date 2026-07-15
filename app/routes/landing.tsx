@@ -43,6 +43,8 @@ export default function Landing() {
   const [showApkPopup, setShowApkPopup] = useState(false);
   const [apkUrl, setApkUrl] = useState(DEFAULT_APK_URL);
 
+  const [versionInfo, setVersionInfo] = useState<any>(null);
+
   useEffect(() => {
     const t = setInterval(() => setActiveIdx(i => (i + 1) % IMAGES.length), 5000);
     return () => clearInterval(t);
@@ -51,8 +53,11 @@ export default function Landing() {
   useEffect(() => {
     api.version.check('android')
       .then((res) => {
-        if (res.success && res.data?.apkLink) {
-          setApkUrl(res.data.apkLink);
+        if (res.success && res.data) {
+          setVersionInfo(res.data);
+          if (res.data.apkLink) {
+            setApkUrl(res.data.apkLink);
+          }
         }
       })
       .catch((err) => {
@@ -196,18 +201,26 @@ export default function Landing() {
                 <path d="m18.566 12.4-4.758 4.758L7.14 10.5a.756.756 0 0 1-.044-1.068.756.756 0 0 1 1.002-.045l11.416 6.66.834.607a1.5 1.5 0 0 0 .213-2.111l-.213-.213-1.782-1.782Z"/>
               </svg>
             </div>
-            <div className="flex flex-col items-center gap-1 text-center">
-              <h3 className="text-lg font-extrabold text-white">New Update Coming!</h3>
-              <p className="text-sm text-white/80 leading-relaxed">
-                A fresh version of the RAD5 Café app will be posted in the coming week. You can still download the current version below.
+            <div className="flex flex-col items-center gap-1 text-center w-full">
+              <h3 className="text-lg font-extrabold text-white">
+                {versionInfo?.version ? `New Mobile Update (v${versionInfo.version})!` : 'New Mobile Update Available!'}
+              </h3>
+              <p className="text-xs text-white/80 leading-relaxed">
+                This release brings massive improvements and up to 5% cashback rewards on Mobile purchases (higher than 3% on Web)!
               </p>
+              {versionInfo?.releaseNotes && (
+                <div className="mt-2 bg-white/10 border border-white/10 p-2.5 rounded-lg text-xs text-white/90 text-left w-full max-h-24 overflow-y-auto select-text scrollbar-thin">
+                  <span className="font-bold block mb-1 text-[10px] uppercase tracking-wider text-white/70">What's New:</span>
+                  {versionInfo.releaseNotes}
+                </div>
+              )}
             </div>
             <div className="flex flex-col w-full gap-2">
               <a
                 href={apkUrl}
                 className="w-full py-3 rounded-xl bg-white text-[#003D99] font-bold text-sm hover:bg-gray-100 transition-all cursor-pointer text-center"
               >
-                Download Current Version
+                Download APK
               </a>
               <button
                 onClick={() => setShowApkPopup(false)}
