@@ -40,6 +40,7 @@ export default function Sales() {
   const [salesList, setSalesList] = useState<Sale[]>([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -57,8 +58,10 @@ export default function Sales() {
   const [aggregateProfit, setAggregateProfit] = useState(0);
   const [aggregateOrders, setAggregateOrders] = useState(0);
 
-  const fetchSalesData = (filterValue: string, pageNum: number) => {
-    setLoading(true);
+  const fetchSalesData = (filterValue: string, pageNum: number, silent = false) => {
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
+
     api.adminDashboard.sales.list({ filter: filterValue, page: pageNum, limit })
       .then((res) => {
         if (res.success && Array.isArray(res.data)) {
@@ -68,15 +71,18 @@ export default function Sales() {
           setAggregateRevenue(res.totalRevenue ?? 0);
           setAggregateProfit(res.totalProfit ?? 0);
           setAggregateOrders(res.totalOrders ?? res.total ?? 0);
-        } else {
+        } else if (!silent) {
           setSalesList([]);
         }
       })
       .catch((err) => {
         console.warn('Could not load live sales records:', err);
-        setSalesList([]);
+        if (!silent) setSalesList([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setIsRefreshing(false);
+      });
   };
 
   useEffect(() => {
@@ -87,6 +93,14 @@ export default function Sales() {
   useEffect(() => {
     if (page > 1) fetchSalesData(activeFilter, page);
   }, [page]);
+
+  // Auto-refresh every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchSalesData(activeFilter, page, true);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [activeFilter, page]);
 
   const handleConfirmCancel = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,13 +165,13 @@ export default function Sales() {
         </div>
         <button
           onClick={() => {
-            fetchSalesData(activeFilter, page);
+            fetchSalesData(activeFilter, page, true);
           }}
-          disabled={loading}
+          disabled={loading || isRefreshing}
           className="text-text-secondary hover:text-tint transition-colors cursor-pointer p-2 rounded-full hover:bg-bg-selected disabled:opacity-50"
           title="Refresh Sales"
         >
-          <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <svg className={`w-5 h-5 ${(loading || isRefreshing) ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
           </svg>
         </button>
