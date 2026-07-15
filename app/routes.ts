@@ -14,7 +14,7 @@ export default [
   route("admin/audit-logs", "routes/audit-logs.tsx"),
   route("inventory", "routes/inventory.tsx"),
   route("analytics", "routes/analytics.tsx"),
-  route("analytics/accounting/manual", "routes/manual-accounting.tsx"),
+  route("accounting/manual", "routes/manual-accounting.tsx"),
   route("sales", "routes/sales.tsx"),
   route("reports", "routes/reports.tsx"),
   route("accounting", "routes/accounting.tsx"),

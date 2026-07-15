@@ -54,7 +54,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
-      className={`inline-flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tint/20 disabled:opacity-50 disabled:pointer-events-none hover:scale-[1.02] ${
+      className={`inline-flex items-center justify-center whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tint/20 disabled:opacity-50 disabled:pointer-events-none hover:scale-[1.02] ${
         fullWidth ? 'w-full' : ''
       } ${getVariantStyles()} ${getSizeStyles()} ${className}`}
       disabled={disabled}
