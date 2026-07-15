@@ -47,6 +47,7 @@ export default function Accounting() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [manualQuantities, setManualQuantities] = useState<Record<string, number>>({});
+  const [viewMode, setViewMode] = useState<'reconciliation' | 'stock'>('reconciliation');
 
   useEffect(() => {
     setLoading(true);
@@ -106,7 +107,7 @@ export default function Accounting() {
     };
   });
 
-  const [viewMode, setViewMode] = useState<'reconciliation' | 'stock'>('reconciliation');
+
 
   const computedTotals = computedDetails.reduce((acc: any, curr: any) => {
     acc.expectedRevenue += curr.expectedRevenue;
