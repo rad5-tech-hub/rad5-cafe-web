@@ -68,7 +68,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const { showConfirm } = useConfirm();
   const { showToast } = useToast();
   const { cartCount, cartTotal } = useCart();
-  const { registerWebPush } = useNotifications();
+  const { registerWebPush, permissionStatus } = useNotifications();
   const [showCart, setShowCart] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<any>(null);
@@ -247,7 +247,32 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Content Body */}
         <main className="flex-1 overflow-x-hidden p-6 md:p-10 pb-24 md:pb-10">
-          <div className="max-w-[1200px] mx-auto w-full">
+          <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-6">
+            {!isAuthRoute && permissionStatus !== 'granted' && (
+              <div className="bg-tint/10 border border-tint/25 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 select-none">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-tint/20 text-tint flex items-center justify-center flex-shrink-0 animate-pulse-slow">
+                    <Icon name="bell" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-text-main">Enable Web Notifications</h3>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      Get real-time updates for orders, wallet transfers, and low stock alerts directly in your browser.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    registerWebPush()
+                      .then(() => showToast('Push notifications registration triggered.', 'success'))
+                      .catch(() => showToast('Failed to trigger notification registration.', 'error'));
+                  }}
+                  className="px-4 py-2 bg-tint hover:bg-tint/90 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+                >
+                  Enable Notifications
+                </button>
+              </div>
+            )}
             {children}
           </div>
         </main>
