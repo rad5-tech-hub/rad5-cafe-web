@@ -23,7 +23,7 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
   items,
   initialIndex = 0,
 }) => {
-  const { cart, addToCart, removeFromCart, getItemQuantity, cartCount, cartTotal } = useCart();
+  const { cart, addToCart, removeFromCart, getItemQuantity, cartCount, cartTotal, setIsCartOpen } = useCart();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +59,7 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
 
   const goPrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev === 0 ? items.length - 1 : prev - 1));
+    setCurrentIndex((prev) => (prev - 1 + items.length) % items.length);
   };
 
   const handleAdd = (e: React.MouseEvent) => {
@@ -86,10 +86,17 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
             {currentIndex + 1} / {items.length}
           </div>
           {cartCount > 0 && (
-            <div className="text-white text-sm font-bold bg-tint px-3 py-1.5 rounded-full border border-tint/25 shadow-lg flex items-center gap-1.5 animate-pulse-slow">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+                setIsCartOpen(true);
+              }}
+              className="text-white text-sm font-bold bg-tint px-3 py-1.5 rounded-full border border-tint/25 shadow-lg flex items-center gap-1.5 animate-pulse-slow cursor-pointer hover:bg-tint-dark active:scale-95 transition-all"
+            >
               <Icon name="shopping-cart" size={14} />
               <span>{cartCount} in cart (₦{cartTotal.toLocaleString()})</span>
-            </div>
+            </button>
           )}
         </div>
         <button 

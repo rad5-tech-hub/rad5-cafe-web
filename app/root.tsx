@@ -67,9 +67,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, signOut } = useAuth();
   const { showConfirm } = useConfirm();
   const { showToast } = useToast();
-  const { cartCount, cartTotal } = useCart();
+  const { cartCount, cartTotal, isCartOpen, setIsCartOpen } = useCart();
   const { registerWebPush, permissionStatus } = useNotifications();
-  const [showCart, setShowCart] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<any>(null);
 
@@ -306,7 +305,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="text-xs text-text-secondary font-semibold">{cartCount} items in basket</span>
             <span className="text-lg font-extrabold text-tint">₦{cartTotal.toLocaleString()}</span>
           </div>
-          <Button variant="primary" size="md" onClick={() => setShowCart(true)}>
+          <Button variant="primary" size="md" onClick={() => setIsCartOpen(true)}>
             View Cart Checkout
           </Button>
         </div>
@@ -314,8 +313,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Global Checkout Modal */}
       <CartModal
-        isOpen={showCart}
-        onClose={() => setShowCart(false)}
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
         onOrderPlaced={() => {
           window.dispatchEvent(new Event('order-placed'));
         }}

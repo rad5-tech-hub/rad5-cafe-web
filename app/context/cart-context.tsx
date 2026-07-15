@@ -13,12 +13,14 @@ type CartState = {
   getItemQuantity: (itemId: string) => number;
   cartTotal: number;
   cartCount: number;
+  isCartOpen: boolean;
 };
 
 type CartActions = {
   addToCart: (item: Omit<CartItem, "quantity">) => void;
   removeFromCart: (itemId: string) => void;
   clearCart: () => void;
+  setIsCartOpen: (open: boolean) => void;
 };
 
 const CartStateContext = createContext<CartState | null>(null);
@@ -26,6 +28,7 @@ const CartActionsContext = createContext<CartActions | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const addToCart = useCallback((item: Omit<CartItem, "quantity">) => {
     setCart((prev) => {
@@ -53,7 +56,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = useCallback(() => setCart([]), []);
 
-  const actions = useMemo(() => ({ addToCart, removeFromCart, clearCart }), [addToCart, removeFromCart, clearCart]);
+  const actions = useMemo(() => ({ addToCart, removeFromCart, clearCart, setIsCartOpen }), [addToCart, removeFromCart, clearCart, setIsCartOpen]);
 
   const getItemQuantity = useCallback(
     (itemId: string) => cart.find((i) => i.id === itemId)?.quantity || 0,
@@ -71,8 +74,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const state = useMemo(
-    () => ({ cart, getItemQuantity, cartTotal, cartCount }),
-    [cart, getItemQuantity, cartTotal, cartCount],
+    () => ({ cart, getItemQuantity, cartTotal, cartCount, isCartOpen }),
+    [cart, getItemQuantity, cartTotal, cartCount, isCartOpen],
   );
 
   return (
