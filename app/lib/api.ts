@@ -271,6 +271,10 @@ export const api = {
       request('/auth/change-pin', { method: 'POST', body: JSON.stringify({ oldPin, newPin }) }),
     savePushToken: (token: string) =>
       request('/auth/expo-push-token', { method: 'POST', body: JSON.stringify({ token }) }),
+    saveWebPushToken: (token: string) =>
+      request('/auth/web-push-token', { method: 'POST', body: JSON.stringify({ token }) }),
+    removeWebPushToken: (token: string) =>
+      request('/auth/web-push-token', { method: 'DELETE', body: JSON.stringify({ token }) }),
   },
 
   // ── Wallet ────────────────────────────────────────

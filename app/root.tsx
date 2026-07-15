@@ -15,7 +15,7 @@ import "./app.css";
 
 import { AuthProvider, useAuth } from './context/auth-context';
 import { ToastProvider, useToast } from './context/toast-context';
-import { NotificationProvider } from './context/notification-context';
+import { NotificationProvider, useNotifications } from './context/notification-context';
 import { CartProvider, useCart } from './context/cart-context';
 import { ConfirmProvider, useConfirm } from './context/confirm-context';
 import { Icon } from './components/ui/icon';
@@ -68,6 +68,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const { showConfirm } = useConfirm();
   const { showToast } = useToast();
   const { cartCount, cartTotal } = useCart();
+  const { registerWebPush } = useNotifications();
   const [showCart, setShowCart] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<any>(null);
@@ -92,6 +93,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       setProfile(null);
     }
   }, [user]);
+
+  // Register for web push notifications when user is authenticated
+  useEffect(() => {
+    if (user) {
+      registerWebPush();
+    }
+  }, [user, registerWebPush]);
 
   const handleSignOut = async () => {
     const confirmed = await showConfirm({
