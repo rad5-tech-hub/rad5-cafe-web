@@ -77,105 +77,117 @@ export default function Profile() {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-lg mx-auto select-none">
-      {/* Profile Detail Card */}
-      <Card className="flex flex-col items-center text-center p-8 gap-4">
-        <div
-          className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold bg-tint select-none shadow-md"
-        >
-          {userInitials}
-        </div>
-        <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-bold text-text-main">{displayName}</h2>
-          <span className="text-sm text-text-secondary">{user?.email}</span>
-        </div>
-        <Badge
-          label={`Wallet ID: ${profile?.walletId || 'RAD500000'}`}
-          variant="info"
-          className="mt-1 font-mono text-sm px-4 py-1 select-all"
-        />
-      </Card>
+    <div className="flex flex-col gap-6 select-none w-full">
+      <div>
+        <h1 className="text-2xl font-extrabold text-text-main tracking-tight">My Profile</h1>
+        <p className="text-text-secondary text-xs mt-1">
+          Manage your RAD5 Café account security, settings, and credentials.
+        </p>
+      </div>
 
-      {/* Profile Settings Actions */}
-      <Card padded={false} className="overflow-hidden flex flex-col divide-y divide-border">
-        {/* Go to Admin Panel if User is Admin */}
-        {(profile?.role === 'admin' || user?.email === 'admin@rad5.cafe' || profile?.email === 'admin@rad5.cafe') && (
-          <button
-            onClick={() => navigate('/admin')}
-            className="flex justify-between items-center px-6 py-4.5 text-sm font-semibold text-text-main hover:bg-bg-selected/35 active:bg-bg-selected/60 transition-colors w-full text-left cursor-pointer"
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left Column - Details */}
+        <div className="lg:col-span-1 flex flex-col gap-6">
+          <Card className="flex flex-col items-center text-center p-8 gap-4">
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold bg-tint select-none shadow-md"
+            >
+              {userInitials}
+            </div>
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xl font-extrabold text-text-main">{displayName}</h2>
+              <span className="text-xs text-text-secondary">{user?.email}</span>
+            </div>
+            <Badge
+              label={`Wallet ID: ${profile?.walletId || 'RAD500000'}`}
+              variant="info"
+              className="mt-1 font-mono text-sm px-4 py-1 select-all"
+            />
+          </Card>
+
+          <Button
+            variant="danger"
+            size="lg"
+            fullWidth={true}
+            disabled={loading}
+            onClick={handleSignOut}
+            className="py-4 shadow-md font-bold"
           >
-            <div className="flex items-center gap-3">
-              <Icon name="chart-bar" className="text-accent" />
-              <div className="flex flex-col gap-0.5">
-                <span className="text-accent font-bold">Admin Console</span>
-                <span className="text-xs text-text-secondary font-medium">Access inventory, sales logs & reports</span>
+            {loading ? 'Signing Out...' : 'Sign Out'}
+          </Button>
+        </div>
+
+        {/* Right Column - Actions */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          <Card padded={false} className="overflow-hidden flex flex-col divide-y divide-border">
+            {/* Go to Admin Panel if User is Admin */}
+            {(profile?.role === 'admin' || user?.email === 'admin@rad5.cafe' || profile?.email === 'admin@rad5.cafe') && (
+              <button
+                onClick={() => navigate('/admin')}
+                className="flex justify-between items-center px-6 py-4.5 text-sm font-semibold text-text-main hover:bg-bg-selected/35 active:bg-bg-selected/60 transition-colors w-full text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <Icon name="chart-bar" className="text-accent" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-accent font-bold">Admin Console</span>
+                    <span className="text-xs text-text-secondary font-medium">Access inventory, sales logs & reports</span>
+                  </div>
+                </div>
+                <Icon name="chevron-right" className="text-accent" />
+              </button>
+            )}
+
+            {/* Reset Transaction PIN */}
+            <button
+              onClick={() => {
+                if (profile?.pinSetup) {
+                  setShowPinReset(true);
+                } else {
+                  setShowPinSetup(true);
+                }
+              }}
+              className="flex justify-between items-center px-6 py-4.5 text-sm font-semibold text-text-main hover:bg-bg-selected/35 active:bg-bg-selected/60 transition-colors w-full text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <Icon name="lock" className="text-text-secondary" />
+                <div className="flex flex-col gap-0.5">
+                  <span>{profile?.pinSetup ? 'Change Transaction PIN' : 'Set Up Transaction PIN'}</span>
+                  <span className="text-xs text-text-secondary font-medium">
+                    {profile?.pinSetup ? 'Reset your secure 4-digit checkout code' : 'Create a 4-digit PIN to secure transactions'}
+                  </span>
+                </div>
+              </div>
+              <Icon name="chevron-right" className="text-text-secondary" />
+            </button>
+
+            {/* Notifications config */}
+            <button
+              onClick={() => navigate('/notifications')}
+              className="flex justify-between items-center px-6 py-4.5 text-sm font-semibold text-text-main hover:bg-bg-selected/35 active:bg-bg-selected/60 transition-colors w-full text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <Icon name="bell" className="text-text-secondary" />
+                <div className="flex flex-col gap-0.5">
+                  <span>Notifications settings</span>
+                  <span className="text-xs text-text-secondary font-medium">Manage alerts and messages log</span>
+                </div>
+              </div>
+              <Icon name="chevron-right" className="text-text-secondary" />
+            </button>
+
+            {/* Help page */}
+            <div className="flex justify-between items-center px-6 py-4.5 text-sm font-semibold text-text-main w-full text-left">
+              <div className="flex items-center gap-3">
+                <Icon name="file-document" className="text-text-secondary" />
+                <div className="flex flex-col gap-0.5">
+                  <span>App Version</span>
+                  <span className="text-xs text-text-secondary font-medium">v2.1.0 (Build 42) - Web SPA client</span>
+                </div>
               </div>
             </div>
-            <Icon name="chevron-right" className="text-accent" />
-          </button>
-        )}
-
-        {/* Reset Transaction PIN */}
-        <button
-          onClick={() => {
-            if (profile?.pinSetup) {
-              setShowPinReset(true);
-            } else {
-              setShowPinSetup(true);
-            }
-          }}
-          className="flex justify-between items-center px-6 py-4.5 text-sm font-semibold text-text-main hover:bg-bg-selected/35 active:bg-bg-selected/60 transition-colors w-full text-left cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <Icon name="lock" className="text-text-secondary" />
-            <div className="flex flex-col gap-0.5">
-              <span>{profile?.pinSetup ? 'Change Transaction PIN' : 'Set Up Transaction PIN'}</span>
-              <span className="text-xs text-text-secondary font-medium">
-                {profile?.pinSetup ? 'Reset your secure 4-digit checkout code' : 'Create a 4-digit PIN to secure transactions'}
-              </span>
-            </div>
-          </div>
-          <Icon name="chevron-right" className="text-text-secondary" />
-        </button>
-
-        {/* Notifications config */}
-        <button
-          onClick={() => navigate('/notifications')}
-          className="flex justify-between items-center px-6 py-4.5 text-sm font-semibold text-text-main hover:bg-bg-selected/35 active:bg-bg-selected/60 transition-colors w-full text-left cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <Icon name="bell" className="text-text-secondary" />
-            <div className="flex flex-col gap-0.5">
-              <span>Notifications settings</span>
-              <span className="text-xs text-text-secondary font-medium">Manage alerts and messages log</span>
-            </div>
-          </div>
-          <Icon name="chevron-right" className="text-text-secondary" />
-        </button>
-
-        {/* Help page */}
-        <div className="flex justify-between items-center px-6 py-4.5 text-sm font-semibold text-text-main w-full text-left">
-          <div className="flex items-center gap-3">
-            <Icon name="file-document" className="text-text-secondary" />
-            <div className="flex flex-col gap-0.5">
-              <span>App Version</span>
-              <span className="text-xs text-text-secondary font-medium">v2.1.0 (Build 42) - Web SPA client</span>
-            </div>
-          </div>
+          </Card>
         </div>
-      </Card>
-
-      {/* Logout button */}
-      <Button
-        variant="danger"
-        size="lg"
-        fullWidth={true}
-        disabled={loading}
-        onClick={handleSignOut}
-        className="py-4 shadow-md font-bold"
-      >
-        {loading ? 'Signing Out...' : 'Sign Out'}
-      </Button>
+      </div>
 
       {/* Pin Reset Modal Mount */}
       <PinChangeModal

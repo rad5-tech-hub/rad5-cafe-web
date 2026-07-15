@@ -141,7 +141,7 @@ export default function Notifications() {
   };
 
   return (
-    <div className="flex flex-col gap-6 select-none max-w-2xl mx-auto">
+    <div className="flex flex-col gap-6 select-none w-full">
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Notifications Log</h1>

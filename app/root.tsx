@@ -71,6 +71,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const { registerWebPush, permissionStatus } = useNotifications();
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [appUpdateInfo, setAppUpdateInfo] = useState<any>(null);
+  const [showBanner, setShowBanner] = useState(false);
 
   const isAuthRoute = ['/', '/login', '/register', '/setup-pin'].includes(location.pathname);
   const isAdminRoute = location.pathname.startsWith('/admin') || 
@@ -90,6 +92,33 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     } else {
       setIsAdmin(false);
       setProfile(null);
+    }
+  }, [user]);
+
+  // Check version updates for banner visibility
+  useEffect(() => {
+    if (user) {
+      api.version.check('android')
+        .then((res) => {
+          if (res.success && res.data) {
+            const { updatedAt, apkLink } = res.data;
+            if (updatedAt && apkLink) {
+              const releaseDate = new Date(updatedAt);
+              const now = new Date();
+              const diffTime = Math.abs(now.getTime() - releaseDate.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays <= 10) {
+                const isClosed = localStorage.getItem(`closed_banner_${res.data.version || 'unknown'}`);
+                if (!isClosed) {
+                  setAppUpdateInfo(res.data);
+                  setShowBanner(true);
+                }
+              }
+            }
+          }
+        })
+        .catch((err) => console.warn('Failed to fetch update info for banner:', err));
     }
   }, [user]);
 
@@ -244,9 +273,47 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
         </header>
 
-        {/* Content Body */}
         <main className="flex-1 overflow-x-hidden p-6 md:p-10 pb-24 md:pb-10">
           <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-6">
+            {showBanner && appUpdateInfo && (
+              <div className="p-4 bg-tint/10 border border-tint/20 rounded-2xl flex items-center justify-between gap-4 animate-fade-in select-none">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-tint/15 flex items-center justify-center flex-shrink-0 text-tint">
+                    <Icon name="smartphone" size={20} />
+                  </div>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="font-extrabold text-sm text-text-main">
+                      New Mobile Update Available (v{appUpdateInfo.version})!
+                    </span>
+                    <span className="text-text-secondary text-xs leading-normal">
+                      The new version brings massive improvements and up to 5% cashback rewards on Mobile purchases (higher than 3% on Web). Download the latest Android app now!
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <a
+                    href={appUpdateInfo.apkLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded-xl bg-tint hover:bg-tint/90 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <Icon name="download" size={14} />
+                    <span>Download APK</span>
+                  </a>
+                  <button
+                    onClick={() => {
+                      localStorage.setItem(`closed_banner_${appUpdateInfo.version || 'unknown'}`, 'true');
+                      setShowBanner(false);
+                    }}
+                    className="w-8 h-8 rounded-lg hover:bg-bg-selected text-text-secondary hover:text-text-main flex items-center justify-center transition-colors cursor-pointer"
+                    title="Dismiss"
+                  >
+                    <Icon name="x" size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {!isAuthRoute && permissionStatus !== 'granted' && (
               <div className="bg-tint/10 border border-tint/25 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 select-none">
                 <div className="flex items-center gap-3">

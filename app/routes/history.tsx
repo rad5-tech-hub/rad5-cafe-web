@@ -107,7 +107,7 @@ export default function History() {
   };
 
   return (
-    <div className="flex flex-col gap-6 select-none max-w-2xl mx-auto">
+    <div className="flex flex-col gap-6 select-none w-full">
       <div>
         <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Transaction Statement</h1>
         <p className="text-text-secondary text-xs mt-1">
