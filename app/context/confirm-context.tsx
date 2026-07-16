@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Button } from '../components/ui/button';
 import { Icon, type IconName } from '../components/ui/icon';
 
@@ -87,6 +87,15 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [queue, setQueue] = useState<ConfirmItem[]>([]);
   const [current, setCurrent] = useState<ConfirmItem | null>(null);
 
+  // Safely process queue outside of render phase using useEffect
+  useEffect(() => {
+    if (!current && queue.length > 0) {
+      const [next, ...rest] = queue;
+      setCurrent(next);
+      setQueue(rest);
+    }
+  }, [current, queue]);
+
   const showConfirm = useCallback((options: ConfirmOptions): Promise<boolean> => {
     return new Promise((resolve) => {
       const item: ConfirmItem = { ...options, resolve };
@@ -103,12 +112,6 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     },
     [current],
   );
-
-  if (queue.length > 0 && !current) {
-    const [next, ...rest] = queue;
-    setQueue(rest);
-    setCurrent(next);
-  }
 
   const value = useMemo<ConfirmContextValue>(() => ({ showConfirm }), [showConfirm]);
 

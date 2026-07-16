@@ -321,9 +321,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-x-hidden p-6 md:p-10 pb-24 md:pb-10">
           <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-6">
             {showBanner && appUpdateInfo && (
-              <div className="p-4 bg-tint/10 border border-tint/20 rounded-2xl flex items-center justify-between gap-4 animate-fade-in select-none">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-tint/15 flex items-center justify-center flex-shrink-0 text-tint">
+              <div className="p-4 bg-tint/10 border border-tint/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in select-none">
+                <div className="flex items-start gap-3 flex-1 min-w-0 w-full">
+                  <div className="w-10 h-10 rounded-xl bg-tint/15 flex items-center justify-center flex-shrink-0 text-tint mt-0.5">
                     <Icon name="smartphone" size={20} />
                   </div>
                   <div className="flex flex-col gap-0.5 min-w-0">
@@ -335,12 +335,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
                   <a
                     href={appUpdateInfo.apkLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-xl bg-tint hover:bg-tint/90 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    className="flex-1 sm:flex-initial w-full sm:w-auto px-4 py-2 rounded-xl bg-tint hover:bg-tint/90 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     <Icon name="download" size={14} />
                     <span>Download APK</span>
@@ -350,7 +350,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                       localStorage.setItem(`closed_banner_${appUpdateInfo.version || 'unknown'}`, 'true');
                       setShowBanner(false);
                     }}
-                    className="w-8 h-8 rounded-lg hover:bg-bg-selected text-text-secondary hover:text-text-main flex items-center justify-center transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-lg hover:bg-bg-selected text-text-secondary hover:text-text-main flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
                     title="Dismiss"
                   >
                     <Icon name="x" size={16} />
