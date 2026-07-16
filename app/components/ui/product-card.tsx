@@ -40,6 +40,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <img
         src={item.image}
         alt={item.name}
+        loading="lazy"
+        decoding="async"
         onClick={(e) => {
           if (onImageClick) {
             e.stopPropagation();
@@ -47,6 +49,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           }
         }}
         className={`absolute inset-0 w-full h-full object-cover select-none transition-transform duration-500 hover:scale-105 ${onImageClick ? 'cursor-pointer' : 'pointer-events-none'}`}
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=200&h=200&fit=crop';
+        }}
       />
       {/* Bottom Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent pointer-events-none" />

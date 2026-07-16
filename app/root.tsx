@@ -175,6 +175,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Auth & Admin Redirection Guard
   useEffect(() => {
+    /*
     if (!loading && !profileLoading) {
       if (!user && !isAuthRoute) {
         navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
@@ -182,6 +183,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         navigate('/dashboard');
       }
     }
+    */
   }, [user, loading, profileLoading, isAuthRoute, isAdminRoute, isAdmin, navigate, location.pathname]);
 
   if (loading || (profileLoading && isAdminRoute)) {
@@ -345,16 +347,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                     <Icon name="download" size={14} />
                     <span>Download APK</span>
                   </a>
-                  <button
-                    onClick={() => {
-                      localStorage.setItem(`closed_banner_${appUpdateInfo.version || 'unknown'}`, 'true');
-                      setShowBanner(false);
-                    }}
-                    className="w-8 h-8 rounded-lg hover:bg-bg-selected text-text-secondary hover:text-text-main flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
-                    title="Dismiss"
-                  >
-                    <Icon name="x" size={16} />
-                  </button>
                 </div>
               </div>
             )}

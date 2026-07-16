@@ -120,8 +120,10 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
         <img 
           src={currentItem.image}
           alt={currentItem.name}
+          loading="lazy"
+          decoding="async"
           className="max-h-full max-w-full object-contain select-none animate-in zoom-in-95 duration-300"
-          onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image
+          onClick={(e) => e.stopPropagation()}
         />
 
         <button 
@@ -188,7 +190,7 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
               onClick={() => setCurrentIndex(idx)}
               className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${idx === currentIndex ? 'border-tint scale-105 shadow-[0_0_15px_rgba(var(--tint),0.5)]' : 'border-transparent opacity-50 hover:opacity-80'}`}
             >
-              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+              <img src={item.image} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
             </div>
           ))}
         </div>

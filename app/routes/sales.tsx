@@ -266,7 +266,7 @@ export default function Sales() {
                         Issue
                       </button>
                     )}
-                    {(sale.status === 'completed' || sale.status === 'cancelled') && (
+                    {sale.status !== 'cancelled' && (
                       <button
                         onClick={() => setCancellingSaleId(sale.id)}
                         className="text-[10px] font-bold text-error-val hover:underline cursor-pointer border border-error-val/30 hover:border-error-val/80 py-1 px-2 rounded-lg bg-error-val/5 transition-all"

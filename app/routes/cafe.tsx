@@ -93,7 +93,12 @@ export default function Cafe() {
         <img
           src="https://www.africanrecipes.com.ng/wp-content/uploads/2025/07/meat-pie-featured-nigerian-snack.png.webp"
           alt="Nigeria meat pies layout"
+          loading="lazy"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover opacity-60"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
 
