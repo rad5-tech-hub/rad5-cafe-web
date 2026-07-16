@@ -225,22 +225,21 @@ export default function Home() {
            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {loadingPopular ? (
                 [...Array(4)].map((_, i) => (
-                  <div key={i} className="shimmer h-44 rounded-xl" />
+                  <div key={i} className="shimmer aspect-square rounded-xl" />
                 ))
               ) : popularItems.length > 0 ? (
                 popularItems.map((item, idx) => (
-                  <div key={item.id} className="h-44">
-                    <ProductCard
-                      item={item}
-                      quantity={getItemQuantity(item.id)}
-                      onAdd={addToCart}
-                      onRemove={removeFromCart}
-                      onImageClick={() => {
-                        setGalleryIndex(idx);
-                        setGalleryOpen(true);
-                      }}
-                    />
-                  </div>
+                  <ProductCard
+                    key={item.id}
+                    item={item}
+                    quantity={getItemQuantity(item.id)}
+                    onAdd={addToCart}
+                    onRemove={removeFromCart}
+                    onImageClick={() => {
+                      setGalleryIndex(idx);
+                      setGalleryOpen(true);
+                    }}
+                  />
                 ))
               ) : (
                 <div className="col-span-full text-center py-10 text-text-secondary text-sm bg-bg-element rounded-xl border border-border border-dashed">

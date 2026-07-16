@@ -163,7 +163,7 @@ export default function Cafe() {
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="shimmer h-44 rounded-xl" />
+            <div key={i} className="shimmer aspect-square rounded-xl" />
           ))}
         </div>
       ) : filteredProducts.length === 0 ? (
