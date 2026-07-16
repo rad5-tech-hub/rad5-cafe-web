@@ -280,6 +280,10 @@ export const api = {
       request('/auth/web-push-token', { method: 'POST', body: JSON.stringify({ token }) }),
     removeWebPushToken: (token: string) =>
       request('/auth/web-push-token', { method: 'DELETE', body: JSON.stringify({ token }) }),
+    hasFullName: () =>
+      request<{ hasFullName: boolean }>('/auth/has-fullname'),
+    saveFullName: (fullName: string) =>
+      request('/auth/fullname', { method: 'PUT', body: JSON.stringify({ fullName }) }),
   },
 
   // ── Wallet ────────────────────────────────────────

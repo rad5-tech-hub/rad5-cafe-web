@@ -22,6 +22,7 @@ import { Icon } from './components/ui/icon';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import { CartModal } from './components/modals/cart-modal';
+import { FullNameModal } from './components/modals/fullname-modal';
 import { api } from './lib/api';
 
 export const links: Route.LinksFunction = () => [
@@ -74,6 +75,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const [appUpdateInfo, setAppUpdateInfo] = useState<any>(null);
   const [showBanner, setShowBanner] = useState(false);
+  const [showFullNameModal, setShowFullNameModal] = useState(false);
 
   const isAuthRoute = ['/', '/login', '/register', '/setup-pin'].includes(location.pathname);
   const isAdminRoute = location.pathname.startsWith('/admin') || 
@@ -92,10 +94,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         }
       }).catch(() => {})
         .finally(() => setProfileLoading(false));
+
+      api.auth.hasFullName().then((res) => {
+        if (res.success && res.data && !res.data.hasFullName) {
+          setShowFullNameModal(true);
+        }
+      }).catch(() => {});
     } else {
       setIsAdmin(false);
       setProfile(null);
       setProfileLoading(false);
+      setShowFullNameModal(false);
     }
   }, [user]);
 
@@ -422,6 +431,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         onOrderPlaced={() => {
           window.dispatchEvent(new Event('order-placed'));
         }}
+      />
+
+      {/* Full Name Prompt Modal */}
+      <FullNameModal
+        isOpen={showFullNameModal}
+        onDismiss={() => setShowFullNameModal(false)}
+        onDone={() => setShowFullNameModal(false)}
       />
     </div>
   );
