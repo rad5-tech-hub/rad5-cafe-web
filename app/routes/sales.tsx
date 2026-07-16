@@ -106,6 +106,14 @@ export default function Sales() {
     e.preventDefault();
     if (!cancellingSaleId || !cancelPin) return;
 
+    const saleToCancel = salesList.find(s => s.id === cancellingSaleId);
+    if (saleToCancel?.issued) {
+      showToast('Issued orders cannot be cancelled.', 'error');
+      setCancellingSaleId(null);
+      setCancelPin('');
+      return;
+    }
+
     setAdjusting(true);
     try {
       const res = await api.adminDashboard.sales.adjust(cancellingSaleId, {
@@ -266,7 +274,7 @@ export default function Sales() {
                         Issue
                       </button>
                     )}
-                    {sale.status !== 'cancelled' && (
+                    {sale.status !== 'cancelled' && !sale.issued && (
                       <button
                         onClick={() => setCancellingSaleId(sale.id)}
                         className="text-[10px] font-bold text-error-val hover:underline cursor-pointer border border-error-val/30 hover:border-error-val/80 py-1 px-2 rounded-lg bg-error-val/5 transition-all"
