@@ -82,7 +82,7 @@ export default function Cafe() {
   });
 
   return (
-    <div className="flex flex-col gap-6 select-none pb-20">
+    <div className="flex flex-col gap-6 pb-20 min-w-0">
       {/* Featured Header Banner */}
       <div
         className="relative w-full h-56 md:h-72 overflow-hidden bg-gray-950 flex flex-col justify-end p-6 md:p-8"
@@ -177,19 +177,18 @@ export default function Cafe() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
           {filteredProducts.map((product, idx) => (
-            <div key={product.id} className="aspect-square">
-              <ProductCard
-                item={product}
-                quantity={getItemQuantity(product.id)}
-                inStock={product.inStock}
-                onAdd={addToCart}
-                onRemove={removeFromCart}
-                onImageClick={() => {
-                  setGalleryIndex(idx);
-                  setGalleryOpen(true);
-                }}
-              />
-            </div>
+            <ProductCard
+              key={product.id}
+              item={product}
+              quantity={getItemQuantity(product.id)}
+              inStock={product.inStock}
+              onAdd={addToCart}
+              onRemove={removeFromCart}
+              onImageClick={() => {
+                setGalleryIndex(idx);
+                setGalleryOpen(true);
+              }}
+            />
           ))}
         </div>
       )}

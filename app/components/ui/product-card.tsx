@@ -29,7 +29,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   return (
     <div
-      className={`relative w-full h-full bg-bg-element border border-border flex flex-col justify-end overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.03] select-none ${
+      className={`relative w-full aspect-square bg-bg-element border border-border flex flex-col justify-end overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.03] select-none ${
         !inStock ? 'opacity-65 grayscale-[30%]' : ''
       }`}
       style={{
@@ -48,6 +48,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             onImageClick();
           }
         }}
+        style={{ maxWidth: '100%', maxHeight: '100%' }}
         className={`absolute inset-0 w-full h-full object-cover select-none transition-transform duration-500 hover:scale-105 ${onImageClick ? 'cursor-pointer' : 'pointer-events-none'}`}
         onError={(e) => {
           (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=200&h=200&fit=crop';
