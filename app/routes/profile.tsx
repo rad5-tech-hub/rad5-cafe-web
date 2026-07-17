@@ -98,11 +98,22 @@ export default function Profile() {
               <h2 className="text-xl font-extrabold text-text-main">{displayName}</h2>
               <span className="text-xs text-text-secondary">{user?.email}</span>
             </div>
-            <Badge
-              label={`Wallet ID: ${profile?.walletId || 'RAD500000'}`}
-              variant="info"
-              className="mt-1 font-mono text-sm px-4 py-1 select-all"
-            />
+            <div
+              onClick={() => {
+                if (profile?.walletId) {
+                  navigator.clipboard.writeText(profile.walletId);
+                  showToast('Wallet ID copied to clipboard!', 'success');
+                }
+              }}
+              className="cursor-pointer active:scale-95 transition-transform"
+              title="Click to copy Wallet ID"
+            >
+              <Badge
+                label={`Wallet ID: ${profile?.walletId || 'RAD500000'} (Click to copy)`}
+                variant="info"
+                className="mt-1 font-mono text-sm px-4 py-1 select-all"
+              />
+            </div>
           </Card>
 
           <Button

@@ -11,6 +11,7 @@ type BalanceDisplayProps = {
   label: string;
   amount: number;
   subtitle?: string;
+  onSubtitleClick?: () => void;
   actions?: ActionButton[];
 };
 
@@ -18,6 +19,7 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
   label,
   amount,
   subtitle,
+  onSubtitleClick,
   actions,
 }) => {
   return (
@@ -54,8 +56,19 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
 
       {/* Subtitle */}
       {subtitle && (
-        <span className="relative z-10 text-xs md:text-sm opacity-75 mt-1 select-all">
-          {subtitle}
+        <span
+          onClick={onSubtitleClick}
+          className={`relative z-10 text-xs md:text-sm opacity-75 mt-1 select-all ${
+            onSubtitleClick ? 'cursor-pointer hover:opacity-100 transition-opacity flex items-center gap-1.5 w-fit' : ''
+          }`}
+          title={onSubtitleClick ? 'Click to copy' : undefined}
+        >
+          <span>{subtitle}</span>
+          {onSubtitleClick && (
+            <span className="text-[10px] opacity-60 bg-white/10 px-1.5 py-0.5 rounded-sm select-none">
+              (Click to copy)
+            </span>
+          )}
         </span>
       )}
 

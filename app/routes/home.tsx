@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '~/context/auth-context';
 import { useCart } from '~/context/cart-context';
+import { useToast } from '~/context/toast-context';
 import { api } from '~/lib/api';
 import { BalanceDisplay } from '~/components/ui/balance-display';
 import { Card } from '~/components/ui/card';
@@ -35,6 +36,7 @@ export function meta() {
 export default function Home() {
   const { user } = useAuth();
   const { cart, addToCart, removeFromCart, getItemQuantity, cartCount, cartTotal } = useCart();
+  const { showToast } = useToast();
 
 
   const [balance, setBalance] = useState(0);
@@ -198,6 +200,12 @@ export default function Home() {
           label="Available Balance"
           amount={balance}
           subtitle={`Wallet ID: ${walletId}`}
+          onSubtitleClick={() => {
+            if (walletId && walletId !== 'RAD500000') {
+              navigator.clipboard.writeText(walletId);
+              showToast('Wallet ID copied to clipboard!', 'success');
+            }
+          }}
           actions={[
             {
               icon: 'plus',
