@@ -281,7 +281,9 @@ export const api = {
     removeWebPushToken: (token: string) =>
       request('/auth/web-push-token', { method: 'DELETE', body: JSON.stringify({ token }) }),
     hasFullName: () =>
-      request<{ hasFullName: boolean }>('/auth/has-fullname'),
+      request<{ hasFullName: boolean }>('/auth/has-fullname') as Promise<
+        ApiResponse<{ hasFullName: boolean }> & { hasFullName?: boolean }
+      >,
     saveFullName: (fullName: string) =>
       request('/auth/fullname', { method: 'PUT', body: JSON.stringify({ fullName }) }),
   },

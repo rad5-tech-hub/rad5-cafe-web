@@ -96,7 +96,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         .finally(() => setProfileLoading(false));
 
       api.auth.hasFullName().then((res) => {
-        if (res.success && res.data && !res.data.hasFullName) {
+        const hasFullName = res.hasFullName !== undefined ? res.hasFullName : res.data?.hasFullName;
+        if (res.success && hasFullName === false) {
           setShowFullNameModal(true);
         }
       }).catch(() => {});
