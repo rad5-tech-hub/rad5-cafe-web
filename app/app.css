@@ -204,3 +204,28 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(59, 130, 246, 0.35);
 }
+
+/* Loading System Slide Animation */
+@keyframes loading-slide {
+  0% {
+    left: -50%;
+    width: 30%;
+  }
+  50% {
+    width: 60%;
+  }
+  100% {
+    left: 100%;
+    width: 30%;
+  }
+}
+
+.loading-bar-active {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-color: var(--color-tint);
+  border-radius: 9999px;
+  animation: loading-slide 1.6s infinite ease-in-out;
+}
+
