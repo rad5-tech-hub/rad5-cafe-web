@@ -29,87 +29,101 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   return (
     <div
-      className={`relative w-full aspect-square bg-bg-element border border-border flex flex-col justify-end overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.03] select-none ${
+      className={`relative w-full flex flex-col bg-bg-element border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 select-none ${
         !inStock ? 'opacity-65 grayscale-[30%]' : ''
       }`}
       style={{
-        borderRadius: 'var(--radius-md)',
+        borderRadius: 'var(--radius-lg)',
       }}
     >
-      {/* Product Image */}
-      <img
-        src={item.image}
-        alt={item.name}
-        loading="lazy"
-        decoding="async"
-        onClick={(e) => {
-          if (onImageClick) {
-            e.stopPropagation();
-            onImageClick();
-          }
-        }}
-        style={{ maxWidth: '100%', maxHeight: '100%' }}
-        className={`absolute inset-0 w-full h-full object-cover select-none transition-transform duration-500 hover:scale-105 ${onImageClick ? 'cursor-pointer' : 'pointer-events-none'}`}
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=200&h=200&fit=crop';
-        }}
-      />
-      {/* Bottom Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent pointer-events-none" />
-
-      {/* Top Right Quantity Controls */}
-      <div className="absolute top-2.5 right-2.5 z-10">
-        {!inStock ? (
-          <span className="text-[10px] font-bold uppercase tracking-wider bg-error-val text-white px-2 py-0.5 rounded-full">
-            Sold Out
-          </span>
-        ) : quantity > 0 ? (
-          <div className="flex items-center gap-1 bg-black/75 rounded-full p-0.5 border border-white/10">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove(item.id);
-              }}
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-tint hover:bg-tint/90 active:scale-95 text-white font-bold text-sm cursor-pointer"
-            >
-              −
-            </button>
-            <span className="text-white font-bold text-xs min-w-[18px] text-center">
-              {quantity}
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAdd(item);
-              }}
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-tint hover:bg-tint/90 active:scale-95 text-white font-bold text-sm cursor-pointer"
-            >
-              +
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={(e) => {
+      {/* Product Image Section */}
+      <div className="relative aspect-square w-full bg-bg-selected overflow-hidden border-b border-border">
+        <img
+          src={item.image}
+          alt={item.name}
+          loading="lazy"
+          decoding="async"
+          onClick={(e) => {
+            if (onImageClick) {
               e.stopPropagation();
-              onAdd(item);
-            }}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-tint hover:bg-tint/90 active:scale-95 text-white font-bold text-lg leading-none cursor-pointer border border-white/10"
-          >
-            +
-          </button>
+              onImageClick();
+            }
+          }}
+          className={`w-full h-full object-cover transition-transform duration-500 hover:scale-105 ${onImageClick ? 'cursor-pointer' : 'pointer-events-none'}`}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=200&h=200&fit=crop';
+          }}
+        />
+        
+        {/* Sold Out Overlay Tag */}
+        {!inStock && (
+          <div className="absolute top-2.5 left-2.5 z-10">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider bg-error-val text-white px-2 py-0.5 rounded-full">
+              Sold Out
+            </span>
+          </div>
         )}
       </div>
 
-      {/* Card Content Overlay */}
-      <div className="relative z-10 w-full p-3 flex flex-col items-center gap-0.5 bg-black/70 text-white text-center">
-        {children || (
-          <>
-            <span className="text-xs font-bold truncate max-w-full leading-tight">{item.name}</span>
-            <span className="text-xs font-extrabold tracking-wide">
-              ₦{item.price.toLocaleString()}
-            </span>
-          </>
-        )}
+      {/* Details Section */}
+      <div className="flex flex-col p-3.5 flex-1 justify-between gap-3 bg-bg-element">
+        {/* Product Name */}
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-xs sm:text-sm font-extrabold text-text-main truncate max-w-full leading-tight">
+            {item.name}
+          </span>
+          {children}
+        </div>
+
+        {/* Pricing and Action Button Row */}
+        <div className="flex items-center justify-between mt-auto gap-2">
+          <span className="text-xs sm:text-sm font-black text-tint whitespace-nowrap">
+            ₦{item.price.toLocaleString()}
+          </span>
+
+          {/* Quantity Controls */}
+          <div className="flex-shrink-0">
+            {!inStock ? (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+                Out
+              </span>
+            ) : quantity > 0 ? (
+              <div className="flex items-center gap-1.5 bg-bg-selected rounded-lg p-0.5 border border-border">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(item.id);
+                  }}
+                  className="w-6 h-6 flex items-center justify-center rounded-md bg-tint hover:bg-tint-dark text-white font-black text-xs cursor-pointer transition-colors active:scale-95"
+                >
+                  −
+                </button>
+                <span className="text-text-main font-bold text-xs min-w-[14px] text-center">
+                  {quantity}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAdd(item);
+                  }}
+                  className="w-6 h-6 flex items-center justify-center rounded-md bg-tint hover:bg-tint-dark text-white font-black text-xs cursor-pointer transition-colors active:scale-95"
+                >
+                  +
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdd(item);
+                }}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-tint hover:bg-tint-dark text-white font-bold text-base leading-none cursor-pointer transition-all active:scale-95 shadow-sm hover:shadow-tint/20"
+              >
+                +
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
