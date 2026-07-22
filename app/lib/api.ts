@@ -274,6 +274,10 @@ export const api = {
       request('/auth/setup-pin', { method: 'POST', body: JSON.stringify({ pin }) }),
     changePin: (oldPin: string, newPin: string) =>
       request('/auth/change-pin', { method: 'POST', body: JSON.stringify({ oldPin, newPin }) }),
+    requestPinChange: (pin: string) =>
+      request('/auth/request-pin-change', { method: 'POST', body: JSON.stringify({ pin }) }),
+    getPinChangeRequest: () =>
+      request<any>('/auth/pin-change-request'),
     savePushToken: (token: string) =>
       request('/auth/expo-push-token', { method: 'POST', body: JSON.stringify({ token }) }),
     saveWebPushToken: (token: string) =>

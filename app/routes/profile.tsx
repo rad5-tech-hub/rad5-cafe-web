@@ -26,6 +26,7 @@ export default function Profile() {
 
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [pinRequest, setPinRequest] = useState<any>(null);
   const [showPinReset, setShowPinReset] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
 
@@ -34,6 +35,12 @@ export default function Profile() {
       api.auth.me().then((res) => {
         if (res.success && res.data) {
           setProfile(res.data);
+        }
+      }).catch(() => {});
+
+      api.auth.getPinChangeRequest().then((res) => {
+        if (res.success) {
+          setPinRequest(res.data);
         }
       }).catch(() => {});
     }
@@ -161,11 +168,24 @@ export default function Profile() {
             >
               <div className="flex items-center gap-3">
                 <Icon name="lock" className="text-text-secondary" />
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-0.5 items-start">
                   <span>{profile?.pinSetup ? 'Change Transaction PIN' : 'Set Up Transaction PIN'}</span>
                   <span className="text-xs text-text-secondary font-medium">
                     {profile?.pinSetup ? 'Reset your secure 4-digit checkout code' : 'Create a 4-digit PIN to secure transactions'}
                   </span>
+                  {pinRequest && pinRequest.status === 'PENDING' && (
+                    <div className="mt-1">
+                      <Badge label="Awaiting Admin Approval" variant="warning" className="text-[10px] px-2 py-0.5" />
+                    </div>
+                  )}
+                  {pinRequest && pinRequest.status === 'REJECTED' && (
+                    <div className="mt-1 flex flex-col gap-1 items-start">
+                      <Badge label="PIN Request Rejected" variant="error" className="text-[10px] px-2 py-0.5" />
+                      {pinRequest.rejectReason && (
+                        <span className="text-[10px] text-error-val font-semibold leading-tight">Reason: {pinRequest.rejectReason}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <Icon name="chevron-right" className="text-text-secondary" />
