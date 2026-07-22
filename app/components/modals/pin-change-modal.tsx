@@ -108,7 +108,7 @@ export const PinChangeModal: React.FC<PinChangeModalProps> = ({ isOpen, onDismis
     try {
       const res = await api.auth.requestPinChange(code);
       if (res.success) {
-        showToast('PIN change request submitted successfully!', 'success');
+        showToast('PIN change request submitted successfully! Please meet any admin to approve your PIN change.', 'success');
         resetState();
         onDone();
       } else {
