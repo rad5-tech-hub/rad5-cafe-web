@@ -493,6 +493,20 @@ export const api = {
         downloadReport(`/admin/transactions${userId ? `?userId=${userId}` : ''}`, `transactions-report-${Date.now()}.xlsx`),
     },
     rewards: (page = 1, limit = 50) => request<any>(`/admin-dashboard/rewards?page=${page}&limit=${limit}`),
+    pinChanges: {
+      list: (params?: { status?: string; page?: number; limit?: number }) => {
+        const qs = new URLSearchParams();
+        if (params?.status) qs.set('status', params.status);
+        if (params?.page) qs.set('page', String(params.page));
+        if (params?.limit) qs.set('limit', String(params.limit));
+        const query = qs.toString();
+        return request<any>(`/admin/pin-change-requests${query ? `?${query}` : ''}`);
+      },
+      approve: (id: string, pin: string) =>
+        request<any>(`/admin/pin-change-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({ pin }) }),
+      reject: (id: string, reason?: string) =>
+        request<any>(`/admin/pin-change-requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    },
   },
 
   // ── Admin Dashboard (v2) ──────────────────────────
