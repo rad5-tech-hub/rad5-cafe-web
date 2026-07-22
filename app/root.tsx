@@ -396,20 +396,23 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
 
         {/* Mobile Sticky Bottom Navbar */}
-        <nav className="md:hidden sticky bottom-0 w-full h-16 glass flex items-center px-2 z-20 shadow-lg overflow-x-auto scrollbar-none snap-x">
-          <div className="flex items-center justify-around min-w-full gap-2 px-2">
+        <nav className="md:hidden sticky bottom-0 w-full h-16 bg-card/95 backdrop-blur-md border-t border-border flex items-center px-2 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] overflow-x-auto scrollbar-none snap-x">
+          <div className="flex items-center justify-around min-w-full gap-2 px-1">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path || (item.path === '/admin' && ['/admin', '/admin/users', '/admin/audit-logs', '/inventory', '/analytics', '/sales', '/reports', '/accounting'].includes(location.pathname));
               return (
                 <Link
                   key={item.label}
                   to={item.path}
-                  className={`flex flex-col items-center justify-center w-14 h-12 shrink-0 snap-center rounded-xl transition-all duration-200 ${
-                    isActive ? 'text-tint-dark font-extrabold' : 'text-black dark:text-white'
+                  className={`flex flex-col items-center justify-center w-14 h-12 shrink-0 snap-center rounded-xl transition-all duration-300 relative ${
+                    isActive ? 'text-tint font-extrabold scale-105' : 'text-text-secondary hover:text-text-main'
                   }`}
                 >
-                  <Icon name={item.icon} size={20} color={isActive ? 'var(--color-tint-dark)' : 'currentColor'} />
-                  <span className="text-[10px] font-bold mt-1 leading-none whitespace-nowrap">{item.label.split(' ')[0]}</span>
+                  <Icon name={item.icon} size={20} color={isActive ? 'var(--color-tint)' : 'currentColor'} />
+                  <span className="text-[10px] font-bold mt-1.5 leading-none whitespace-nowrap">{item.label.split(' ')[0]}</span>
+                  {isActive && (
+                    <span className="absolute bottom-0 w-1.5 h-1.5 rounded-full bg-tint animate-pulse-slow" />
+                  )}
                 </Link>
               );
             })}

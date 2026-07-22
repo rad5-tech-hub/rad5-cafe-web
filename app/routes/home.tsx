@@ -233,7 +233,7 @@ export default function Home() {
            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {loadingPopular ? (
                 [...Array(4)].map((_, i) => (
-                  <div key={i} className="shimmer aspect-square rounded-xl" />
+                  <div key={i} className="shimmer h-64 rounded-xl" />
                 ))
               ) : popularItems.length > 0 ? (
                 popularItems.map((item, idx) => (
