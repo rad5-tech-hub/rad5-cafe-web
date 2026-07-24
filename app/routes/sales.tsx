@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router';
 import { Card } from '~/components/ui/card';
 import { Badge } from '~/components/ui/badge';
 import { Input } from '~/components/ui/input';
@@ -58,6 +59,8 @@ export default function Sales() {
   const [aggregateProfit, setAggregateProfit] = useState(0);
   const [aggregateOrders, setAggregateOrders] = useState(0);
 
+  const [hideUnreconciled, setHideUnreconciled] = useState(false);
+
   const fetchSalesData = (filterValue: string, pageNum: number, silent = false) => {
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
@@ -113,6 +116,12 @@ export default function Sales() {
       setCancelPin('');
       return;
     }
+    if (saleToCancel?.reconciliationStatus === 'limbo') {
+      showToast('This is an unreconciled cash order. Manage it from Cash Orders instead of Sales.', 'error');
+      setCancellingSaleId(null);
+      setCancelPin('');
+      return;
+    }
 
     setAdjusting(true);
     try {
@@ -139,6 +148,13 @@ export default function Sales() {
   const handleConfirmIssue = async () => {
     if (!issuingSaleId) return;
 
+    const saleToIssue = salesList.find(s => s.id === issuingSaleId);
+    if (saleToIssue?.reconciliationStatus === 'limbo') {
+      showToast('This is an unreconciled cash order. Manage it from Cash Orders instead of Sales.', 'error');
+      setIssuingSaleId(null);
+      return;
+    }
+
     setIssuing(true);
     try {
       const res = await api.adminDashboard.sales.issue(issuingSaleId);
@@ -161,6 +177,10 @@ export default function Sales() {
       setIssuing(false);
     }
   };
+
+  const visibleSalesList = hideUnreconciled
+    ? salesList.filter((sale) => sale.reconciliationStatus !== 'limbo')
+    : salesList;
 
   return (
     <div className="flex flex-col gap-6 select-none max-w-2xl mx-auto">
@@ -202,20 +222,32 @@ export default function Sales() {
       </div>
 
       {/* Filters chips horizontal scrolling */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {filters.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setActiveFilter(f.value)}
-            className={`px-4 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer ${
-              activeFilter === f.value
-                ? 'bg-tint text-white border-tint shadow-xs'
-                : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="flex justify-between items-center gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {filters.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setActiveFilter(f.value)}
+              className={`px-4 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer ${
+                activeFilter === f.value
+                  ? 'bg-tint text-white border-tint shadow-xs'
+                  : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setHideUnreconciled((v) => !v)}
+          className={`shrink-0 px-3 py-1.5 text-[11px] font-bold rounded-full border transition-all cursor-pointer ${
+            hideUnreconciled
+              ? 'bg-tint text-white border-tint shadow-xs'
+              : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
+          }`}
+        >
+          Hide unreconciled cash orders
+        </button>
       </div>
 
       {/* Sales Rows list */}
@@ -227,13 +259,13 @@ export default function Sales() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           </div>
-        ) : salesList.length === 0 ? (
+        ) : visibleSalesList.length === 0 ? (
           <div className="text-center py-16 text-text-secondary text-sm">
             No sales logs found.
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {salesList.map((sale) => (
+            {visibleSalesList.map((sale) => (
               <div key={sale.id} className="flex flex-col md:flex-row md:justify-between md:items-center p-4 hover:bg-bg-selected/10 transition-colors gap-3">
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">
@@ -244,6 +276,9 @@ export default function Sales() {
                       label={sale.status}
                       variant={sale.status === 'completed' ? 'success' : sale.status === 'cancelled' ? 'error' : 'warning'}
                     />
+                    {sale.reconciliationStatus === 'limbo' && (
+                      <Badge label="Cash — Unreconciled" variant="warning" />
+                    )}
                   </div>
                   <span className="text-xs text-text-main font-semibold mt-1">
                     {sale.items.map(item => `${item.productName} (x${item.quantity})`).join(', ')}
@@ -266,21 +301,32 @@ export default function Sales() {
                   </div>
                   
                   <div className="flex items-center gap-2 mt-1">
-                    {sale.status === 'completed' && !sale.issued && (
-                      <button
-                        onClick={() => setIssuingSaleId(sale.id)}
-                        className="text-[10px] font-bold text-success hover:underline cursor-pointer border border-success/30 hover:border-success/80 py-1 px-2 rounded-lg bg-success/5 transition-all"
+                    {sale.reconciliationStatus === 'limbo' ? (
+                      <Link
+                        to="/admin/cash-orders"
+                        className="text-[10px] font-bold text-tint hover:underline cursor-pointer border border-tint/30 hover:border-tint/80 py-1 px-2 rounded-lg bg-tint/5 transition-all"
                       >
-                        Issue
-                      </button>
-                    )}
-                    {sale.status !== 'cancelled' && !sale.issued && (
-                      <button
-                        onClick={() => setCancellingSaleId(sale.id)}
-                        className="text-[10px] font-bold text-error-val hover:underline cursor-pointer border border-error-val/30 hover:border-error-val/80 py-1 px-2 rounded-lg bg-error-val/5 transition-all"
-                      >
-                        Cancel & Refund
-                      </button>
+                        Manage in Cash Orders
+                      </Link>
+                    ) : (
+                      <>
+                        {sale.status === 'completed' && !sale.issued && (
+                          <button
+                            onClick={() => setIssuingSaleId(sale.id)}
+                            className="text-[10px] font-bold text-success hover:underline cursor-pointer border border-success/30 hover:border-success/80 py-1 px-2 rounded-lg bg-success/5 transition-all"
+                          >
+                            Issue
+                          </button>
+                        )}
+                        {sale.status !== 'cancelled' && !sale.issued && (
+                          <button
+                            onClick={() => setCancellingSaleId(sale.id)}
+                            className="text-[10px] font-bold text-error-val hover:underline cursor-pointer border border-error-val/30 hover:border-error-val/80 py-1 px-2 rounded-lg bg-error-val/5 transition-all"
+                          >
+                            Cancel & Refund
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                   {sale.status === 'completed' && sale.issued && (

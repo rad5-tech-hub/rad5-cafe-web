@@ -63,6 +63,7 @@ export type Sale = {
   cancelledBy?: string | null;
   cancelledAt?: string | null;
   date: string;
+  reconciliationStatus?: 'limbo' | 'reconciled' | 'none';
 };
 
 export type SalesListResponse = {
