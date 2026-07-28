@@ -242,6 +242,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     { label: 'Accounting', path: '/accounting', icon: 'cash' as const },
     { label: 'Sales Logs', path: '/sales', icon: 'dollar' as const },
     { label: 'Sales Ledger / Expenses', path: '/admin/expenses', icon: 'dollar' as const },
+    { label: 'Stock Balance Out', path: '/admin/stock-balance', icon: 'scale' as const },
     { label: 'Cash Orders', path: '/admin/cash-orders', icon: 'dollar' as const },
     { label: 'Users', path: '/admin/users', icon: 'account-group' as const },
     { label: 'Audit Logs', path: '/admin/audit-logs', icon: 'shield-check' as const },
