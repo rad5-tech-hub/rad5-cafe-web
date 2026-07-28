@@ -32,10 +32,13 @@ interface StockSummary {
 
 interface BalanceOutRecord {
   id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  costPrice: number;
   amount: number;
   note: string;
-  stockQuantitySnapshot: number;
-  stockValueSnapshot: number;
+  remainingQuantity: number;
   createdBy: string;
   createdAt: string;
 }
@@ -49,15 +52,19 @@ function BalanceOutModal({
   summary: StockSummary | null;
   submitting: boolean;
   onCancel: () => void;
-  onConfirm: (amount: number, note: string, pin: string) => void;
+  onConfirm: (productId: string, quantity: number, note: string, pin: string) => void;
 }) {
-  const [amount, setAmount] = useState('');
+  const products = summary?.products ?? [];
+  const [productId, setProductId] = useState('');
+  const [quantity, setQuantity] = useState('');
   const [note, setNote] = useState('');
   const [pin, setPin] = useState('');
 
-  const amountNum = Number(amount) || 0;
+  const selectedProduct = products.find((p) => p.id === productId) || null;
+  const quantityNum = Number(quantity) || 0;
+  const amountNum = selectedProduct ? quantityNum * selectedProduct.costPrice : 0;
   const resultingProfit = (summary?.netProfit ?? 0) - amountNum;
-  const amountValid = amount !== '' && amountNum > 0 && (!summary || amountNum <= summary.totalValue);
+  const quantityValid = !!selectedProduct && quantity !== '' && quantityNum > 0 && quantityNum <= selectedProduct.quantity;
 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -68,17 +75,37 @@ function BalanceOutModal({
           <div>
             <h3 className="text-lg font-bold text-brand-900 dark:text-brand-100">Balance Out Stock</h3>
             <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
-              Deduct an amount from total profit for remaining stock value written off, recording it as a loss.
+              Select a product and the quantity to write off. The value is deducted from total profit and removed from live stock.
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Amount (₦)</label>
+            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Product</label>
+            <select
+              className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
+              value={productId}
+              onChange={(e) => {
+                setProductId(e.target.value);
+                setQuantity('');
+              }}
+            >
+              <option value="">Select a product...</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id} disabled={p.quantity <= 0}>
+                  {p.name} ({p.quantity} in stock)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Quantity to write off</label>
             <Input
               type="number"
-              placeholder={`Up to ₦${(summary?.totalValue ?? 0).toLocaleString()}`}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              placeholder={selectedProduct ? `Up to ${selectedProduct.quantity}` : 'Select a product first'}
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              disabled={!selectedProduct}
               autoFocus
             />
           </div>
@@ -94,8 +121,8 @@ function BalanceOutModal({
 
           <div className="rounded-lg border border-brand-200 dark:border-brand-800 divide-y divide-brand-100 dark:divide-brand-800/50 text-sm">
             <div className="flex justify-between px-4 py-3">
-              <span className="text-brand-500 dark:text-brand-400">Remaining stock value</span>
-              <span className="font-semibold">₦{(summary?.totalValue ?? 0).toLocaleString()}</span>
+              <span className="text-brand-500 dark:text-brand-400">Value to write off</span>
+              <span className="font-semibold">₦{amountNum.toLocaleString()}</span>
             </div>
             <div className="flex justify-between px-4 py-3">
               <span className="text-brand-500 dark:text-brand-400">Current total profit</span>
@@ -125,8 +152,8 @@ function BalanceOutModal({
             <Button
               variant="danger"
               fullWidth
-              disabled={!amountValid || pin.length !== 4 || submitting}
-              onClick={() => onConfirm(amountNum, note, pin)}
+              disabled={!quantityValid || pin.length !== 4 || submitting}
+              onClick={() => onConfirm(productId, quantityNum, note, pin)}
             >
               {submitting ? 'Balancing Out...' : 'Confirm & Balance Out'}
             </Button>
@@ -200,10 +227,10 @@ export default function StockBalance() {
     fetchRecords(page);
   }, [page]);
 
-  const handleConfirm = async (amount: number, note: string, pin: string) => {
+  const handleConfirm = async (productId: string, quantity: number, note: string, pin: string) => {
     setSubmitting(true);
     try {
-      const res = await api.adminDashboard.stockBalance.create({ amount, note, pin });
+      const res = await api.adminDashboard.stockBalance.create({ productId, quantity, note, pin });
 
       if (res.success) {
         showToast({ type: 'success', title: 'Stock Balanced Out', message: 'The amount has been deducted from total profit and recorded as a loss.' });
@@ -345,8 +372,9 @@ export default function StockBalance() {
               <thead className="text-xs text-brand-500 uppercase bg-brand-50 dark:bg-brand-900/20 border-b border-brand-200 dark:border-brand-800">
                 <tr>
                   <th className="px-6 py-4 font-medium">Date</th>
+                  <th className="px-6 py-4 font-medium">Product</th>
                   <th className="px-6 py-4 font-medium">Note</th>
-                  <th className="px-6 py-4 font-medium text-right">Stock Value at the Time</th>
+                  <th className="px-6 py-4 font-medium text-right">Quantity</th>
                   <th className="px-6 py-4 font-medium text-right">Amount Balanced Out</th>
                 </tr>
               </thead>
@@ -357,10 +385,13 @@ export default function StockBalance() {
                       {new Date(rec.createdAt).toLocaleString()}
                     </td>
                     <td className="px-6 py-4">
+                      {rec.productName || '—'}
+                    </td>
+                    <td className="px-6 py-4">
                       {rec.note || '—'}
                     </td>
                     <td className="px-6 py-4 text-right text-brand-600 dark:text-brand-400">
-                      ₦{(rec.stockValueSnapshot || 0).toLocaleString()}
+                      {(rec.quantity ?? 0).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-red-600 dark:text-red-400">
                       -₦{(rec.amount || 0).toLocaleString()}
