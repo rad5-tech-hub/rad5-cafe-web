@@ -44,7 +44,8 @@ export type IconName =
   | 'loading'
   | 'clock'
   | 'cash'
-  | 'shopping-cart';
+  | 'shopping-cart'
+  | 'scale';
 
 
 interface IconProps {
@@ -143,6 +144,8 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.Banknote;
       case 'shopping-cart':
         return Lucide.ShoppingCart;
+      case 'scale':
+        return Lucide.Scale;
       default:
         return Lucide.HelpCircle;
     }
