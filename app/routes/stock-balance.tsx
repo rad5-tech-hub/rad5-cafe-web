@@ -40,13 +40,98 @@ interface BalanceOutRecord {
   createdAt: string;
 }
 
+function ConfirmBalanceOutModal({
+  amount,
+  note,
+  summary,
+  submitting,
+  onCancel,
+  onConfirm,
+}: {
+  amount: number;
+  note: string;
+  summary: StockSummary | null;
+  submitting: boolean;
+  onCancel: () => void;
+  onConfirm: (pin: string) => void;
+}) {
+  const [pin, setPin] = useState('');
+  const resultingProfit = (summary?.netProfit ?? 0) - amount;
+
+  return (
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+      <div className="absolute inset-0" onClick={onCancel} />
+      <div className="relative bg-card border border-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
+        <div className="h-1.5 w-full bg-error-val" />
+        <div className="p-6 space-y-4">
+          <div>
+            <h3 className="text-lg font-bold text-brand-900 dark:text-brand-100">Confirm Stock Balance Out</h3>
+            <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
+              This will permanently deduct the amount below from total profit and record it as a loss.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-brand-200 dark:border-brand-800 divide-y divide-brand-100 dark:divide-brand-800/50 text-sm">
+            <div className="flex justify-between px-4 py-3">
+              <span className="text-brand-500 dark:text-brand-400">Amount to balance out</span>
+              <span className="font-semibold text-red-600 dark:text-red-400">-₦{amount.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between px-4 py-3">
+              <span className="text-brand-500 dark:text-brand-400">Current total profit</span>
+              <span className="font-semibold">₦{(summary?.totalProfit ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between px-4 py-3">
+              <span className="text-brand-500 dark:text-brand-400">Net profit after this action</span>
+              <span className="font-semibold">₦{resultingProfit.toLocaleString()}</span>
+            </div>
+            {note && (
+              <div className="flex justify-between px-4 py-3 gap-4">
+                <span className="text-brand-500 dark:text-brand-400 shrink-0">Note</span>
+                <span className="font-medium text-right">{note}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Admin PIN</label>
+            <Input
+              type="password"
+              placeholder="Enter 4-digit PIN"
+              maxLength={4}
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+              autoFocus
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" fullWidth onClick={onCancel} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              fullWidth
+              disabled={pin.length !== 4 || submitting}
+              onClick={() => onConfirm(pin)}
+            >
+              {submitting ? 'Balancing Out...' : 'Confirm & Balance Out'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StockBalance() {
   const { showToast } = useToast();
   const [summary, setSummary] = useState<StockSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const [records, setRecords] = useState<BalanceOutRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -54,24 +139,29 @@ export default function StockBalance() {
 
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ amount: '', note: '', pin: '' });
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [formData, setFormData] = useState({ amount: '', note: '' });
 
   const fetchSummary = () => {
     setSummaryLoading(true);
+    setSummaryError(null);
     api.adminDashboard.stockBalance.getSummary()
       .then((res: any) => {
         if (res.success && res.data) {
           setSummary(res.data);
+        } else {
+          setSummaryError(res.message || 'Could not load stock summary.');
         }
       })
       .catch((err: any) => {
-        console.warn('Could not load stock balance summary:', err);
+        setSummaryError(err.message || 'Could not reach the server to load stock summary.');
       })
       .finally(() => setSummaryLoading(false));
   };
 
   const fetchRecords = (pageNum: number) => {
     setLoading(true);
+    setHistoryError(null);
     api.adminDashboard.stockBalance.list({ page: pageNum, limit })
       .then((res: any) => {
         if (res.success && Array.isArray(res.data)) {
@@ -80,11 +170,12 @@ export default function StockBalance() {
           setTotalPages(res.totalPages ?? Math.ceil((res.total ?? res.data.length) / limit));
         } else {
           setRecords([]);
+          setHistoryError(res.message || 'Could not load balance-out history.');
         }
       })
       .catch((err: any) => {
-        console.warn('Could not load stock balance history:', err);
         setRecords([]);
+        setHistoryError(err.message || 'Could not reach the server to load history.');
       })
       .finally(() => setLoading(false));
   };
@@ -97,22 +188,34 @@ export default function StockBalance() {
     fetchRecords(page);
   }, [page]);
 
-  const handleBalanceOut = async (e: React.FormEvent) => {
+  const onReviewClick = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.amount || !formData.pin) return;
+    const amountNum = Number(formData.amount);
+    if (!formData.amount || isNaN(amountNum) || amountNum <= 0) {
+      showToast({ type: 'error', title: 'Invalid amount', message: 'Enter a positive amount to balance out.' });
+      return;
+    }
+    if (summary && amountNum > summary.totalValue) {
+      showToast({ type: 'error', title: 'Amount too high', message: `Cannot exceed remaining stock value of ₦${summary.totalValue.toLocaleString()}.` });
+      return;
+    }
+    setShowConfirm(true);
+  };
 
+  const handleConfirm = async (pin: string) => {
     setSubmitting(true);
     try {
       const res = await api.adminDashboard.stockBalance.create({
         amount: Number(formData.amount),
         note: formData.note,
-        pin: formData.pin,
+        pin,
       });
 
       if (res.success) {
         showToast({ type: 'success', title: 'Stock Balanced Out', message: 'The amount has been deducted from total profit and recorded as a loss.' });
+        setShowConfirm(false);
         setShowForm(false);
-        setFormData({ amount: '', note: '', pin: '' });
+        setFormData({ amount: '', note: '' });
         fetchSummary();
         fetchRecords(1);
         setPage(1);
@@ -143,6 +246,15 @@ export default function StockBalance() {
           {showForm ? 'Cancel' : 'Balance Out Stock'}
         </Button>
       </div>
+
+      {summaryError && (
+        <Card className="p-4 border-error-val bg-error-val/10">
+          <p className="text-sm font-medium text-error-val">
+            Couldn't load the stock/profit summary: {summaryError}
+          </p>
+          <Button variant="outline" className="mt-2" onClick={fetchSummary}>Retry</Button>
+        </Card>
+      )}
 
       {/* Financial summary: total profit vs what's been balanced out */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -181,7 +293,7 @@ export default function StockBalance() {
           </div>
         ) : products.length === 0 ? (
           <div className="p-12 text-center text-brand-500">
-            <p>No active products in stock.</p>
+            <p>{summaryError ? 'Unable to load stock ledger.' : 'No active products in stock.'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -222,9 +334,9 @@ export default function StockBalance() {
           <h3 className="text-lg font-semibold mb-2">Balance Out Stock</h3>
           <p className="text-sm text-brand-500 dark:text-brand-400 mb-4">
             Remaining stock value: ₦{(summary?.totalValue ?? 0).toLocaleString()} · Total profit: ₦{(summary?.totalProfit ?? 0).toLocaleString()}.
-            The amount entered will be deducted from total profit and recorded as a loss.
+            You'll review and confirm with your PIN before anything is recorded.
           </p>
-          <form onSubmit={handleBalanceOut} className="space-y-4">
+          <form onSubmit={onReviewClick} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Amount (₦)</label>
@@ -237,17 +349,6 @@ export default function StockBalance() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Admin PIN</label>
-                <Input
-                  type="password"
-                  placeholder="Enter 4-digit PIN"
-                  maxLength={4}
-                  value={formData.pin}
-                  onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Note (optional)</label>
                 <Input
                   placeholder="e.g. Expired/damaged stock write-off"
@@ -257,8 +358,8 @@ export default function StockBalance() {
               </div>
             </div>
             <div className="flex justify-end mt-4">
-              <Button type="submit" disabled={submitting}>
-                {submitting ? 'Balancing Out...' : 'Confirm Balance Out'}
+              <Button type="submit">
+                Review & Confirm
               </Button>
             </div>
           </form>
@@ -269,6 +370,11 @@ export default function StockBalance() {
         <div className="px-6 pt-5 pb-1">
           <h3 className="text-lg font-semibold text-brand-900 dark:text-brand-100">Balance-Out History</h3>
         </div>
+        {historyError && (
+          <div className="mx-6 mb-2 p-3 rounded-lg bg-error-val/10 border border-error-val">
+            <p className="text-sm font-medium text-error-val">{historyError}</p>
+          </div>
+        )}
         {loading ? (
           <div className="p-12 text-center text-brand-500">
             <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -276,7 +382,7 @@ export default function StockBalance() {
           </div>
         ) : records.length === 0 ? (
           <div className="p-12 text-center text-brand-500">
-            <p>No stock balance-out records found.</p>
+            <p>{historyError ? 'Unable to load history.' : 'No stock balance-out records found.'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -326,6 +432,17 @@ export default function StockBalance() {
             </Button>
           </div>
         </div>
+      )}
+
+      {showConfirm && (
+        <ConfirmBalanceOutModal
+          amount={Number(formData.amount) || 0}
+          note={formData.note}
+          summary={summary}
+          submitting={submitting}
+          onCancel={() => setShowConfirm(false)}
+          onConfirm={handleConfirm}
+        />
       )}
     </div>
   );
