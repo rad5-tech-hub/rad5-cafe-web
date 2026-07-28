@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
+import { Select } from '~/components/ui/select';
 import { useToast } from '~/context/toast-context';
 import { api } from '~/lib/api';
 
@@ -81,21 +82,19 @@ function BalanceOutModal({
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Product</label>
-            <select
-              className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
+            <Select
               value={productId}
-              onChange={(e) => {
-                setProductId(e.target.value);
+              onChange={(val) => {
+                setProductId(val);
                 setQuantity('');
               }}
-            >
-              <option value="">Select a product...</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id} disabled={p.quantity <= 0}>
-                  {p.name} ({p.quantity} in stock)
-                </option>
-              ))}
-            </select>
+              placeholder="Select a product..."
+              options={products.map((p) => ({
+                label: `${p.name} (${p.quantity} in stock)`,
+                value: p.id,
+              }))}
+              className="w-full"
+            />
           </div>
 
           <div className="space-y-2">
