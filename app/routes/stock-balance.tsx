@@ -40,41 +40,62 @@ interface BalanceOutRecord {
   createdAt: string;
 }
 
-function ConfirmBalanceOutModal({
-  amount,
-  note,
+function BalanceOutModal({
   summary,
   submitting,
   onCancel,
   onConfirm,
 }: {
-  amount: number;
-  note: string;
   summary: StockSummary | null;
   submitting: boolean;
   onCancel: () => void;
-  onConfirm: (pin: string) => void;
+  onConfirm: (amount: number, note: string, pin: string) => void;
 }) {
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
   const [pin, setPin] = useState('');
-  const resultingProfit = (summary?.netProfit ?? 0) - amount;
+
+  const amountNum = Number(amount) || 0;
+  const resultingProfit = (summary?.netProfit ?? 0) - amountNum;
+  const amountValid = amount !== '' && amountNum > 0 && (!summary || amountNum <= summary.totalValue);
 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
       <div className="absolute inset-0" onClick={onCancel} />
-      <div className="relative bg-card border border-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
+      <div className="relative bg-card border border-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="h-1.5 w-full bg-error-val" />
         <div className="p-6 space-y-4">
           <div>
-            <h3 className="text-lg font-bold text-brand-900 dark:text-brand-100">Confirm Stock Balance Out</h3>
+            <h3 className="text-lg font-bold text-brand-900 dark:text-brand-100">Balance Out Stock</h3>
             <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
-              This will permanently deduct the amount below from total profit and record it as a loss.
+              Deduct an amount from total profit for remaining stock value written off, recording it as a loss.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Amount (₦)</label>
+            <Input
+              type="number"
+              placeholder={`Up to ₦${(summary?.totalValue ?? 0).toLocaleString()}`}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Note (optional)</label>
+            <Input
+              placeholder="e.g. Expired/damaged stock write-off"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
 
           <div className="rounded-lg border border-brand-200 dark:border-brand-800 divide-y divide-brand-100 dark:divide-brand-800/50 text-sm">
             <div className="flex justify-between px-4 py-3">
-              <span className="text-brand-500 dark:text-brand-400">Amount to balance out</span>
-              <span className="font-semibold text-red-600 dark:text-red-400">-₦{amount.toLocaleString()}</span>
+              <span className="text-brand-500 dark:text-brand-400">Remaining stock value</span>
+              <span className="font-semibold">₦{(summary?.totalValue ?? 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between px-4 py-3">
               <span className="text-brand-500 dark:text-brand-400">Current total profit</span>
@@ -84,12 +105,6 @@ function ConfirmBalanceOutModal({
               <span className="text-brand-500 dark:text-brand-400">Net profit after this action</span>
               <span className="font-semibold">₦{resultingProfit.toLocaleString()}</span>
             </div>
-            {note && (
-              <div className="flex justify-between px-4 py-3 gap-4">
-                <span className="text-brand-500 dark:text-brand-400 shrink-0">Note</span>
-                <span className="font-medium text-right">{note}</span>
-              </div>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -100,7 +115,6 @@ function ConfirmBalanceOutModal({
               maxLength={4}
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-              autoFocus
             />
           </div>
 
@@ -111,8 +125,8 @@ function ConfirmBalanceOutModal({
             <Button
               variant="danger"
               fullWidth
-              disabled={pin.length !== 4 || submitting}
-              onClick={() => onConfirm(pin)}
+              disabled={!amountValid || pin.length !== 4 || submitting}
+              onClick={() => onConfirm(amountNum, note, pin)}
             >
               {submitting ? 'Balancing Out...' : 'Confirm & Balance Out'}
             </Button>
@@ -138,9 +152,7 @@ export default function StockBalance() {
   const limit = 20;
 
   const [submitting, setSubmitting] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [formData, setFormData] = useState({ amount: '', note: '' });
+  const [showModal, setShowModal] = useState(false);
 
   const fetchSummary = () => {
     setSummaryLoading(true);
@@ -188,34 +200,14 @@ export default function StockBalance() {
     fetchRecords(page);
   }, [page]);
 
-  const onReviewClick = (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = Number(formData.amount);
-    if (!formData.amount || isNaN(amountNum) || amountNum <= 0) {
-      showToast({ type: 'error', title: 'Invalid amount', message: 'Enter a positive amount to balance out.' });
-      return;
-    }
-    if (summary && amountNum > summary.totalValue) {
-      showToast({ type: 'error', title: 'Amount too high', message: `Cannot exceed remaining stock value of ₦${summary.totalValue.toLocaleString()}.` });
-      return;
-    }
-    setShowConfirm(true);
-  };
-
-  const handleConfirm = async (pin: string) => {
+  const handleConfirm = async (amount: number, note: string, pin: string) => {
     setSubmitting(true);
     try {
-      const res = await api.adminDashboard.stockBalance.create({
-        amount: Number(formData.amount),
-        note: formData.note,
-        pin,
-      });
+      const res = await api.adminDashboard.stockBalance.create({ amount, note, pin });
 
       if (res.success) {
         showToast({ type: 'success', title: 'Stock Balanced Out', message: 'The amount has been deducted from total profit and recorded as a loss.' });
-        setShowConfirm(false);
-        setShowForm(false);
-        setFormData({ amount: '', note: '' });
+        setShowModal(false);
         fetchSummary();
         fetchRecords(1);
         setPage(1);
@@ -242,8 +234,8 @@ export default function StockBalance() {
             Write off remaining stock value against total profit, recording it as a loss.
           </p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)} variant={showForm ? 'outline' : 'primary'}>
-          {showForm ? 'Cancel' : 'Balance Out Stock'}
+        <Button onClick={() => setShowModal(true)} variant="primary">
+          Balance Out Stock
         </Button>
       </div>
 
@@ -329,43 +321,6 @@ export default function StockBalance() {
         )}
       </Card>
 
-      {showForm && (
-        <Card className="p-6 bg-brand-50/50 dark:bg-brand-900/10 border-brand-200 dark:border-brand-800">
-          <h3 className="text-lg font-semibold mb-2">Balance Out Stock</h3>
-          <p className="text-sm text-brand-500 dark:text-brand-400 mb-4">
-            Remaining stock value: ₦{(summary?.totalValue ?? 0).toLocaleString()} · Total profit: ₦{(summary?.totalProfit ?? 0).toLocaleString()}.
-            You'll review and confirm with your PIN before anything is recorded.
-          </p>
-          <form onSubmit={onReviewClick} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Amount (₦)</label>
-                <Input
-                  type="number"
-                  placeholder="e.g. 15000"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Note (optional)</label>
-                <Input
-                  placeholder="e.g. Expired/damaged stock write-off"
-                  value={formData.note}
-                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end mt-4">
-              <Button type="submit">
-                Review & Confirm
-              </Button>
-            </div>
-          </form>
-        </Card>
-      )}
-
       <Card className="overflow-hidden">
         <div className="px-6 pt-5 pb-1">
           <h3 className="text-lg font-semibold text-brand-900 dark:text-brand-100">Balance-Out History</h3>
@@ -434,13 +389,11 @@ export default function StockBalance() {
         </div>
       )}
 
-      {showConfirm && (
-        <ConfirmBalanceOutModal
-          amount={Number(formData.amount) || 0}
-          note={formData.note}
+      {showModal && (
+        <BalanceOutModal
           summary={summary}
           submitting={submitting}
-          onCancel={() => setShowConfirm(false)}
+          onCancel={() => setShowModal(false)}
           onConfirm={handleConfirm}
         />
       )}
