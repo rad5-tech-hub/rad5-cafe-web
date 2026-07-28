@@ -614,7 +614,7 @@ export const api = {
         const query = qs.toString();
         return request<any>(`/admin-dashboard/stock-balance${query ? `?${query}` : ''}`);
       },
-      create: (body: { amount: number; note?: string; pin: string }) =>
+      create: (body: { productId: string; quantity: number; note?: string; pin: string }) =>
         request<any>('/admin-dashboard/stock-balance', { method: 'POST', body: JSON.stringify(body) }),
     },
     orders: {
