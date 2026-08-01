@@ -7,6 +7,7 @@ export type IconName =
   | 'sync'
   | 'arrow-down'
   | 'arrow-up'
+  | 'arrow-right'
   | 'check'
   | 'chevron-right'
   | 'chevron-left'
@@ -76,6 +77,8 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.ArrowDown;
       case 'arrow-up':
         return Lucide.ArrowUp;
+      case 'arrow-right':
+        return Lucide.ArrowRight;
       case 'check':
         return Lucide.Check;
       case 'chevron-right':

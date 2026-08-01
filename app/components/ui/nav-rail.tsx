@@ -39,8 +39,8 @@ export const NavRail: React.FC<NavRailProps> = ({
       className="hidden md:flex flex-col sticky top-0 h-screen flex-shrink-0 glass-surface-2 border-r border-chip px-3.5 py-5 transition-[width] duration-200 ease-out z-20"
       style={{ width: collapsed ? 74 : 246, borderRadius: 0 }}
     >
-      <div className="flex items-center gap-2.5 px-1.5 pb-5">
-        <div className="w-[30px] h-[30px] flex-shrink-0 rounded-[9px] bg-tint" />
+      <div className="flex-shrink-0 flex items-center gap-2.5 px-1.5 pb-4">
+        <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-[30px] h-[30px] flex-shrink-0 rounded-[9px] object-contain" />
         <span
           className="font-extrabold text-[16px] tracking-tight whitespace-nowrap overflow-hidden transition-opacity duration-150"
           style={{ opacity: collapsed ? 0 : 1 }}
@@ -50,19 +50,19 @@ export const NavRail: React.FC<NavRailProps> = ({
       </div>
 
       <div
-        className="text-[10.5px] font-bold tracking-[0.1em] text-text-secondary px-2 pb-2 whitespace-nowrap transition-opacity duration-150"
+        className="flex-shrink-0 text-[10.5px] font-bold tracking-[0.1em] text-text-secondary px-2 pb-2 whitespace-nowrap transition-opacity duration-150"
         style={{ opacity: collapsed ? 0 : 1 }}
       >
         {sectionLabel}
       </div>
 
-      <nav className="flex flex-col gap-1">
+      <nav className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pr-0.5 my-1 scrollbar-thin">
         {items.map((item) => (
           <Link
             key={item.path}
             to={item.path}
             title={item.label}
-            className="flex items-center gap-2.5 px-2 py-2.5 rounded-xl text-sm whitespace-nowrap overflow-hidden transition-colors hover:bg-tint-b"
+            className="flex items-center gap-2.5 px-2 py-2 rounded-xl text-sm whitespace-nowrap overflow-hidden transition-colors hover:bg-tint-b"
             style={{
               background: item.active ? 'var(--tint-b)' : 'transparent',
               color: item.active ? 'var(--color-tint)' : 'var(--color-text-tertiary)',
@@ -93,10 +93,10 @@ export const NavRail: React.FC<NavRailProps> = ({
         ))}
       </nav>
 
-      <div className="mt-auto grid gap-2">
+      <div className="flex-shrink-0 mt-auto pt-3 border-t border-border/40 grid gap-2">
         <button
           onClick={onRoleSwitch}
-          className="flex items-center gap-2.5 px-2 py-2.5 rounded-xl border border-dashed border-border bg-surface text-[13px] font-semibold text-tint whitespace-nowrap overflow-hidden cursor-pointer hover:border-tint transition-colors"
+          className="flex items-center gap-2.5 px-2 py-2 rounded-xl border border-dashed border-border bg-surface text-[13px] font-semibold text-tint whitespace-nowrap overflow-hidden cursor-pointer hover:border-tint transition-colors"
         >
           <span className="flex-shrink-0 w-[26px] h-[26px] grid place-items-center rounded-lg bg-tint-b">
             <Icon name={roleSwitchIcon} size={14} color="currentColor" />
@@ -107,7 +107,7 @@ export const NavRail: React.FC<NavRailProps> = ({
         </button>
         <button
           onClick={onToggleCollapse}
-          className="flex items-center gap-2.5 px-2 py-2.5 rounded-xl text-[13px] font-semibold text-text-secondary whitespace-nowrap overflow-hidden cursor-pointer hover:text-text-main transition-colors"
+          className="flex items-center gap-2.5 px-2 py-2 rounded-xl text-[13px] font-semibold text-text-secondary whitespace-nowrap overflow-hidden cursor-pointer hover:text-text-main transition-colors"
         >
           <span className="flex-shrink-0 w-[26px] h-[26px] grid place-items-center rounded-lg bg-ink-a">
             <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={14} color="currentColor" />

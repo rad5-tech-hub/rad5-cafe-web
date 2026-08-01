@@ -43,14 +43,14 @@ export const PinPad: React.FC<PinPadProps> = ({
   const keys = showConfirmKey ? KEYS : KEYS.filter((k) => k !== 'ok');
 
   return (
-    <div>
+    <div className="w-full max-w-[320px] mx-auto">
       <div className="flex justify-center gap-3.5 mb-6">
         {Array.from({ length }).map((_, i) => {
           const filled = i < value.length;
           return (
             <span
               key={i}
-              className="w-[15px] h-[15px] rounded-full border-2 transition-colors"
+              className="w-[16px] h-[16px] rounded-full border-2 transition-colors"
               style={{
                 background: filled ? 'var(--color-tint-dark)' : 'transparent',
                 borderColor: filled ? 'var(--color-tint-dark)' : 'var(--color-border-strong)',
@@ -62,14 +62,14 @@ export const PinPad: React.FC<PinPadProps> = ({
 
       {error && <div className="text-center text-xs font-semibold text-error-val mb-4">{error}</div>}
 
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-3">
         {keys.map((k) => (
           <button
             key={k}
             type="button"
             disabled={disabled}
             onClick={() => press(k)}
-            className="py-4 rounded-2xl border border-border bg-card font-money text-lg font-semibold cursor-pointer transition-all hover:border-tint hover:text-tint active:scale-[0.96] disabled:opacity-50"
+            className="h-14 w-full rounded-xl border border-border bg-card font-money text-xl font-bold flex items-center justify-center cursor-pointer transition-all hover:border-tint hover:text-tint active:scale-[0.96] disabled:opacity-50"
           >
             {k === 'del' ? '⌫' : k === 'ok' ? '✓' : k}
           </button>

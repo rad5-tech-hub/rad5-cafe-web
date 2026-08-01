@@ -64,7 +64,7 @@ export default function Register() {
 
       <div className="relative z-10 w-full max-w-[420px] p-7 sm:p-8 rounded-[22px] glass-surface rad5-pop">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-tint" />
+          <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-7 h-7 rounded-lg object-contain" />
           <span className="font-extrabold text-base tracking-tight">RAD5 Café</span>
         </div>
 

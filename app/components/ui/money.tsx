@@ -17,13 +17,20 @@ export function formatMoney(amount: number): string {
  */
 export const Money: React.FC<MoneyProps> = ({ amount, masked = false, showSign = false, className = '' }) => {
   if (masked) {
-    return <span className={`font-money ${className}`}>{'₦•••••'}</span>;
+    return (
+      <span className={`font-money tracking-normal ${className}`}>
+        <span className="inline-block mr-[1.5px]">₦</span>•••••
+      </span>
+    );
   }
   const sign = showSign ? (amount > 0 ? '+' : amount < 0 ? '−' : '') : '';
+  const formattedNum = Math.round(Math.abs(amount)).toLocaleString('en-US');
+
   return (
-    <span className={`font-money ${className}`}>
+    <span className={`font-money tracking-normal ${className}`}>
       {sign}
-      {formatMoney(amount)}
+      <span className="inline-block mr-[1.5px]">₦</span>
+      {formattedNum}
     </span>
   );
 };

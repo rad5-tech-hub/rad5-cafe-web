@@ -281,7 +281,7 @@ export const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, onOrderPl
           )}
 
           {step === 'checkout' && (
-            <div className="flex flex-col items-center pt-2">
+            <div className="flex flex-col items-center pt-2 w-full">
               <button
                 type="button"
                 onClick={() => setStep('cart')}
@@ -299,7 +299,7 @@ export const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, onOrderPl
                 disabled={pin.length !== 4 || loading}
                 className="w-full mt-5 py-3.5 rounded-xl border-none bg-tint-dark text-white text-[14.5px] font-bold cursor-pointer hover:bg-tint disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Processing transaction…' : `Pay ${'₦' + cartTotal.toLocaleString()}`}
+                {loading ? 'Processing transaction…' : `Pay ₦ ${cartTotal.toLocaleString()}`}
               </button>
             </div>
           )}
