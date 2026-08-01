@@ -1,26 +1,23 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { useAuth } from '~/context/auth-context';
-import { useToast } from '~/context/toast-context';
+import { Link } from 'react-router';
 import { api } from '~/lib/api';
+import { useTheme } from '~/context/theme-context';
+import { Icon } from '~/components/ui/icon';
+import { IconButton } from '~/components/ui/icon-button';
+import { Money } from '~/components/ui/money';
 
 const DEFAULT_APK_URL = 'https://firebasestorage.googleapis.com/v0/b/shield-3f2ba.firebasestorage.app/o/apps%2Fcafe1.1.apk?alt=media&token=d15ab3e4-a65c-47ec-b40c-2da3adb55272';
 
-const IMAGES = [
-  'https://images.pexels.com/photos/34932768/pexels-photo-34932768.jpeg',
-  'https://images.pexels.com/photos/29445730/pexels-photo-29445730.jpeg',
-  'https://images.pexels.com/photos/10885488/pexels-photo-10885488.jpeg',
-  'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1200&auto=format&fit=crop',
+const PREVIEW_TXNS = [
+  { label: 'Café order — Jollof Rice, Chapman', when: 'Today, 12:41', amount: -4000, dot: 'var(--color-tint)' },
+  { label: 'Wallet funding — Paystack', when: 'Today, 09:12', amount: 10000, dot: '#10B981' },
+  { label: 'Loyalty reward — Silver bonus', when: 'Yesterday, 18:03', amount: 500, dot: '#3B82F6' },
 ];
 
 export function meta() {
   return [
     { title: 'RAD5 Café — Smart Wallet & Instant Ordering' },
-    { name: 'description', content: 'Download the Android app or sign in with Google to order fresh meals, pastries, and coffee. Smart wallet, secure PIN checkout, and real-time inventory tracking.' },
+    { name: 'description', content: 'Fund your RAD5 wallet once, then pay for meals with a 4-digit PIN. Earn points on every order and skip the counter queue.' },
     { name: 'keywords', content: 'RAD5 Café, smart wallet, food ordering, café, coffee, pastries, Nigerian food, Android app, Google sign-in' },
     { name: 'robots', content: 'index, follow' },
     { property: 'og:title', content: 'RAD5 Café — Smart Wallet & Instant Ordering' },
@@ -35,65 +32,24 @@ export function meta() {
 }
 
 export default function Landing() {
-  const { signInWithGoogle, googleRedirectResult, consumeGoogleRedirectResult } = useAuth();
-  const { showToast } = useToast();
-  const navigate = useNavigate();
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [loggingIn, setLoggingIn] = useState(false);
+  const { effectiveTheme, toggleTheme } = useTheme();
   const [showApkPopup, setShowApkPopup] = useState(false);
   const [apkUrl, setApkUrl] = useState(DEFAULT_APK_URL);
-
   const [versionInfo, setVersionInfo] = useState<any>(null);
-
-  useEffect(() => {
-    const t = setInterval(() => setActiveIdx(i => (i + 1) % IMAGES.length), 5000);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     api.version.check('android')
       .then((res) => {
         if (res.success && res.data) {
           setVersionInfo(res.data);
-          if (res.data.apkLink) {
-            setApkUrl(res.data.apkLink);
-          }
+          if (res.data.apkLink) setApkUrl(res.data.apkLink);
         }
       })
-      .catch((err) => {
-        console.warn('Failed to fetch latest version info:', err);
-      });
+      .catch((err) => console.warn('Failed to fetch latest version info:', err));
   }, []);
 
-  useEffect(() => {
-    const result = consumeGoogleRedirectResult();
-    if (result) {
-      showToast(result.isNewUser ? "Welcome! Let's setup your PIN." : 'Welcome back!', 'success');
-      navigate(result.isNewUser ? '/setup-pin' : '/dashboard');
-    }
-  }, [googleRedirectResult]);
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setLoggingIn(true);
-      const result = await signInWithGoogle();
-      if (result.redirected) {
-        return;
-      }
-      const isNewUser = result.isNewUser;
-      showToast(isNewUser ? "Welcome! Let's setup your PIN." : 'Welcome back!', 'success');
-      navigate(isNewUser ? '/setup-pin' : '/dashboard');
-    } catch (error: any) {
-      console.error(error);
-      showToast(error.message || 'Sign-in failed. Try again.', 'error');
-    } finally {
-      setLoggingIn(false);
-    }
-  };
-
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-6 overflow-hidden bg-black">
-      {/* Structured Data */}
+    <div className="relative min-h-screen w-full overflow-x-hidden">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -112,105 +68,142 @@ export default function Landing() {
         }}
       />
 
-      {/* Image Carousel */}
-      <div className="absolute inset-0">
-        {IMAGES.map((src, i) => (
-          <div
-            key={src}
-            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
-            style={{
-              backgroundImage: `url(${src})`,
-              opacity: i === activeIdx ? 1 : 0,
-            }}
-          />
-        ))}
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+      {/* Ambient glass background blobs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute -top-44 -left-28 w-[620px] h-[620px] rounded-full" style={{ background: 'radial-gradient(circle at 30% 30%, var(--tint-c), rgba(0,61,153,0) 70%)' }} />
+        <div className="absolute top-28 -right-40 w-[560px] h-[560px] rounded-full" style={{ background: 'radial-gradient(circle at 60% 40%, rgba(59,130,246,0.22), rgba(59,130,246,0) 70%)' }} />
+        <div className="absolute -bottom-56 left-[34%] w-[680px] h-[520px] rounded-full" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(16,185,129,0.14), rgba(16,185,129,0) 72%)' }} />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 text-center w-full max-w-sm flex flex-col items-center gap-6">
-        <img
-          src="/RAD5 Cafe.svg"
-          alt="RAD5 Café"
-          className="w-24 h-24 drop-shadow-xl"
-        />
-
-        <div className="flex flex-col gap-1">
-          <h1
-            className="text-5xl font-extrabold text-white tracking-tight drop-shadow-lg"
-            style={{ fontFamily: 'var(--font-rounded)' }}
-          >
-            RAD5 Café
-          </h1>
-          <p className="text-white/70 text-sm font-medium tracking-wide">
-            Smart Wallet & Ordering
-          </p>
+      <div className="relative z-10 max-w-[1180px] mx-auto px-4 py-5 sm:px-8 sm:py-7 pb-16">
+        {/* Navbar */}
+        <div className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl glass-surface">
+          <div className="flex items-center gap-2.5">
+            <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-[30px] h-[30px] rounded-[9px]" />
+            <span className="font-extrabold tracking-tight text-[17px]">RAD5 Café</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <IconButton icon={effectiveTheme === 'dark' ? 'sun' : 'moon'} onClick={toggleTheme} title="Toggle theme" />
+            <Link
+              to="/login"
+              className="hidden sm:inline-flex px-4 py-2.5 rounded-xl border border-border glass-chip text-sm font-semibold hover:border-tint hover:text-tint transition-colors"
+            >
+              Sign in
+            </Link>
+            <Link
+              to="/register"
+              className="px-4 py-2.5 rounded-xl border-none bg-tint-dark text-white text-sm font-semibold hover:bg-tint transition-colors"
+            >
+              Create account
+            </Link>
+          </div>
         </div>
 
-        <div className="flex flex-col w-full gap-3">
+        {/* Promo banner */}
+        <div className="flex items-center gap-2.5 mt-4 px-4 py-3 rounded-2xl flex-wrap" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)' }}>
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#F59E0B' }} />
+          <span className="text-[13.5px] font-semibold">
+            {versionInfo?.version ? `Version ${versionInfo.version} is out` : 'A new app version is out'}
+          </span>
+          <span className="text-[13.5px] text-text-secondary">— faster wallet checkout and offline receipts.</span>
           <button
             onClick={() => setShowApkPopup(true)}
-            className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-white text-[#003D99] font-bold text-sm hover:bg-gray-100 transition-all shadow-2xl shadow-black/30 cursor-pointer"
+            className="ml-auto px-3.5 py-2 rounded-lg border-none text-xs font-semibold cursor-pointer whitespace-nowrap"
+            style={{ background: 'var(--color-text)', color: 'var(--color-background)' }}
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.523 2.264a1.5 1.5 0 0 1 .212 2.112l-5.205 6.868a.754.754 0 0 1-1.048.11.77.77 0 0 1-.11-1.049l5.205-6.868a1.5 1.5 0 0 1 2.112-.212l.834.607ZM6.83 3.166a2.25 2.25 0 0 0-.83 1.792v14.084a2.25 2.25 0 0 0 .83 1.792l.045.035 7.686-7.686a1.126 1.126 0 0 0 0-1.592L6.875 3.134l-.046.035Z"/>
-              <path d="m18.566 12.4-4.758 4.758L7.14 10.5a.756.756 0 0 1-.044-1.068.756.756 0 0 1 1.002-.045l11.416 6.66.834.607a1.5 1.5 0 0 0 .213-2.111l-.213-.213-1.782-1.782Z"/>
-            </svg>
-            Download Android App
+            Download APK
           </button>
+        </div>
 
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={loggingIn}
-            className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-[#003D99]/90 hover:bg-[#003D99] text-white font-bold text-sm backdrop-blur-sm transition-all shadow-2xl shadow-[#003D99]/30 disabled:opacity-60"
-          >
-            {loggingIn ? (
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-              </svg>
-            )}
-            Continue with Google
-          </button>
+        {/* Hero */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-9 items-center mt-10 sm:mt-14">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-tint-b text-tint text-[12.5px] font-bold tracking-wide">
+              CAMPUS CAFÉ WALLET
+            </div>
+            <h1 className="mt-4 font-extrabold tracking-tight leading-[1.02] text-[36px] sm:text-[46px] lg:text-[58px]" style={{ textWrap: 'balance' as any }}>
+              Order lunch before you leave your desk.
+            </h1>
+            <p className="mt-5 text-text-secondary text-base sm:text-lg leading-relaxed max-w-[46ch]">
+              Fund your RAD5 wallet once, then pay for meals with a 4-digit PIN. Earn points on every order and skip the counter queue.
+            </p>
+            <div className="flex flex-wrap gap-3 mt-7">
+              <Link
+                to="/register"
+                className="px-6 py-3.5 rounded-xl border-none bg-tint-dark text-white text-[15px] font-bold hover:bg-tint hover:-translate-y-px transition-all shadow-lg"
+              >
+                Open a wallet
+              </Link>
+              <Link
+                to="/login"
+                className="px-6 py-3.5 rounded-xl border border-border glass-chip text-[15px] font-semibold hover:border-tint hover:text-tint transition-colors"
+              >
+                I already have one
+              </Link>
+            </div>
+            <div className="flex flex-wrap gap-8 mt-10">
+              <div>
+                <div className="font-money text-2xl font-semibold tracking-tight">1,240</div>
+                <div className="text-[12.5px] text-text-secondary mt-0.5">wallets funded</div>
+              </div>
+              <div>
+                <div className="font-money text-2xl font-semibold tracking-tight">38s</div>
+                <div className="text-[12.5px] text-text-secondary mt-0.5">average order time</div>
+              </div>
+              <div>
+                <div className="font-money text-2xl font-semibold tracking-tight">4 tiers</div>
+                <div className="text-[12.5px] text-text-secondary mt-0.5">loyalty rewards</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Wallet preview card */}
+          <div className="p-5 rounded-[24px] glass-surface">
+            <div className="p-5 rounded-2xl text-white" style={{ background: 'linear-gradient(150deg, #00296B, #003D99 60%, #3B82F6)' }}>
+              <div className="text-[12.5px] opacity-80 tracking-wide">WALLET BALANCE</div>
+              <div className="font-money text-[34px] font-semibold mt-2 tracking-tight">₦18,450</div>
+              <div className="flex gap-2 mt-4">
+                {['Fund', 'Transfer', 'Order'].map((label) => (
+                  <div key={label} className="flex-1 py-2.5 text-center rounded-xl bg-white/[0.18] text-[12.5px] font-semibold">
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2.5">
+              {PREVIEW_TXNS.map((t) => (
+                <div key={t.label} className="flex items-center gap-3 px-3.5 py-3 rounded-[13px] glass-chip">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.dot }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13.5px] font-semibold truncate">{t.label}</div>
+                    <div className="text-[11.5px] text-text-secondary">{t.when}</div>
+                  </div>
+                  <Money amount={t.amount} showSign className="text-[13.5px] font-semibold" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* APK Popup */}
       {showApkPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/70 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
           <div className="absolute inset-0" onClick={() => setShowApkPopup(false)} />
-          <div
-            className="relative bg-cover bg-center w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-4 shadow-2xl animate-scale-up overflow-hidden"
-            style={{
-              backgroundImage: `url(${IMAGES[0]})`,
-              borderRadius: 'var(--radius-xl)',
-            }}
-          >
-            <div className="absolute inset-0 bg-[#003D99]/85 backdrop-blur-[1px]" />
-            <div className="relative z-10 flex flex-col items-center gap-4 w-full">
-            <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
-              <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.523 2.264a1.5 1.5 0 0 1 .212 2.112l-5.205 6.868a.754.754 0 0 1-1.048.11.77.77 0 0 1-.11-1.049l5.205-6.868a1.5 1.5 0 0 1 2.112-.212l.834.607ZM6.83 3.166a2.25 2.25 0 0 0-.83 1.792v14.084a2.25 2.25 0 0 0 .83 1.792l.045.035 7.686-7.686a1.126 1.126 0 0 0 0-1.592L6.875 3.134l-.046.035Z"/>
-                <path d="m18.566 12.4-4.758 4.758L7.14 10.5a.756.756 0 0 1-.044-1.068.756.756 0 0 1 1.002-.045l11.416 6.66.834.607a1.5 1.5 0 0 0 .213-2.111l-.213-.213-1.782-1.782Z"/>
-              </svg>
+          <div className="relative w-full max-w-sm p-6 rounded-[22px] glass-sheet flex flex-col items-center gap-4 text-center">
+            <div className="w-14 h-14 rounded-full bg-tint-b flex items-center justify-center text-tint">
+              <Icon name="download" size={26} />
             </div>
-            <div className="flex flex-col items-center gap-1 text-center w-full">
-              <h3 className="text-lg font-extrabold text-white">
+            <div className="flex flex-col items-center gap-1">
+              <h3 className="text-lg font-extrabold">
                 {versionInfo?.version ? `New Mobile Update (v${versionInfo.version})!` : 'New Mobile Update Available!'}
               </h3>
-              <p className="text-xs text-white/80 leading-relaxed">
-                This release brings massive improvements and up to 5% cashback rewards on Mobile purchases (higher than 3% on Web)!
+              <p className="text-xs text-text-secondary leading-relaxed">
+                This release brings massive improvements and up to 5% cashback rewards on Mobile purchases.
               </p>
               {versionInfo?.releaseNotes && (
-                <div className="mt-2 bg-white/10 border border-white/10 p-2.5 rounded-lg text-xs text-white/90 text-left w-full max-h-24 overflow-y-auto select-text scrollbar-thin">
-                  <span className="font-bold block mb-1 text-[10px] uppercase tracking-wider text-white/70">What's New:</span>
+                <div className="mt-2 glass-chip p-2.5 rounded-lg text-xs text-left w-full max-h-24 overflow-y-auto">
+                  <span className="font-bold block mb-1 text-[10px] uppercase tracking-wider text-text-secondary">What's New:</span>
                   {versionInfo.releaseNotes}
                 </div>
               )}
@@ -218,17 +211,16 @@ export default function Landing() {
             <div className="flex flex-col w-full gap-2">
               <a
                 href={apkUrl}
-                className="w-full py-3 rounded-xl bg-white text-[#003D99] font-bold text-sm hover:bg-gray-100 transition-all cursor-pointer text-center"
+                className="w-full py-3 rounded-xl bg-tint-dark text-white font-bold text-sm hover:bg-tint transition-colors text-center"
               >
                 Download APK
               </a>
               <button
                 onClick={() => setShowApkPopup(false)}
-                className="w-full py-2.5 rounded-xl bg-white/15 text-white font-semibold text-sm hover:bg-white/25 transition-all cursor-pointer"
+                className="w-full py-2.5 rounded-xl glass-chip font-semibold text-sm hover:border-tint transition-colors cursor-pointer"
               >
                 Close
               </button>
-            </div>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Card } from '~/components/ui/card';
-import { Button } from '~/components/ui/button';
+import { GlassPanel } from '~/components/ui/glass-panel';
+import { PillButton } from '~/components/ui/pill-button';
 import { Icon, type IconName } from '~/components/ui/icon';
 import { useToast } from '~/context/toast-context';
 import { api } from '~/lib/api';
@@ -22,7 +22,7 @@ const formats = ['PDF', 'Excel', 'CSV'];
 
 export function meta() {
   return [
-    { title: "Export Reports - RAD5 Café" },
+    { title: "Reports - RAD5 Café" },
     { name: "description", content: "Download sales, inventory and profit reports." },
   ];
 }
@@ -48,7 +48,7 @@ export default function Reports() {
 
     try {
       await api.adminDashboard.reports.download({ type, format });
-      showToast(`${selectedReport} exported successfully as ${selectedFormat}!`, 'success');
+      showToast({ type: 'success', title: `${selectedReport} exported`, message: `Downloaded as ${selectedFormat}.` });
       setExporting(false);
       return;
     } catch (err: any) {
@@ -58,7 +58,6 @@ export default function Reports() {
     setTimeout(() => {
       setExporting(false);
 
-      // Generate a dynamic mock CSV data structure to download
       let csvContent = "";
       if (selectedReport === 'Sales Report') {
         csvContent = "Customer,Product,Quantity,Revenue,Profit,Date\n" +
@@ -92,108 +91,78 @@ export default function Reports() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        // Save as CSV or standard document format type
         const fileExt = selectedFormat.toLowerCase();
         link.setAttribute("download", `${selectedReport.toLowerCase().replace(/\s+/g, '_')}_export.${fileExt}`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
-        showToast(`${selectedReport} exported successfully!`, 'success');
+
+        showToast({ type: 'success', title: `${selectedReport} exported successfully` });
       } catch (err) {
-        showToast('Export failed. Please try again.', 'error');
+        showToast({ type: 'error', title: 'Export failed', message: 'Please try again.' });
       }
     }, 1200);
   };
 
   return (
-    <div className="flex flex-col gap-6 select-none max-w-2xl mx-auto">
+    <div className="flex flex-col gap-6 w-full">
       <div>
-        <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Reports Exporter</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">Export reports</h1>
         <p className="text-text-secondary text-xs mt-1">
           Export wallet statements, inventory lists, or profit data.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Report Types list */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2 flex flex-col gap-2.5">
-          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider pl-1">Report Category</span>
-          <Card padded={false} className="overflow-hidden flex flex-col divide-y divide-border shadow-xs">
+          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider pl-1">Report category</span>
+          <GlassPanel radius="lg" padded={false} className="overflow-hidden flex flex-col divide-y divide-border">
             {reportTypes.map((report) => (
               <button
                 key={report.label}
                 onClick={() => setSelectedReport(report.label)}
-                className={`flex items-start gap-4 p-4 text-left transition-colors cursor-pointer w-full hover:bg-bg-selected/20 ${
-                  selectedReport === report.label ? 'bg-tint/[0.03]' : ''
+                className={`flex items-start gap-4 p-4 text-left transition-colors cursor-pointer w-full hover:bg-tint-a ${
+                  selectedReport === report.label ? 'bg-tint-a' : ''
                 }`}
               >
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    selectedReport === report.label
-                      ? 'bg-tint text-white'
-                      : 'bg-bg-selected text-text-secondary'
-                  }`}
-                >
-                  <Icon name={report.icon} size={18} color={selectedReport === report.label ? '#FFFFFF' : 'var(--color-text-secondary)'} />
+                <div className={`w-9 h-9 rounded-full grid place-items-center flex-shrink-0 ${selectedReport === report.label ? 'bg-tint-dark text-white' : 'bg-tint-a text-text-secondary'}`}>
+                  <Icon name={report.icon} size={17} color={selectedReport === report.label ? '#FFFFFF' : 'var(--color-text-secondary)'} />
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span
-                    className={`text-sm font-semibold ${
-                      selectedReport === report.label ? 'text-tint' : 'text-text-main'
-                    }`}
-                  >
-                    {report.label}
-                  </span>
+                  <span className={`text-sm font-semibold ${selectedReport === report.label ? 'text-tint' : ''}`}>{report.label}</span>
                   <span className="text-xs text-text-secondary leading-normal">{report.description}</span>
                 </div>
               </button>
             ))}
-          </Card>
+          </GlassPanel>
         </div>
 
-        {/* Format & Execution Selector */}
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2.5">
-            <span className="text-xs font-bold text-text-secondary uppercase tracking-wider pl-1">Document Format</span>
-            <Card className="flex flex-col gap-2 shadow-xs">
+            <span className="text-xs font-bold text-text-secondary uppercase tracking-wider pl-1">Document format</span>
+            <div className="flex flex-col gap-2">
               {formats.map((format) => (
-                <button
-                  key={format}
-                  onClick={() => setSelectedFormat(format)}
-                  className={`py-3 px-4 text-sm font-bold border transition-all rounded-xl cursor-pointer text-center ${
-                    selectedFormat === format
-                      ? 'bg-tint text-white border-tint shadow-xs'
-                      : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
-                  }`}
-                  style={{ borderRadius: 'var(--radius-md)' }}
-                >
+                <PillButton key={format} active={selectedFormat === format} onClick={() => setSelectedFormat(format)} className="!rounded-xl w-full justify-center">
                   {format}
-                </button>
+                </PillButton>
               ))}
-            </Card>
+            </div>
           </div>
 
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth={true}
+          <button
             onClick={handleExport}
             disabled={exporting}
-            className="py-4 shadow-md font-bold mt-2"
+            className="w-full py-3.5 rounded-xl border-none bg-tint-dark text-white text-sm font-bold cursor-pointer hover:bg-tint disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
             {exporting ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Compiling...
-              </span>
+              <>
+                <Icon name="sync" size={15} className="animate-spin" />
+                Compiling…
+              </>
             ) : (
-              `Download Report`
+              'Download report'
             )}
-          </Button>
+          </button>
         </div>
       </div>
     </div>

@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router';
-import { Card } from '~/components/ui/card';
+import { useLocation } from 'react-router';
+import { GlassPanel } from '~/components/ui/glass-panel';
+import { StatCard } from '~/components/ui/stat-card';
+import { PillButton } from '~/components/ui/pill-button';
+import { Money } from '~/components/ui/money';
 import { Icon } from '~/components/ui/icon';
 import { api } from '~/lib/api';
 import type { DailyAnalyticsResponse, WeeklyAnalyticsResponse, MonthlyAnalyticsResponse, CustomAnalyticsResponse } from '~/lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Input } from '~/components/ui/input';
-import { Button } from '~/components/ui/button';
 
 type TabType = 'daily' | 'weekly' | 'monthly' | 'custom';
 
 export function meta() {
   return [
-    { title: "Advanced Analytics - RAD5 Café" },
+    { title: "Analytics - RAD5 Café" },
     { name: "description", content: "Deep insights into revenues, products, customers and operations." },
   ];
 }
@@ -34,26 +35,15 @@ function getDisplayName(user: any): string {
   return name || 'Unknown Customer';
 }
 
-function StatCard({ label, value, icon, variant = 'default' }: { label: string, value: string, icon: any, variant?: 'default'|'success'|'warning'|'error' }) {
-  const getColors = () => {
-    switch (variant) {
-      case 'success': return 'text-success bg-success/15';
-      case 'warning': return 'text-warning bg-warning/15';
-      case 'error': return 'text-error-val bg-error-val/15';
-      default: return 'text-tint bg-tint/15';
-    }
-  };
-  return (
-    <div className="group flex flex-row items-center gap-4 p-5 select-none hover:bg-bg-selected/30 transition-colors duration-300 w-full cursor-default">
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 flex-shrink-0 ${getColors()}`}>
-        <Icon name={icon} size={22} />
-      </div>
-      <div className="flex flex-col items-start min-w-0">
-        <span className="text-xs font-semibold text-text-secondary select-all">{label}</span>
-        <span className="text-xl font-extrabold text-text-main tabular-nums select-all mt-0.5">{value}</span>
-      </div>
-    </div>
-  );
+const tooltipStyle = { backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: 12 };
+const axisTick = { fontSize: 11, fill: 'var(--color-text-secondary)' };
+
+function LoadingState() {
+  return <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={28} /></div>;
+}
+
+function ErrorState({ message }: { message: string }) {
+  return <div className="glass-surface rounded-2xl p-4 border border-error-val/30 text-sm font-medium text-error-val text-center">{message}</div>;
 }
 
 function DailyTab() {
@@ -64,72 +54,62 @@ function DailyTab() {
   useEffect(() => {
     setLoading(true);
     api.adminDashboard.analytics.daily()
-      .then(res => {
-        if (res.success && res.data) setData(res.data);
-        else setError(true);
-      })
+      .then(res => { if (res.success && res.data) setData(res.data); else setError(true); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>;
-  if (error || !data) return <div className="py-20 text-center text-error-val font-semibold">Failed to load daily analytics.</div>;
+  if (loading) return <LoadingState />;
+  if (error || !data) return <ErrorState message="Failed to load daily analytics." />;
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
-        <StatCard label="Total Revenue" value={fmtCurrency(data.summary.totalRevenue)} icon="dollar" variant="success" />
-        <StatCard label="Total Profit" value={fmtCurrency(data.summary.totalProfit)} icon="trending-up" variant="success" />
-        <StatCard label="Sales Count" value={`${data.summary.totalSalesCount}`} icon="cart" />
-        <StatCard label="New Customers" value={`${data.summary.newCustomers}`} icon="user" variant="warning" />
-      </Card>
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <StatCard label="Total revenue" value={<Money amount={data.summary.totalRevenue} />} valueColor="var(--color-ok)" />
+        <StatCard label="Total profit" value={<Money amount={data.summary.totalProfit} />} valueColor="var(--color-ok)" />
+        <StatCard label="Sales count" value={data.summary.totalSalesCount} />
+        <StatCard label="New customers" value={data.summary.newCustomers} valueColor="var(--color-warn)" />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="col-span-1 md:col-span-2">
-          <div className="p-5 border-b border-border mb-4">
-            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider">Revenue Trend (Today)</h3>
-          </div>
-          <div className="px-4 pb-4 h-72">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <GlassPanel radius="lg" className="md:col-span-2">
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Revenue trend (today)</h3>
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.trend.revenueByHour}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="hour" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                <Tooltip 
-                  formatter={(val: any) => [fmtCurrency(val), 'Revenue']}
-                  contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 12 }}
-                />
+                <XAxis dataKey="hour" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} tick={axisTick} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(val: any) => [fmtCurrency(val), 'Revenue']} contentStyle={tooltipStyle} />
                 <Bar dataKey="revenue" fill="var(--color-tint)" radius={[4, 4, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
-        
-        <div className="flex flex-col gap-6">
-          <Card className="flex-1 flex flex-col justify-center p-6">
-            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Highlights</h3>
-            <div className="flex flex-col gap-5">
-              {data.highlights.topSellingProduct ? (
-                <div>
-                  <span className="text-xs text-text-secondary block mb-1">Top Selling Product</span>
-                  <p className="font-extrabold text-text-main text-lg">{data.highlights.topSellingProduct.name}</p>
-                  <p className="text-xs text-success font-semibold">{data.highlights.topSellingProduct.quantitySold} units sold ({fmtCurrency(data.highlights.topSellingProduct.revenue)})</p>
-                </div>
-              ) : null}
-              {data.highlights.highestMarginProduct ? (
-                <div>
-                  <span className="text-xs text-text-secondary block mb-1">Highest Margin Product</span>
-                  <p className="font-extrabold text-text-main text-lg">{data.highlights.highestMarginProduct.name}</p>
-                  <p className="text-xs text-tint font-semibold">{data.highlights.highestMarginProduct.marginPercent.toFixed(1)}% margin</p>
-                </div>
-              ) : null}
+        </GlassPanel>
+
+        <GlassPanel radius="lg" className="flex flex-col justify-center">
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Highlights</h3>
+          <div className="flex flex-col gap-5">
+            {data.highlights.topSellingProduct && (
               <div>
-                <span className="text-xs text-text-secondary block mb-1">Busiest Hour</span>
-                <p className="font-extrabold text-text-main text-lg">{data.trend.busiestHour || 'N/A'}</p>
+                <span className="text-xs text-text-secondary block mb-1">Top selling product</span>
+                <p className="font-extrabold text-lg">{data.highlights.topSellingProduct.name}</p>
+                <p className="text-xs text-ok font-semibold">{data.highlights.topSellingProduct.quantitySold} units sold ({fmtCurrency(data.highlights.topSellingProduct.revenue)})</p>
               </div>
+            )}
+            {data.highlights.highestMarginProduct && (
+              <div>
+                <span className="text-xs text-text-secondary block mb-1">Highest margin product</span>
+                <p className="font-extrabold text-lg">{data.highlights.highestMarginProduct.name}</p>
+                <p className="text-xs text-tint font-semibold">{data.highlights.highestMarginProduct.marginPercent.toFixed(1)}% margin</p>
+              </div>
+            )}
+            <div>
+              <span className="text-xs text-text-secondary block mb-1">Busiest hour</span>
+              <p className="font-extrabold text-lg">{data.trend.busiestHour || 'N/A'}</p>
             </div>
-          </Card>
-        </div>
+          </div>
+        </GlassPanel>
       </div>
     </div>
   );
@@ -143,69 +123,62 @@ function WeeklyTab() {
   useEffect(() => {
     setLoading(true);
     api.adminDashboard.analytics.weekly()
-      .then(res => {
-        if (res.success && res.data) setData(res.data);
-        else setError(true);
-      })
+      .then(res => { if (res.success && res.data) setData(res.data); else setError(true); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>;
-  if (error || !data) return <div className="py-20 text-center text-error-val font-semibold">Failed to load weekly analytics.</div>;
+  if (loading) return <LoadingState />;
+  if (error || !data) return <ErrorState message="Failed to load weekly analytics." />;
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
-        <StatCard label="Total Revenue" value={fmtCurrency(data.summary.totalRevenue)} icon="dollar" variant="success" />
-        <StatCard label="Total Profit" value={fmtCurrency(data.summary.totalProfit)} icon="trending-up" variant="success" />
-        <StatCard label="Sales Count" value={`${data.summary.totalSalesCount}`} icon="cart" />
-        <StatCard label="New Customers" value={`${data.summary.newCustomers}`} icon="user" variant="warning" />
-      </Card>
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <StatCard label="Total revenue" value={<Money amount={data.summary.totalRevenue} />} valueColor="var(--color-ok)" />
+        <StatCard label="Total profit" value={<Money amount={data.summary.totalProfit} />} valueColor="var(--color-ok)" />
+        <StatCard label="Sales count" value={data.summary.totalSalesCount} />
+        <StatCard label="New customers" value={data.summary.newCustomers} valueColor="var(--color-warn)" />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="col-span-1 md:col-span-2">
-          <div className="p-5 border-b border-border mb-4">
-            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider">Revenue Trend (Last 7 Days)</h3>
-          </div>
-          <div className="px-4 pb-4 h-72">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <GlassPanel radius="lg" className="md:col-span-2">
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Revenue trend (last 7 days)</h3>
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.trend.revenueByDay}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="date" tickFormatter={d => new Date(d).toLocaleDateString('en-NG', { weekday: 'short' })} tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                <Tooltip 
+                <XAxis dataKey="date" tickFormatter={d => new Date(d).toLocaleDateString('en-NG', { weekday: 'short' })} tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} tick={axisTick} axisLine={false} tickLine={false} />
+                <Tooltip
                   formatter={(val: any) => [fmtCurrency(val), 'Revenue']}
                   labelFormatter={d => new Date(d).toLocaleDateString('en-NG', { weekday: 'long', month: 'short', day: 'numeric' })}
-                  contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 12 }}
+                  contentStyle={tooltipStyle}
                 />
                 <Bar dataKey="revenue" fill="var(--color-tint)" radius={[4, 4, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
-        
-        <div className="flex flex-col gap-6">
-          <Card className="flex-1 flex flex-col justify-center p-6">
-            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Highlights</h3>
-            <div className="flex flex-col gap-5">
-              <div>
-                <span className="text-xs text-text-secondary block mb-1">Top Selling Product</span>
-                <p className="font-extrabold text-text-main text-lg">{data.highlights.topSellingProduct.name}</p>
-                <p className="text-xs text-success font-semibold">{data.highlights.topSellingProduct.quantitySold} units sold ({fmtCurrency(data.highlights.topSellingProduct.revenue)})</p>
-              </div>
-              <div>
-                <span className="text-xs text-text-secondary block mb-1">Highest Margin Product</span>
-                <p className="font-extrabold text-text-main text-lg">{data.highlights.highestMarginProduct.name}</p>
-                <p className="text-xs text-tint font-semibold">{data.highlights.highestMarginProduct.marginPercent}% margin</p>
-              </div>
-              <div>
-                <span className="text-xs text-text-secondary block mb-1">Busiest Day</span>
-                <p className="font-extrabold text-text-main text-lg">{data.trend.busiestDay}</p>
-              </div>
+        </GlassPanel>
+
+        <GlassPanel radius="lg">
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Highlights</h3>
+          <div className="flex flex-col gap-5">
+            <div>
+              <span className="text-xs text-text-secondary block mb-1">Top selling product</span>
+              <p className="font-extrabold text-lg">{data.highlights.topSellingProduct.name}</p>
+              <p className="text-xs text-ok font-semibold">{data.highlights.topSellingProduct.quantitySold} units sold ({fmtCurrency(data.highlights.topSellingProduct.revenue)})</p>
             </div>
-          </Card>
-        </div>
+            <div>
+              <span className="text-xs text-text-secondary block mb-1">Highest margin product</span>
+              <p className="font-extrabold text-lg">{data.highlights.highestMarginProduct.name}</p>
+              <p className="text-xs text-tint font-semibold">{data.highlights.highestMarginProduct.marginPercent}% margin</p>
+            </div>
+            <div>
+              <span className="text-xs text-text-secondary block mb-1">Busiest day</span>
+              <p className="font-extrabold text-lg">{data.trend.busiestDay}</p>
+            </div>
+          </div>
+        </GlassPanel>
       </div>
     </div>
   );
@@ -219,70 +192,60 @@ function MonthlyTab() {
   useEffect(() => {
     setLoading(true);
     api.adminDashboard.analytics.monthly()
-      .then(res => {
-        if (res.success && res.data) setData(res.data);
-        else setError(true);
-      })
+      .then(res => { if (res.success && res.data) setData(res.data); else setError(true); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>;
-  if (error || !data) return <div className="py-20 text-center text-error-val font-semibold">Failed to load monthly analytics.</div>;
+  if (loading) return <LoadingState />;
+  if (error || !data) return <ErrorState message="Failed to load monthly analytics." />;
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
-        <StatCard label="Total Revenue" value={fmtCurrency(data.summary.totalRevenue)} icon="dollar" variant="success" />
-        <StatCard label="Total Profit" value={fmtCurrency(data.summary.totalProfit)} icon="trending-up" variant="success" />
-        <StatCard label="Sales Count" value={`${data.summary.totalSalesCount}`} icon="cart" />
-        <StatCard label="New Customers" value={`${data.summary.newCustomers}`} icon="user" variant="warning" />
-      </Card>
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <StatCard label="Total revenue" value={<Money amount={data.summary.totalRevenue} />} valueColor="var(--color-ok)" />
+        <StatCard label="Total profit" value={<Money amount={data.summary.totalProfit} />} valueColor="var(--color-ok)" />
+        <StatCard label="Sales count" value={data.summary.totalSalesCount} />
+        <StatCard label="New customers" value={data.summary.newCustomers} valueColor="var(--color-warn)" />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="col-span-1 md:col-span-2">
-          <div className="p-5 border-b border-border mb-4">
-            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider">Revenue & Profit By Week</h3>
-          </div>
-          <div className="px-4 pb-4 h-72">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <GlassPanel radius="lg" className="md:col-span-2">
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Revenue & profit by week</h3>
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.trend.revenueByWeek}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="week" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                <Tooltip 
-                  formatter={(val: any, name: any) => [fmtCurrency(val), name === 'revenue' ? 'Revenue' : 'Profit']}
-                  contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 12 }}
-                />
+                <XAxis dataKey="week" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} tick={axisTick} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(val: any, name: any) => [fmtCurrency(val), name === 'revenue' ? 'Revenue' : 'Profit']} contentStyle={tooltipStyle} />
                 <Bar dataKey="revenue" fill="var(--color-tint)" radius={[4, 4, 0, 0]} maxBarSize={48} />
-                <Bar dataKey="profit" fill="var(--color-success)" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                <Bar dataKey="profit" fill="var(--color-ok)" radius={[4, 4, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </GlassPanel>
 
-        <div className="flex flex-col gap-6">
-          <Card className="flex-1 p-6">
-            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Top Categories</h3>
-            <div className="flex flex-col gap-4">
-              {data.highlights.topCategories.map(cat => (
-                <div key={cat.categoryName} className="flex justify-between items-center">
-                  <div>
-                    <span className="font-semibold text-sm text-text-main">{cat.categoryName}</span>
-                    <span className="text-xs text-text-secondary block">{cat.percentageOfTotal}% of total</span>
-                  </div>
-                  <span className="text-sm font-extrabold text-success">{fmtCurrency(cat.revenue)}</span>
+        <GlassPanel radius="lg">
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Top categories</h3>
+          <div className="flex flex-col gap-4">
+            {data.highlights.topCategories.map(cat => (
+              <div key={cat.categoryName} className="flex justify-between items-center">
+                <div>
+                  <span className="font-semibold text-sm">{cat.categoryName}</span>
+                  <span className="text-xs text-text-secondary block">{cat.percentageOfTotal}% of total</span>
                 </div>
-              ))}
-            </div>
-            
-            <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mt-8 mb-4">Top Spender</h3>
-            <div>
-              <p className="font-extrabold text-text-main text-lg">{getDisplayName(data.highlights.topSpender)}</p>
-              <p className="text-xs text-text-secondary font-semibold">{data.highlights.topSpender.orderCount} orders · <span className="text-tint">{fmtCurrency(data.highlights.topSpender.totalSpent)}</span></p>
-            </div>
-          </Card>
-        </div>
+                <Money amount={cat.revenue} className="text-sm font-extrabold text-ok" />
+              </div>
+            ))}
+          </div>
+
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mt-7 mb-3">Top spender</h3>
+          <div>
+            <p className="font-extrabold text-lg">{getDisplayName(data.highlights.topSpender)}</p>
+            <p className="text-xs text-text-secondary font-semibold">{data.highlights.topSpender.orderCount} orders · <span className="text-tint">{fmtCurrency(data.highlights.topSpender.totalSpent)}</span></p>
+          </div>
+        </GlassPanel>
       </div>
     </div>
   );
@@ -299,73 +262,74 @@ function CustomTab() {
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!startDate || !endDate) return;
-    
+
     setLoading(true);
     setError(false);
     setHasSearched(true);
-    
+
     api.adminDashboard.analytics.custom(startDate, endDate)
-      .then(res => {
-        if (res.success && res.data) setData(res.data);
-        else setError(true);
-      })
+      .then(res => { if (res.success && res.data) setData(res.data); else setError(true); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <Card className="p-5">
-        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 items-end">
-          <Input label="Start Date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required className="flex-1" />
-          <Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required className="flex-1" />
-          <Button type="submit" disabled={loading} className="w-full md:w-auto whitespace-nowrap h-11">
-            {loading ? 'Analyzing...' : 'Generate Deep Insights'}
-          </Button>
+    <div className="flex flex-col gap-6">
+      <GlassPanel radius="lg">
+        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3.5 items-end">
+          <div className="flex-1 w-full">
+            <label className="block text-[12.5px] font-semibold text-text-secondary mb-1.5">Start date</label>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required
+              className="w-full glass-chip border rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-tint transition-colors" />
+          </div>
+          <div className="flex-1 w-full">
+            <label className="block text-[12.5px] font-semibold text-text-secondary mb-1.5">End date</label>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required
+              className="w-full glass-chip border rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-tint transition-colors" />
+          </div>
+          <button type="submit" disabled={loading} className="w-full md:w-auto whitespace-nowrap px-5 py-2.5 rounded-xl border-none bg-tint-dark text-white text-sm font-bold cursor-pointer hover:bg-tint disabled:opacity-50 transition-colors">
+            {loading ? 'Analyzing…' : 'Generate insights'}
+          </button>
         </form>
-      </Card>
+      </GlassPanel>
 
       {!hasSearched && !loading && (
-        <div className="py-20 text-center text-text-secondary text-sm">
-          Select a date range to generate deep custom insights.
-        </div>
+        <div className="py-16 text-center text-text-secondary text-sm">Select a date range to generate custom insights.</div>
       )}
 
-      {loading && <div className="py-20 text-center"><Icon name="sync" className="animate-spin inline-block text-tint mx-auto" size={32} /></div>}
-      
-      {error && !loading && <div className="py-10 text-center text-error-val font-semibold">Failed to load custom analytics.</div>}
+      {loading && <LoadingState />}
+      {error && !loading && <ErrorState message="Failed to load custom analytics." />}
 
       {data && !loading && (
-        <div className="flex flex-col gap-8 animate-in fade-in duration-500">
-          {/* Financials */}
+        <div className="flex flex-col gap-7">
           <section>
-            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Financials & Wallet Health</h2>
-            <Card padded={false} className="grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
-              <StatCard label="Total Revenue" value={fmtCurrency(data.financials.totalRevenue)} icon="dollar" variant="success" />
-              <StatCard label="Gross Profit" value={fmtCurrency(data.financials.grossProfit)} icon="trending-up" variant="success" />
-              <StatCard label="Profit Margin" value={`${data.financials.profitMarginPercent}%`} icon="chart-bar" variant="success" />
-              <StatCard label="Avg Order Value" value={fmtCurrency(data.financials.averageOrderValue)} icon="cart" />
-            </Card>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <Card className="p-5 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Financials & wallet health</h2>
+            <div className="grid gap-3.5 mb-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+              <StatCard label="Total revenue" value={<Money amount={data.financials.totalRevenue} />} valueColor="var(--color-ok)" />
+              <StatCard label="Gross profit" value={<Money amount={data.financials.grossProfit} />} valueColor="var(--color-ok)" />
+              <StatCard label="Profit margin" value={`${data.financials.profitMarginPercent}%`} valueColor="var(--color-ok)" />
+              <StatCard label="Avg order value" value={<Money amount={data.financials.averageOrderValue} />} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <GlassPanel radius="lg" className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">Outstanding Liability</h3>
+                  <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">Outstanding liability</h3>
                   <p className="text-xs text-text-secondary">Money sitting in user wallets</p>
                 </div>
-                <span className="text-2xl font-extrabold text-error-val tabular-nums">{fmtCurrency(data.financials.walletHealth.totalOutstandingLiability)}</span>
-              </Card>
+                <Money amount={data.financials.walletHealth.totalOutstandingLiability} className="text-xl font-extrabold text-err" />
+              </GlassPanel>
 
-              <Card className="p-5 flex items-center gap-6">
+              <GlassPanel radius="lg" className="flex items-center gap-6">
                 <div className="flex-1">
-                  <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">Payments By Method</h3>
+                  <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3">Payments by method</h3>
                   <div className="flex flex-col gap-2 text-sm">
-                    <div className="flex justify-between"><span className="text-text-main flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-tint" /> Wallet</span> <span className="font-bold text-text-main">{fmtCurrency(data.financials.paymentsByMethod.wallet)}</span></div>
-                    <div className="flex justify-between"><span className="text-text-main flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-success" /> Cash</span> <span className="font-bold text-text-main">{fmtCurrency(data.financials.paymentsByMethod.cash)}</span></div>
-                    <div className="flex justify-between"><span className="text-text-main flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-warning" /> Card</span> <span className="font-bold text-text-main">{fmtCurrency(data.financials.paymentsByMethod.card)}</span></div>
+                    <div className="flex justify-between"><span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-tint" /> Wallet</span><Money amount={data.financials.paymentsByMethod.wallet} className="font-bold" /></div>
+                    <div className="flex justify-between"><span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ background: 'var(--color-ok)' }} /> Cash</span><Money amount={data.financials.paymentsByMethod.cash} className="font-bold" /></div>
+                    <div className="flex justify-between"><span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ background: 'var(--color-warn)' }} /> Card</span><Money amount={data.financials.paymentsByMethod.card} className="font-bold" /></div>
                   </div>
                 </div>
-                <div className="w-24 h-24">
+                <div className="w-24 h-24 flex-shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -374,155 +338,140 @@ function CustomTab() {
                           { name: 'Cash', value: data.financials.paymentsByMethod.cash },
                           { name: 'Card', value: data.financials.paymentsByMethod.card },
                         ]}
-                        innerRadius={25}
-                        outerRadius={40}
-                        dataKey="value"
-                        stroke="none"
+                        innerRadius={25} outerRadius={40} dataKey="value" stroke="none"
                       >
                         <Cell fill="var(--color-tint)" />
-                        <Cell fill="var(--color-success)" />
-                        <Cell fill="var(--color-warning)" />
+                        <Cell fill="var(--color-ok)" />
+                        <Cell fill="var(--color-warn)" />
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-              </Card>
+              </GlassPanel>
             </div>
           </section>
 
-          {/* Operations */}
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="p-5">
-              <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Busiest Hours</h2>
-              <div className="h-48">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <GlassPanel radius="lg">
+              <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Busiest hours</h2>
+              <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.operations.busiestHours}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                    <XAxis dataKey="hour" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 12 }} />
+                    <XAxis dataKey="hour" tick={axisTick} axisLine={false} tickLine={false} />
+                    <YAxis tick={axisTick} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
                     <Bar dataKey="orderCount" fill="var(--color-tint)" radius={[2, 2, 0, 0]} maxBarSize={32} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </Card>
+            </GlassPanel>
 
-            <Card className="p-5">
-              <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Busiest Days</h2>
-              <div className="flex flex-col gap-3">
+            <GlassPanel radius="lg">
+              <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Busiest days</h2>
+              <div className="flex flex-col gap-2.5">
                 {data.operations.busiestDays.map(d => (
-                  <div key={d.day} className="flex justify-between items-center p-3 bg-bg-element rounded-lg">
-                    <span className="font-bold text-text-main">{d.day}</span>
-                    <span className="text-success font-extrabold tabular-nums">{fmtCurrency(d.revenue)}</span>
+                  <div key={d.day} className="flex justify-between items-center p-3 rounded-xl bg-tint-a">
+                    <span className="font-bold">{d.day}</span>
+                    <Money amount={d.revenue} className="font-extrabold text-ok" />
                   </div>
                 ))}
               </div>
-            </Card>
+            </GlassPanel>
           </section>
 
-          {/* Products */}
           <section>
-            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Product Intelligence</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="p-5">
-                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">Frequently Bought Together</h3>
-                <div className="flex flex-col gap-4">
+            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Product intelligence</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+              <GlassPanel radius="lg">
+                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3.5">Frequently bought together</h3>
+                <div className="flex flex-col gap-3.5">
                   {data.products.frequentlyBoughtTogether.map((pair, i) => (
                     <div key={i} className="flex flex-col gap-1 border-b border-border last:border-0 pb-3 last:pb-0">
-                      <span className="font-bold text-sm text-text-main">{pair.pair.join(' + ')}</span>
+                      <span className="font-bold text-sm">{pair.pair.join(' + ')}</span>
                       <div className="flex justify-between text-xs text-text-secondary">
                         <span>{pair.timesBoughtTogether} times</span>
-                        <span className="text-success font-semibold">{fmtCurrency(pair.pairRevenue)}</span>
+                        <Money amount={pair.pairRevenue} className="text-ok font-semibold" />
                       </div>
                     </div>
                   ))}
-                  {data.products.frequentlyBoughtTogether.length === 0 && (
-                    <span className="text-xs text-text-secondary">Not enough data.</span>
-                  )}
+                  {data.products.frequentlyBoughtTogether.length === 0 && <span className="text-xs text-text-secondary">Not enough data.</span>}
                 </div>
-              </Card>
+              </GlassPanel>
 
-              <Card className="p-5">
-                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">Highest Margin Products</h3>
+              <GlassPanel radius="lg">
+                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3.5">Highest margin products</h3>
                 <div className="flex flex-col gap-3">
                   {data.products.highestMarginProducts.map(p => (
                     <div key={p.name} className="flex justify-between items-center">
                       <div className="flex flex-col">
-                        <span className="font-semibold text-sm text-text-main">{p.name}</span>
+                        <span className="font-semibold text-sm">{p.name}</span>
                         <span className="text-[10px] text-text-secondary">{p.quantitySold} sold</span>
                       </div>
                       <span className="text-sm font-extrabold text-tint">{p.marginPercent}%</span>
                     </div>
                   ))}
-                  {data.products.highestMarginProducts.length === 0 && (
-                    <span className="text-xs text-text-secondary">Not enough data.</span>
-                  )}
+                  {data.products.highestMarginProducts.length === 0 && <span className="text-xs text-text-secondary">Not enough data.</span>}
                 </div>
-              </Card>
+              </GlassPanel>
 
-              <Card className="p-5 bg-error-val/5 border-error-val/20">
-                <h3 className="text-xs font-bold text-error-val uppercase tracking-wider mb-4">Dead Stock Warning</h3>
+              <GlassPanel radius="lg" className="border-error-val/20" style={{ background: 'rgba(239,68,68,0.05)' }}>
+                <h3 className="text-xs font-bold text-err uppercase tracking-wider mb-3.5">Dead stock warning</h3>
                 <div className="flex flex-col gap-3">
                   {data.products.deadStock.map(p => (
                     <div key={p.name} className="flex justify-between items-center">
                       <div className="flex flex-col">
-                        <span className="font-semibold text-sm text-text-main">{p.name}</span>
-                        <span className="text-[10px] text-text-secondary">Current Stock: {p.currentStock}</span>
+                        <span className="font-semibold text-sm">{p.name}</span>
+                        <span className="text-[10px] text-text-secondary">Current stock: {p.currentStock}</span>
                       </div>
-                      <span className="text-xs font-bold text-error-val">{p.daysSinceLastSale} days inactive</span>
+                      <span className="text-xs font-bold text-err">{p.daysSinceLastSale} days inactive</span>
                     </div>
                   ))}
-                  {data.products.deadStock.length === 0 && (
-                    <span className="text-xs text-text-secondary">No dead stock detected.</span>
-                  )}
+                  {data.products.deadStock.length === 0 && <span className="text-xs text-text-secondary">No dead stock detected.</span>}
                 </div>
-              </Card>
+              </GlassPanel>
             </div>
           </section>
 
-          {/* Customers */}
           <section>
-            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-4">Customer Retention</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <StatCard label="Total Active" value={`${data.customers.totalActive}`} icon="account-group" />
-              <StatCard label="Avg Visits/Customer" value={`${data.customers.retentionMetrics.averageVisitsPerCustomer}`} icon="sync" />
-              <StatCard label="Customer LTV" value={fmtCurrency(data.customers.retentionMetrics.customerLifetimeValueAvg)} icon="dollar" variant="success" />
-              <Card className="p-5 flex items-center justify-center gap-4 shadow-xs">
+            <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Customer retention</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-3.5">
+              <StatCard label="Total active" value={data.customers.totalActive} />
+              <StatCard label="Avg visits/customer" value={data.customers.retentionMetrics.averageVisitsPerCustomer} />
+              <StatCard label="Customer LTV" value={<Money amount={data.customers.retentionMetrics.customerLifetimeValueAvg} />} valueColor="var(--color-ok)" />
+              <GlassPanel radius="lg" className="flex items-center justify-center gap-4">
                 <div className="text-center">
-                  <span className="text-xl font-extrabold text-success block">{data.customers.newVsReturning.newCustomers}</span>
+                  <span className="text-xl font-extrabold text-ok block">{data.customers.newVsReturning.newCustomers}</span>
                   <span className="text-[10px] uppercase font-bold text-text-secondary">New</span>
                 </div>
                 <div className="text-center">
                   <span className="text-xl font-extrabold text-tint block">{data.customers.newVsReturning.returningCustomers}</span>
                   <span className="text-[10px] uppercase font-bold text-text-secondary">Returning</span>
                 </div>
-              </Card>
+              </GlassPanel>
             </div>
 
-            <Card className="p-5">
-              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">Top Spenders</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <GlassPanel radius="lg">
+              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3.5">Top spenders</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {data.customers.topSpenders.map((c, i) => (
-                  <div key={c.userId} className="flex items-center gap-3 p-3 bg-bg-element rounded-lg">
-                    <div className="w-8 h-8 rounded-full bg-tint/20 text-tint flex items-center justify-center font-bold text-xs">{i+1}</div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-text-main">{getDisplayName(c)}</p>
+                  <div key={c.userId} className="flex items-center gap-3 p-3 rounded-xl bg-tint-a">
+                    <div className="w-8 h-8 rounded-full bg-tint-b text-tint flex items-center justify-center font-bold text-xs flex-shrink-0">{i + 1}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{getDisplayName(c)}</p>
                       <p className="text-xs text-text-secondary">{c.orderCount} orders</p>
                     </div>
-                    <span className="font-extrabold text-success">{fmtCurrency(c.totalSpent)}</span>
+                    <Money amount={c.totalSpent} className="font-extrabold text-ok flex-shrink-0" />
                   </div>
                 ))}
               </div>
-            </Card>
+            </GlassPanel>
           </section>
-
         </div>
       )}
     </div>
   );
 }
-
-
 
 export default function Analytics() {
   const location = useLocation();
@@ -530,27 +479,19 @@ export default function Analytics() {
   const [activeTab, setActiveTab] = useState<TabType>(defaultTab);
 
   return (
-    <div className="flex flex-col gap-6 select-none max-w-5xl mx-auto">
+    <div className="flex flex-col gap-6 w-full">
       <div>
-        <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Analytics Dashboard</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">Analytics</h1>
         <p className="text-text-secondary text-xs mt-1">
-          Review sales patterns, customer transactions, profit margins, and deep operational insights.
+          Sales patterns, customer behaviour, profit margins and deep operational insights.
         </p>
       </div>
 
-      <div className="flex gap-1 bg-bg-element rounded-lg p-1 w-max overflow-x-auto max-w-full">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {(['daily', 'weekly', 'monthly', 'custom'] as TabType[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-bold rounded-md transition-all cursor-pointer capitalize ${
-              activeTab === tab
-                ? 'bg-tint text-white shadow-xs'
-                : 'text-text-secondary hover:text-text-main'
-            }`}
-          >
-            {tab} Analytics
-          </button>
+          <PillButton key={tab} active={activeTab === tab} onClick={() => setActiveTab(tab)} className="capitalize">
+            {tab}
+          </PillButton>
         ))}
       </div>
 

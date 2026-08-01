@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '~/components/ui/card';
-import { Input } from '~/components/ui/input';
-import { Button } from '~/components/ui/button';
-import { Select } from '~/components/ui/select';
+import { PillButton } from '~/components/ui/pill-button';
+import { StatCard } from '~/components/ui/stat-card';
+import { Money } from '~/components/ui/money';
+import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
+import { WriteOffModal } from '~/components/modals/write-off-modal';
 import { useToast } from '~/context/toast-context';
 import { api } from '~/lib/api';
 
@@ -44,125 +45,6 @@ interface BalanceOutRecord {
   createdAt: string;
 }
 
-function BalanceOutModal({
-  summary,
-  submitting,
-  onCancel,
-  onConfirm,
-}: {
-  summary: StockSummary | null;
-  submitting: boolean;
-  onCancel: () => void;
-  onConfirm: (productId: string, quantity: number, note: string, pin: string) => void;
-}) {
-  const products = summary?.products ?? [];
-  const [productId, setProductId] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [note, setNote] = useState('');
-  const [pin, setPin] = useState('');
-
-  const selectedProduct = products.find((p) => p.id === productId) || null;
-  const quantityNum = Number(quantity) || 0;
-  const amountNum = selectedProduct ? quantityNum * selectedProduct.costPrice : 0;
-  const resultingProfit = (summary?.netProfit ?? 0) - amountNum;
-  const quantityValid = !!selectedProduct && quantity !== '' && quantityNum > 0 && quantityNum <= selectedProduct.quantity;
-
-  return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="absolute inset-0" onClick={onCancel} />
-      <div className="relative bg-card border border-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="h-1.5 w-full bg-error-val" />
-        <div className="p-6 space-y-4">
-          <div>
-            <h3 className="text-lg font-bold text-brand-900 dark:text-brand-100">Balance Out Stock</h3>
-            <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
-              Select a product and the quantity to write off. The value is deducted from total profit and removed from live stock.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Product</label>
-            <Select
-              value={productId}
-              onChange={(val) => {
-                setProductId(val);
-                setQuantity('');
-              }}
-              placeholder="Select a product..."
-              options={products.map((p) => ({
-                label: `${p.name} (${p.quantity} in stock)`,
-                value: p.id,
-              }))}
-              className="w-full"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Quantity to write off</label>
-            <Input
-              type="number"
-              placeholder={selectedProduct ? `Up to ${selectedProduct.quantity}` : 'Select a product first'}
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              disabled={!selectedProduct}
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Note (optional)</label>
-            <Input
-              placeholder="e.g. Expired/damaged stock write-off"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </div>
-
-          <div className="rounded-lg border border-brand-200 dark:border-brand-800 divide-y divide-brand-100 dark:divide-brand-800/50 text-sm">
-            <div className="flex justify-between px-4 py-3">
-              <span className="text-brand-500 dark:text-brand-400">Value to write off</span>
-              <span className="font-semibold">₦{amountNum.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between px-4 py-3">
-              <span className="text-brand-500 dark:text-brand-400">Current total profit</span>
-              <span className="font-semibold">₦{(summary?.totalProfit ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between px-4 py-3">
-              <span className="text-brand-500 dark:text-brand-400">Net profit after this action</span>
-              <span className="font-semibold">₦{resultingProfit.toLocaleString()}</span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Admin PIN</label>
-            <Input
-              type="password"
-              placeholder="Enter 4-digit PIN"
-              maxLength={4}
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-            />
-          </div>
-
-          <div className="flex gap-3">
-            <Button variant="outline" fullWidth onClick={onCancel} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              fullWidth
-              disabled={!quantityValid || pin.length !== 4 || submitting}
-              onClick={() => onConfirm(productId, quantityNum, note, pin)}
-            >
-              {submitting ? 'Balancing Out...' : 'Confirm & Balance Out'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function StockBalance() {
   const { showToast } = useToast();
   const [summary, setSummary] = useState<StockSummary | null>(null);
@@ -171,9 +53,7 @@ export default function StockBalance() {
 
   const [records, setRecords] = useState<BalanceOutRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [historyError, setHistoryError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 20;
 
@@ -199,22 +79,17 @@ export default function StockBalance() {
 
   const fetchRecords = (pageNum: number) => {
     setLoading(true);
-    setHistoryError(null);
     api.adminDashboard.stockBalance.list({ page: pageNum, limit })
       .then((res: any) => {
         if (res.success && Array.isArray(res.data)) {
           setRecords(res.data);
-          setTotal(res.total ?? res.data.length);
-          setTotalPages(res.totalPages ?? Math.ceil((res.total ?? res.data.length) / limit));
+          const total = res.total ?? res.data.length;
+          setTotalPages(res.totalPages ?? Math.ceil(total / limit));
         } else {
           setRecords([]);
-          setHistoryError(res.message || 'Could not load balance-out history.');
         }
       })
-      .catch((err: any) => {
-        setRecords([]);
-        setHistoryError(err.message || 'Could not reach the server to load history.');
-      })
+      .catch(() => setRecords([]))
       .finally(() => setLoading(false));
   };
 
@@ -232,7 +107,7 @@ export default function StockBalance() {
       const res = await api.adminDashboard.stockBalance.create({ productId, quantity, note, pin });
 
       if (res.success) {
-        showToast({ type: 'success', title: 'Stock Balanced Out', message: 'The amount has been deducted from total profit and recorded as a loss.' });
+        showToast({ type: 'success', title: 'Stock balanced out', message: 'The amount has been deducted from total profit and recorded as a loss.' });
         setShowModal(false);
         fetchSummary();
         fetchRecords(1);
@@ -249,184 +124,124 @@ export default function StockBalance() {
 
   const products = summary?.products ?? [];
 
+  const statCards = [
+    { label: 'Total profit', value: summary?.totalProfit ?? 0, sub: 'lifetime, before write-offs', color: undefined },
+    { label: 'Stock value', value: summary?.totalValue ?? 0, sub: `${summary?.totalQuantity ?? 0} units on hand`, color: undefined },
+    { label: 'Written off', value: summary?.totalBalancedOut ?? 0, sub: `${records.length} recorded losses`, color: '#EF4444' },
+    { label: 'Net profit', value: summary?.netProfit ?? 0, sub: 'after write-offs', color: '#10B981' },
+  ];
+
+  const ledgerColumns: DataTableColumn<StockLedgerRow>[] = [
+    { key: 'name', header: 'Product', width: '1.6fr', render: (r) => <span className="text-[13.5px] font-semibold">{r.name}</span> },
+    { key: 'qty', header: 'Qty', render: (r) => <Money amount={r.quantity} className="text-[13px]" /> },
+    { key: 'unit', header: 'Unit cost', render: (r) => <Money amount={r.costPrice} className="text-[13px] text-text-secondary" /> },
+    {
+      key: 'value',
+      header: 'Stock value',
+      align: 'right',
+      render: (r) => <Money amount={r.remainingValue} className="text-[13px] font-semibold" />,
+    },
+  ];
+
+  const ledgerFooter = summary ? (
+    <div
+      className="grid gap-3 px-5 py-3.5 bg-tint-a font-bold"
+      style={{ gridTemplateColumns: '1.6fr 1fr 1fr 1fr', minWidth: 620 }}
+    >
+      <span className="text-[13px]">Totals</span>
+      <Money amount={summary.totalQuantity} className="text-[13px]" />
+      <span />
+      <Money amount={summary.totalValue} className="text-[13px] text-right" />
+    </div>
+  ) : undefined;
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col gap-6 w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-brand-900 dark:text-brand-100">
-            Stock Balance Out
-          </h1>
-          <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
+          <h1 className="text-2xl font-extrabold tracking-tight">Stock balance out</h1>
+          <p className="text-text-secondary text-xs mt-1">
             Write off remaining stock value against total profit, recording it as a loss.
           </p>
         </div>
-        <Button onClick={() => setShowModal(true)} variant="primary">
-          Balance Out Stock
-        </Button>
+        <button
+          onClick={() => setShowModal(true)}
+          className="px-4 py-2.5 rounded-xl border-none bg-error-val text-white text-[13.5px] font-bold cursor-pointer hover:brightness-110 transition-all whitespace-nowrap"
+        >
+          Balance out stock
+        </button>
       </div>
 
       {summaryError && (
-        <Card className="p-4 border-error-val bg-error-val/10">
-          <p className="text-sm font-medium text-error-val">
-            Couldn't load the stock/profit summary: {summaryError}
-          </p>
-          <Button variant="outline" className="mt-2" onClick={fetchSummary}>Retry</Button>
-        </Card>
+        <div className="glass-surface rounded-2xl p-4 border border-error-val/30">
+          <p className="text-sm font-medium text-error-val">Couldn't load the stock/profit summary: {summaryError}</p>
+          <PillButton className="mt-2" onClick={fetchSummary}>Retry</PillButton>
+        </div>
       )}
 
-      {/* Financial summary: total profit vs what's been balanced out */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <p className="text-xs uppercase font-medium text-brand-500 dark:text-brand-400">Total Profit</p>
-          <p className="text-xl font-bold text-brand-900 dark:text-brand-100 mt-1">
-            {summaryLoading ? '—' : `₦${(summary?.totalProfit ?? 0).toLocaleString()}`}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs uppercase font-medium text-brand-500 dark:text-brand-400">Total Balanced Out (Loss)</p>
-          <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-1">
-            {summaryLoading ? '—' : `₦${(summary?.totalBalancedOut ?? 0).toLocaleString()}`}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs uppercase font-medium text-brand-500 dark:text-brand-400">Net Profit</p>
-          <p className="text-xl font-bold text-brand-900 dark:text-brand-100 mt-1">
-            {summaryLoading ? '—' : `₦${(summary?.netProfit ?? 0).toLocaleString()}`}
-          </p>
-        </Card>
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        {statCards.map((s) => (
+          <StatCard key={s.label} label={s.label} value={summaryLoading ? '—' : <Money amount={s.value} />} sub={s.sub} valueColor={s.color} />
+        ))}
       </div>
 
-      {/* Stock ledger: every remaining item, its quantity and value, with totals */}
-      <Card className="overflow-hidden">
-        <div className="px-6 pt-5 pb-1">
-          <h3 className="text-lg font-semibold text-brand-900 dark:text-brand-100">Remaining Stock Ledger</h3>
-          <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
-            Every active product's remaining quantity and value, as it stands right now.
-          </p>
-        </div>
-        {summaryLoading ? (
-          <div className="p-12 text-center text-brand-500">
-            <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p>Loading stock ledger...</p>
-          </div>
-        ) : products.length === 0 ? (
-          <div className="p-12 text-center text-brand-500">
-            <p>{summaryError ? 'Unable to load stock ledger.' : 'No active products in stock.'}</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-brand-500 uppercase bg-brand-50 dark:bg-brand-900/20 border-b border-brand-200 dark:border-brand-800">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Product</th>
-                  <th className="px-6 py-4 font-medium text-right">Quantity</th>
-                  <th className="px-6 py-4 font-medium text-right">Cost Price</th>
-                  <th className="px-6 py-4 font-medium text-right">Remaining Value</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-100 dark:divide-brand-800/50">
-                {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-colors">
-                    <td className="px-6 py-4">{p.name}</td>
-                    <td className="px-6 py-4 text-right">{p.quantity.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-right text-brand-600 dark:text-brand-400">₦{p.costPrice.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-right font-medium">₦{p.remainingValue.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-brand-50 dark:bg-brand-900/20 border-t-2 border-brand-200 dark:border-brand-800 font-semibold">
-                <tr>
-                  <td className="px-6 py-4">Total</td>
-                  <td className="px-6 py-4 text-right">{(summary?.totalQuantity ?? 0).toLocaleString()}</td>
-                  <td className="px-6 py-4 text-right">—</td>
-                  <td className="px-6 py-4 text-right">₦{(summary?.totalValue ?? 0).toLocaleString()}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-      </Card>
+      <div>
+        <h2 className="text-[17px] font-bold tracking-tight mb-3">Stock ledger</h2>
+        <DataTable
+          columns={ledgerColumns}
+          rows={products}
+          keyExtractor={(r) => r.id}
+          loading={summaryLoading}
+          emptyMessage={summaryError ? 'Unable to load stock ledger.' : 'No active products in stock.'}
+          minWidth={620}
+          footer={ledgerFooter}
+        />
+      </div>
 
-      <Card className="overflow-hidden">
-        <div className="px-6 pt-5 pb-1">
-          <h3 className="text-lg font-semibold text-brand-900 dark:text-brand-100">Balance-Out History</h3>
-        </div>
-        {historyError && (
-          <div className="mx-6 mb-2 p-3 rounded-lg bg-error-val/10 border border-error-val">
-            <p className="text-sm font-medium text-error-val">{historyError}</p>
-          </div>
-        )}
+      <div>
+        <h2 className="text-[17px] font-bold tracking-tight mb-3">Write-off history</h2>
         {loading ? (
-          <div className="p-12 text-center text-brand-500">
-            <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p>Loading history...</p>
-          </div>
+          <div className="glass-surface rounded-2xl py-14 text-center text-text-secondary text-sm">Loading history...</div>
         ) : records.length === 0 ? (
-          <div className="p-12 text-center text-brand-500">
-            <p>{historyError ? 'Unable to load history.' : 'No stock balance-out records found.'}</p>
-          </div>
+          <div className="glass-surface rounded-2xl py-14 text-center text-text-secondary text-sm">No stock balance-out records found.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-brand-500 uppercase bg-brand-50 dark:bg-brand-900/20 border-b border-brand-200 dark:border-brand-800">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Date</th>
-                  <th className="px-6 py-4 font-medium">Product</th>
-                  <th className="px-6 py-4 font-medium">Note</th>
-                  <th className="px-6 py-4 font-medium text-right">Quantity</th>
-                  <th className="px-6 py-4 font-medium text-right">Amount Balanced Out</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-100 dark:divide-brand-800/50">
-                {records.map((rec) => (
-                  <tr key={rec.id} className="hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-brand-600 dark:text-brand-400">
-                      {new Date(rec.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      {rec.productName || '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      {rec.note || '—'}
-                    </td>
-                    <td className="px-6 py-4 text-right text-brand-600 dark:text-brand-400">
-                      {(rec.quantity ?? 0).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-red-600 dark:text-red-400">
-                      -₦{(rec.amount || 0).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid gap-2.5">
+            {records.map((rec) => (
+              <div
+                key={rec.id}
+                className="flex items-center gap-3.5 px-4.5 py-3.5 rounded-[15px] border"
+                style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.22)' }}
+              >
+                <span className="w-[9px] h-[9px] flex-shrink-0 rounded-full bg-error-val" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13.5px] font-semibold truncate">{rec.note || rec.productName || 'Stock write-off'}</div>
+                  <div className="text-[11.5px] text-text-secondary">
+                    {new Date(rec.createdAt).toLocaleString()} · {rec.productName} · by {rec.createdBy || 'admin'}
+                  </div>
+                </div>
+                <Money amount={-Math.abs(rec.amount || 0)} showSign className="text-sm font-semibold text-error-val flex-shrink-0" />
+              </div>
+            ))}
           </div>
         )}
-      </Card>
+      </div>
 
       {totalPages > 1 && (
-        <div className="flex justify-between items-center">
-          <p className="text-sm text-brand-500">
-            Page {page} of {totalPages} ({total} records)
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
-              Previous
-            </Button>
-            <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
-              Next
-            </Button>
-          </div>
+        <div className="flex justify-center items-center gap-3">
+          <PillButton onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Previous</PillButton>
+          <span className="text-xs font-bold text-text-secondary">Page {page} of {totalPages}</span>
+          <PillButton onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</PillButton>
         </div>
       )}
 
-      {showModal && (
-        <BalanceOutModal
-          summary={summary}
-          submitting={submitting}
-          onCancel={() => setShowModal(false)}
-          onConfirm={handleConfirm}
-        />
-      )}
+      <WriteOffModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        products={products}
+        totalProfit={summary?.netProfit ?? 0}
+        submitting={submitting}
+        onConfirm={handleConfirm}
+      />
     </div>
   );
 }

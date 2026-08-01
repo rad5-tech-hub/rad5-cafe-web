@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { api } from '~/lib/api';
 import { useToast } from '~/context/toast-context';
-import { Card } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Icon } from '../ui/icon';
+import { ActionSheetModal, SheetField, SheetPresets } from '../ui/action-sheet-modal';
+import { PinConfirmModal } from '../ui/pin-confirm-modal';
+
+const presetAmounts = [1000, 2000, 5000, 10000];
 
 interface TransferWalletModalProps {
   isOpen: boolean;
@@ -17,51 +17,68 @@ export const TransferWalletModal: React.FC<TransferWalletModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  onPinNotSet
+  onPinNotSet,
 }) => {
   const { showToast } = useToast();
   const [recipientWalletId, setRecipientWalletId] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [pin, setPin] = useState('');
+  const [awaitingPin, setAwaitingPin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  const numericAmount = parseInt(amount, 10) || 0;
 
-  const handleTransfer = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setRecipientWalletId('');
+    setAmount('');
+    setDescription('');
+    setError(null);
+    setAwaitingPin(false);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmitDetails = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recipientWalletId || !amount || !pin) return;
+    if (!recipientWalletId || !numericAmount) return;
+    setError(null);
+    setAwaitingPin(true);
+  };
 
+  const handleTransfer = async (pin: string) => {
     setLoading(true);
     setError(null);
     try {
       const res = await api.wallet.transfer({
         recipientWalletId,
-        amount: Number(amount),
+        amount: numericAmount,
         description,
-        pin
+        pin,
       });
 
       if (res.success) {
         showToast('Transfer successful!', 'success');
         onSuccess();
-        resetForm();
+        handleClose();
       } else {
         if (res.message && res.message.includes('PIN is not set up')) {
-          onClose();
+          handleClose();
           onPinNotSet();
-          resetForm();
         } else {
+          setAwaitingPin(false);
           setError(res.message || 'Transfer failed.');
         }
       }
     } catch (err: any) {
       if (err.message && err.message.includes('PIN is not set up')) {
-        onClose();
+        handleClose();
         onPinNotSet();
-        resetForm();
       } else {
+        setAwaitingPin(false);
         setError(err.message || 'An error occurred during transfer.');
       }
     } finally {
@@ -69,94 +86,54 @@ export const TransferWalletModal: React.FC<TransferWalletModalProps> = ({
     }
   };
 
-  const resetForm = () => {
-    setRecipientWalletId('');
-    setAmount('');
-    setDescription('');
-    setPin('');
-    setError(null);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="absolute inset-0" onClick={() => { resetForm(); onClose(); }} />
-      <Card
-        padded={true}
-        className="relative bg-card border border-border w-full max-w-sm rounded-2xl flex flex-col gap-5 shadow-2xl animate-scale-up"
-        style={{ borderRadius: 'var(--radius-xl)' }}
+    <>
+      <ActionSheetModal
+        isOpen={isOpen && !awaitingPin}
+        onClose={handleClose}
+        title="Transfer to another user"
+        subtitle="Send wallet balance to any RAD5 Café account. Confirmed with your PIN."
+        onSubmit={handleSubmitDetails}
+        submitLabel="Continue"
+        submitDisabled={!recipientWalletId || !numericAmount}
+        error={error}
       >
-        <div className="flex justify-between items-center pb-3 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-tint/10 flex items-center justify-center text-tint">
-              <Icon name="arrow-up" size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-text-main leading-tight">Send Funds</h3>
-              <p className="text-xs text-text-secondary font-medium">Wallet to Wallet Transfer</p>
-            </div>
-          </div>
-          <button
-            onClick={() => { resetForm(); onClose(); }}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-element hover:bg-bg-selected text-text-secondary transition-colors cursor-pointer"
-          >
-            <Icon name="x" size={16} />
-          </button>
-        </div>
+        <SheetField
+          label="Recipient wallet ID"
+          value={recipientWalletId}
+          onChange={(v) => setRecipientWalletId(v.toUpperCase())}
+          placeholder="e.g. WLT-JOHN"
+          autoFocus
+          required
+        />
+        <SheetField
+          label="Amount (NGN)"
+          value={amount}
+          onChange={setAmount}
+          type="number"
+          inputMode="numeric"
+          mono
+          placeholder="Min. ₦100"
+          required
+        />
+        <SheetPresets values={presetAmounts} active={numericAmount} onPick={(v) => setAmount(String(v))} />
+        <SheetField
+          label="Description (optional)"
+          value={description}
+          onChange={setDescription}
+          placeholder="e.g. Lunch"
+        />
+      </ActionSheetModal>
 
-        <form onSubmit={handleTransfer} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4">
-            <Input
-              label="Recipient Wallet ID"
-              placeholder="e.g. WLT-JOHN"
-              value={recipientWalletId}
-              onChange={(e) => setRecipientWalletId(e.target.value.toUpperCase())}
-              required
-            />
-            <Input
-              label="Amount (₦)"
-              type="number"
-              min="100"
-              placeholder="Min. ₦100"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-            <Input
-              label="Description (Optional)"
-              placeholder="e.g. Lunch"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-            <Input
-              label="Transaction PIN"
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              placeholder="4-digit PIN"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              required
-            />
-          </div>
-
-          {error && (
-            <div className="text-xs text-error-val bg-error-val/10 px-3 py-2 rounded-lg font-medium">
-              {error}
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            fullWidth={true}
-            disabled={loading || !recipientWalletId || !amount || pin.length !== 4}
-            className="mt-2"
-          >
-            {loading ? 'Processing...' : 'Send Funds'}
-          </Button>
-        </form>
-      </Card>
-    </div>
+      <PinConfirmModal
+        isOpen={isOpen && awaitingPin}
+        onClose={() => setAwaitingPin(false)}
+        onConfirm={handleTransfer}
+        title={`Send to ${recipientWalletId || 'recipient'}`}
+        amount={numericAmount}
+        loading={loading}
+        error={error}
+      />
+    </>
   );
 };

@@ -2,15 +2,18 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '~/lib/api';
 import { useToast } from '~/context/toast-context';
 import { useConfirm } from '~/context/confirm-context';
-import { Button } from '~/components/ui/button';
 import { Icon } from '~/components/ui/icon';
+import { IconButton } from '~/components/ui/icon-button';
 import { Select } from '~/components/ui/select';
+import { Money } from '~/components/ui/money';
+import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
+import { ActionSheetModal } from '~/components/ui/action-sheet-modal';
 import type { LimboOrder, User } from './types';
 
-export function CashOrdersList({ 
-  onNewCashOrder, 
-  onViewHistory 
-}: { 
+export function CashOrdersList({
+  onNewCashOrder,
+  onViewHistory
+}: {
   onNewCashOrder: () => void;
   onViewHistory: () => void;
 }) {
@@ -20,8 +23,7 @@ export function CashOrdersList({
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [reconcilingId, setReconcilingId] = useState<string | null>(null);
-  
-  // Modal state
+
   const [selectedOrdersForReconciliation, setSelectedOrdersForReconciliation] = useState<LimboOrder[]>([]);
   const [selectedOrdersForDeletion, setSelectedOrdersForDeletion] = useState<LimboOrder[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
@@ -36,7 +38,7 @@ export function CashOrdersList({
         api.adminDashboard.orders.limbo(1, 100),
         api.admin.users.list(1, 1000)
       ]);
-      
+
       if (ordersRes.success && ordersRes.orders) {
         setOrders(ordersRes.orders);
       } else {
@@ -47,7 +49,7 @@ export function CashOrdersList({
         setUsers(usersRes.data);
       }
     } catch (err) {
-      showToast('Failed to load data', 'error');
+      showToast({ type: 'error', title: 'Failed to load data' });
     } finally {
       setLoading(false);
     }
@@ -57,9 +59,10 @@ export function CashOrdersList({
     fetchData();
   }, [fetchData]);
 
-  const handleReconcile = async () => {
+  const handleReconcile = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (selectedOrdersForReconciliation.length === 0 || !selectedUserId) {
-      showToast('Please select a user to map these orders to.', 'warning');
+      showToast({ type: 'warning', title: 'Please select a user to map these orders to.' });
       return;
     }
 
@@ -67,11 +70,10 @@ export function CashOrdersList({
     if (!user) return;
 
     const confirmed = await showConfirm({
-      title: 'Confirm Reconciliation',
+      title: 'Confirm reconciliation',
       message: `Are you sure you want to map ${selectedOrdersForReconciliation.length === 1 ? `order ${selectedOrdersForReconciliation[0].receiptNumber}` : `${selectedOrdersForReconciliation.length} orders`} to ${user.fullName} (${user.email})?`,
       confirmLabel: 'Reconcile',
     });
-
     if (!confirmed) return;
 
     setReconcilingId('processing');
@@ -80,42 +82,39 @@ export function CashOrdersList({
       let errorCount = 0;
       for (const order of selectedOrdersForReconciliation) {
         const res = await api.adminDashboard.orders.reconcile(order.id, selectedUserId);
-        if (res.success) {
-          successCount++;
-        } else {
-          errorCount++;
-        }
+        if (res.success) successCount++; else errorCount++;
       }
-      
+
       if (errorCount === 0) {
-         showToast(`${successCount} order(s) reconciled successfully`, 'success');
+        showToast({ type: 'success', title: `${successCount} order(s) reconciled successfully` });
       } else {
-         showToast(`${successCount} reconciled, ${errorCount} failed`, 'warning');
+        showToast({ type: 'warning', title: `${successCount} reconciled, ${errorCount} failed` });
       }
-      
+
       setSelectedOrdersForReconciliation([]);
       setSelectedUserId('');
       setCheckedOrderIds([]);
-      fetchData(); // Refresh the list
+      fetchData();
     } catch (err: any) {
-      showToast(err.message || 'An error occurred during reconciliation', 'error');
+      showToast({ type: 'error', title: 'Reconciliation error', message: err.message });
     } finally {
       setReconcilingId(null);
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (selectedOrdersForDeletion.length === 0 || !deleteReason || !deletePin) {
-      showToast('Please provide a reason and your PIN.', 'warning');
+      showToast({ type: 'warning', title: 'Please provide a reason and your PIN.' });
       return;
     }
 
     const confirmed = await showConfirm({
-      title: 'Confirm Deletion',
+      title: 'Confirm deletion',
       message: `Are you sure you want to delete ${selectedOrdersForDeletion.length === 1 ? `order ${selectedOrdersForDeletion[0].receiptNumber}` : `${selectedOrdersForDeletion.length} orders`}? This action cannot be undone.`,
       confirmLabel: 'Delete',
+      variant: 'danger',
     });
-
     if (!confirmed) return;
 
     setReconcilingId('processing');
@@ -124,26 +123,22 @@ export function CashOrdersList({
       let errorCount = 0;
       for (const order of selectedOrdersForDeletion) {
         const res = await api.adminDashboard.orders.delete(order.id, { reason: deleteReason, pin: deletePin });
-        if (res.success) {
-          successCount++;
-        } else {
-          errorCount++;
-        }
+        if (res.success) successCount++; else errorCount++;
       }
-      
+
       if (errorCount === 0) {
-         showToast(`${successCount} order(s) deleted successfully`, 'success');
+        showToast({ type: 'success', title: `${successCount} order(s) deleted successfully` });
       } else {
-         showToast(`${successCount} deleted, ${errorCount} failed`, 'warning');
+        showToast({ type: 'warning', title: `${successCount} deleted, ${errorCount} failed` });
       }
-      
+
       setSelectedOrdersForDeletion([]);
       setDeleteReason('');
       setDeletePin('');
       setCheckedOrderIds([]);
-      fetchData(); // Refresh the list
+      fetchData();
     } catch (err: any) {
-      showToast(err.message || 'An error occurred during deletion', 'error');
+      showToast({ type: 'error', title: 'Deletion error', message: err.message });
     } finally {
       setReconcilingId(null);
     }
@@ -156,339 +151,184 @@ export function CashOrdersList({
     return 'Unknown date';
   };
 
+  const toggleOrder = (id: string) => {
+    setCheckedOrderIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
+
+  const columns: DataTableColumn<LimboOrder>[] = [
+    {
+      key: 'select', header: '', width: '0.4fr',
+      render: (o) => (
+        <input
+          type="checkbox"
+          checked={checkedOrderIds.includes(o.id)}
+          onChange={() => toggleOrder(o.id)}
+          className="accent-tint w-4 h-4 cursor-pointer"
+        />
+      ),
+    },
+    {
+      key: 'receipt', header: 'Order', width: '1.3fr',
+      render: (o) => (
+        <div>
+          <div className="text-[13px] font-bold">{o.receiptNumber}</div>
+          <div className="text-[11px] text-text-secondary">{formatDate(o.createdAt)}</div>
+        </div>
+      ),
+    },
+    { key: 'customer', header: 'Customer', render: (o) => <span className="text-[12.5px]">{o.customerName || 'Walk-in customer'}</span> },
+    { key: 'enteredBy', header: 'Entered by', render: (o) => <span className="text-[12.5px] text-text-secondary">{o.userName || 'Unknown'}</span> },
+    {
+      key: 'items', header: 'Products', width: '1.6fr',
+      render: (o) => (
+        <div className="flex flex-col gap-0.5">
+          {o.items && o.items.length > 0 ? o.items.map((item: any, idx: number) => (
+            <span key={idx} className="text-[11.5px] text-text-secondary truncate" title={item.productName || item.name}>
+              {item.quantity}x {item.productName || item.name || 'Product'}
+            </span>
+          )) : <span className="text-[11.5px] text-text-secondary">No items</span>}
+        </div>
+      ),
+    },
+    { key: 'total', header: 'Total', align: 'right', render: (o) => <Money amount={o.total ?? 0} className="text-[13px] font-bold text-tint" /> },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-text-main">Cash Orders</h2>
-          <p className="text-sm text-text-secondary mt-1">
-            Review cash orders in limbo and reconcile them with registered user accounts.
-          </p>
+          <h1 className="text-2xl font-extrabold tracking-tight">Cash orders</h1>
+          <p className="text-text-secondary text-xs mt-1">Review cash orders in limbo and reconcile them with registered user accounts.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
-          <Button variant="outline" onClick={fetchData} disabled={loading} title="Refresh" className="w-10 h-10 p-0 flex-shrink-0">
-            <Icon name="sync" size={16} className={loading ? 'animate-spin' : ''} />
-          </Button>
-          <Button 
-            variant="outline" 
+        <div className="flex flex-wrap items-center gap-2">
+          <IconButton icon="sync" title="Refresh" onClick={fetchData} disabled={loading} iconSize={15} className={loading ? '[&_svg]:animate-spin' : ''} />
+          <button
             onClick={() => {
-              if (checkedOrderIds.length === 0) {
-                showToast('Please select at least one order to reconcile.', 'warning');
-                return;
-              }
-              const selected = orders.filter(o => checkedOrderIds.includes(o.id));
-              setSelectedOrdersForReconciliation(selected);
+              if (checkedOrderIds.length === 0) { showToast({ type: 'warning', title: 'Please select at least one order to reconcile.' }); return; }
+              setSelectedOrdersForReconciliation(orders.filter(o => checkedOrderIds.includes(o.id)));
             }}
-            className="flex-1 md:flex-none"
+            className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5"
           >
-            <Icon name="check" size={16} className="mr-2 hidden sm:inline" />
+            <Icon name="check" size={14} />
             Reconcile
-          </Button>
-          <Button 
-            variant="outline" 
+          </button>
+          <button
             onClick={() => {
-              if (checkedOrderIds.length === 0) {
-                showToast('Please select at least one order to delete.', 'warning');
-                return;
-              }
-              const selected = orders.filter(o => checkedOrderIds.includes(o.id));
-              setSelectedOrdersForDeletion(selected);
+              if (checkedOrderIds.length === 0) { showToast({ type: 'warning', title: 'Please select at least one order to delete.' }); return; }
+              setSelectedOrdersForDeletion(orders.filter(o => checkedOrderIds.includes(o.id)));
             }}
-            className="flex-1 md:flex-none text-red-500 border-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+            className="px-3.5 py-2.5 rounded-xl border border-error-val/30 bg-card text-xs font-bold text-error-val cursor-pointer hover:bg-error-val/10 transition-colors flex items-center gap-1.5"
           >
-            <Icon name="trash" size={16} className="mr-2 hidden sm:inline" />
+            <Icon name="trash" size={14} />
             Delete
-          </Button>
-          <Button variant="outline" onClick={onViewHistory} className="flex-1 md:flex-none">
-            <Icon name="clock" size={16} className="mr-2 hidden sm:inline" />
+          </button>
+          <button onClick={onViewHistory} className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5">
+            <Icon name="clock" size={14} />
             History
-          </Button>
-          <Button variant="primary" onClick={onNewCashOrder} className="w-full md:w-auto mt-2 md:mt-0">
-            <Icon name="plus" size={16} className="mr-2" />
-            New Cash Order
-          </Button>
+          </button>
+          <button onClick={onNewCashOrder} className="px-4 py-2.5 rounded-xl border-none bg-tint-dark text-white text-xs font-bold cursor-pointer hover:bg-tint transition-colors flex items-center gap-1.5">
+            <Icon name="plus" size={14} />
+            New cash order
+          </button>
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-bg-element text-text-secondary font-semibold uppercase text-[10px] tracking-wider border-b border-border">
-              <tr>
-                <th className="px-4 py-3 w-10 text-center">
-                  <input
-                    type="checkbox"
-                    className="accent-tint w-4 h-4 cursor-pointer"
-                    checked={orders.length > 0 && checkedOrderIds.length === orders.length}
-                    onChange={(e) => {
-                      if (e.target.checked) setCheckedOrderIds(orders.map(o => o.id));
-                      else setCheckedOrderIds([]);
-                    }}
-                  />
-                </th>
-                <th className="px-4 py-3">Receipt</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Customer Name</th>
-                <th className="px-4 py-3">Entered By</th>
-                <th className="px-4 py-3">Products</th>
-                <th className="px-4 py-3 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {loading && orders.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-10 text-text-secondary">
-                    Loading orders...
-                  </td>
-                </tr>
-              ) : orders.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-10 text-text-secondary">
-                    No limbo orders found. All caught up!
-                  </td>
-                </tr>
-              ) : (
-                orders.map((order) => (
-                  <tr 
-                    key={order.id} 
-                    className={`transition-colors cursor-pointer ${checkedOrderIds.includes(order.id) ? 'bg-tint/10' : 'hover:bg-bg-element/50'}`}
-                    onClick={() => {
-                      if (checkedOrderIds.includes(order.id)) {
-                        setCheckedOrderIds(checkedOrderIds.filter(id => id !== order.id));
-                      } else {
-                        setCheckedOrderIds([...checkedOrderIds, order.id]);
-                      }
-                    }}
-                  >
-                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                      <input 
-                        type="checkbox" 
-                        checked={checkedOrderIds.includes(order.id)} 
-                        onChange={(e) => {
-                          if (e.target.checked) setCheckedOrderIds([...checkedOrderIds, order.id]);
-                          else setCheckedOrderIds(checkedOrderIds.filter(id => id !== order.id));
-                        }} 
-                        className="accent-tint w-4 h-4 cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-medium text-text-main">
-                      {order.receiptNumber}
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary">
-                      {formatDate(order.createdAt)}
-                    </td>
-                    <td className="px-4 py-3 text-text-main">
-                      {order.customerName || 'Walk-in Customer'}
-                    </td>
-                    <td className="px-4 py-3 text-text-main">
-                      {order.userName || 'Unknown'}
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary text-xs">
-                      {order.items && order.items.length > 0 ? (
-                        <div className="flex flex-col gap-0.5">
-                          {order.items.map((item: any, idx: number) => (
-                            <span key={idx} className="line-clamp-1" title={item.productName || item.name}>
-                              {item.quantity}x {item.productName || item.name || 'Product'}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span>No items</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-tint">
-                      ₦{order.total?.toLocaleString() ?? 0}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <DataTable
+        columns={columns}
+        rows={orders}
+        keyExtractor={(o) => o.id}
+        loading={loading && orders.length === 0}
+        emptyMessage="No limbo orders found. All caught up!"
+        minWidth={820}
+      />
+
+      <ActionSheetModal
+        isOpen={selectedOrdersForReconciliation.length > 0}
+        onClose={() => setSelectedOrdersForReconciliation([])}
+        title={`Reconcile ${selectedOrdersForReconciliation.length > 1 ? 'orders' : 'order'}`}
+        onSubmit={handleReconcile}
+        submitLabel="Confirm reconciliation"
+        submitDisabled={!selectedUserId || reconcilingId === 'processing'}
+        loading={reconcilingId === 'processing'}
+      >
+        <div className="bg-tint-a p-4 rounded-xl mb-1">
+          {selectedOrdersForReconciliation.length === 1 ? (
+            <>
+              <div className="flex justify-between mb-2"><span className="text-sm text-text-secondary">Receipt</span><span className="text-sm font-bold">{selectedOrdersForReconciliation[0]?.receiptNumber}</span></div>
+              <div className="flex justify-between mb-2"><span className="text-sm text-text-secondary">Walk-in name</span><span className="text-sm font-bold">{selectedOrdersForReconciliation[0]?.customerName}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-text-secondary">Order total</span><Money amount={selectedOrdersForReconciliation[0]?.total ?? 0} className="text-sm font-extrabold text-tint" /></div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between mb-2"><span className="text-sm text-text-secondary">Selected orders</span><span className="text-sm font-bold">{selectedOrdersForReconciliation.length}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-text-secondary">Total amount</span><Money amount={selectedOrdersForReconciliation.reduce((sum, o) => sum + (o.total || 0), 0)} className="text-sm font-extrabold text-tint" /></div>
+            </>
+          )}
         </div>
-      </div>
 
-      {/* Reconciliation Modal */}
-      {selectedOrdersForReconciliation.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-slide-up border border-border">
-            <div className="p-6 border-b border-border flex justify-between items-center">
-              <h3 className="font-extrabold text-lg text-text-main">Reconcile {selectedOrdersForReconciliation.length > 1 ? 'Orders' : 'Order'}</h3>
-              <button
-                onClick={() => setSelectedOrdersForReconciliation([])}
-                className="p-2 text-text-secondary hover:bg-bg-selected rounded-full transition-colors"
-              >
-                <Icon name="x" size={20} />
-              </button>
-            </div>
-            <div className="p-6 flex flex-col gap-4">
-              <div className="bg-bg-element p-4 rounded-xl border border-border">
-                {selectedOrdersForReconciliation.length === 1 ? (
-                  <>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm text-text-secondary">Receipt</span>
-                      <span className="text-sm font-bold text-text-main">{selectedOrdersForReconciliation[0].receiptNumber}</span>
-                    </div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm text-text-secondary">Walk-in Name</span>
-                      <span className="text-sm font-bold text-text-main">{selectedOrdersForReconciliation[0].customerName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-text-secondary">Order Total</span>
-                      <span className="text-sm font-extrabold text-tint">₦{selectedOrdersForReconciliation[0].total?.toLocaleString() ?? 0}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm text-text-secondary">Selected Orders</span>
-                      <span className="text-sm font-bold text-text-main">{selectedOrdersForReconciliation.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-text-secondary">Total Amount</span>
-                      <span className="text-sm font-extrabold text-tint">
-                        ₦{selectedOrdersForReconciliation.reduce((sum, o) => sum + (o.total || 0), 0).toLocaleString()}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                  Select Registered User
-                </label>
-                <Select
-                  value={selectedUserId}
-                  onChange={(val) => setSelectedUserId(val)}
-                  placeholder="Choose a user to credit..."
-                  options={users.map(u => ({
-                    label: `${u.fullName} (${u.email})`,
-                    value: u.id
-                  }))}
-                  className="w-full"
-                />
-                <p className="text-[11px] text-text-secondary mt-1">
-                  The order amount will be added to the system and deducted from their wallet.
-                </p>
-              </div>
-            </div>
-            <div className="p-6 bg-bg-element/50 border-t border-border flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setSelectedOrdersForReconciliation([])}>
-                Cancel
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={handleReconcile}
-                disabled={!selectedUserId || reconcilingId === 'processing'}
-              >
-                Confirm Reconciliation
-              </Button>
-            </div>
-          </div>
+        <div className="mt-3.5">
+          <label className="block text-[12.5px] font-semibold text-text-secondary mb-1.5">Select registered user</label>
+          <Select
+            value={selectedUserId}
+            onChange={(val) => setSelectedUserId(val)}
+            placeholder="Choose a user to credit..."
+            options={users.map(u => ({ label: `${u.fullName} (${u.email})`, value: u.id }))}
+            className="w-full"
+          />
+          <p className="text-[11px] text-text-secondary mt-1.5">The order amount will be added to the system and deducted from their wallet.</p>
         </div>
-      )}
+      </ActionSheetModal>
 
-      {/* Deletion Modal */}
-      {selectedOrdersForDeletion.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-slide-up border border-border">
-            <div className="p-6 border-b border-border flex justify-between items-center">
-              <h3 className="font-extrabold text-lg text-text-main">Delete {selectedOrdersForDeletion.length > 1 ? 'Orders' : 'Order'}</h3>
-              <button
-                onClick={() => {
-                  setSelectedOrdersForDeletion([]);
-                  setDeleteReason('');
-                  setDeletePin('');
-                }}
-                className="p-2 text-text-secondary hover:bg-bg-selected rounded-full transition-colors"
-              >
-                <Icon name="x" size={20} />
-              </button>
-            </div>
-            <div className="p-6 flex flex-col gap-4">
-              <div className="bg-bg-element p-4 rounded-xl border border-border">
-                {selectedOrdersForDeletion.length === 1 ? (
-                  <>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm text-text-secondary">Receipt</span>
-                      <span className="text-sm font-bold text-text-main">{selectedOrdersForDeletion[0].receiptNumber}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-text-secondary">Order Total</span>
-                      <span className="text-sm font-extrabold text-tint">₦{selectedOrdersForDeletion[0].total?.toLocaleString() ?? 0}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm text-text-secondary">Selected Orders</span>
-                      <span className="text-sm font-bold text-text-main">{selectedOrdersForDeletion.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-text-secondary">Total Amount</span>
-                      <span className="text-sm font-extrabold text-tint">
-                        ₦{selectedOrdersForDeletion.reduce((sum, o) => sum + (o.total || 0), 0).toLocaleString()}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                  Reason for Deletion
-                </label>
-                <input
-                  type="text"
-                  value={deleteReason}
-                  onChange={(e) => setDeleteReason(e.target.value)}
-                  placeholder="E.g. Duplicate order, mistake..."
-                  autoComplete="off"
-                  className="w-full bg-bg-main border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-tint transition-colors text-text-main placeholder:text-text-secondary/50"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                  Admin PIN
-                </label>
-                <input
-                  type="password"
-                  value={deletePin}
-                  onChange={(e) => setDeletePin(e.target.value)}
-                  placeholder="Enter 4-digit PIN"
-                  maxLength={4}
-                  autoComplete="new-password"
-                  className="w-full bg-bg-main border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-tint transition-colors text-text-main placeholder:text-text-secondary/50"
-                />
-                <p className="text-[11px] text-text-secondary mt-1">
-                  This action is permanent. The order will be marked as cancelled.
-                </p>
-              </div>
-            </div>
-            <div className="p-6 bg-bg-element/50 border-t border-border flex justify-end gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSelectedOrdersForDeletion([]);
-                  setDeleteReason('');
-                  setDeletePin('');
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={handleDelete}
-                disabled={!deleteReason || !deletePin || reconcilingId === 'processing'}
-                className="bg-red-500 hover:bg-red-600 text-white border-transparent"
-              >
-                Confirm Deletion
-              </Button>
-            </div>
-          </div>
+      <ActionSheetModal
+        isOpen={selectedOrdersForDeletion.length > 0}
+        onClose={() => { setSelectedOrdersForDeletion([]); setDeleteReason(''); setDeletePin(''); }}
+        title={`Delete ${selectedOrdersForDeletion.length > 1 ? 'orders' : 'order'}`}
+        onSubmit={handleDelete}
+        submitLabel="Confirm deletion"
+        submitVariant="danger"
+        submitDisabled={!deleteReason || !deletePin || reconcilingId === 'processing'}
+        loading={reconcilingId === 'processing'}
+      >
+        <div className="bg-tint-a p-4 rounded-xl mb-1">
+          {selectedOrdersForDeletion.length === 1 ? (
+            <>
+              <div className="flex justify-between mb-2"><span className="text-sm text-text-secondary">Receipt</span><span className="text-sm font-bold">{selectedOrdersForDeletion[0]?.receiptNumber}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-text-secondary">Order total</span><Money amount={selectedOrdersForDeletion[0]?.total ?? 0} className="text-sm font-extrabold text-tint" /></div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between mb-2"><span className="text-sm text-text-secondary">Selected orders</span><span className="text-sm font-bold">{selectedOrdersForDeletion.length}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-text-secondary">Total amount</span><Money amount={selectedOrdersForDeletion.reduce((sum, o) => sum + (o.total || 0), 0)} className="text-sm font-extrabold text-tint" /></div>
+            </>
+          )}
         </div>
-      )}
+
+        <div className="mt-3.5">
+          <label className="block text-[12.5px] font-semibold text-text-secondary mb-1.5">Reason for deletion</label>
+          <input
+            type="text"
+            value={deleteReason}
+            onChange={(e) => setDeleteReason(e.target.value)}
+            placeholder="E.g. Duplicate order, mistake..."
+            autoComplete="off"
+            className="w-full px-3.5 py-3 rounded-[11px] border border-border bg-card text-[15px] outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)]"
+          />
+        </div>
+
+        <div className="mt-3.5">
+          <label className="block text-[12.5px] font-semibold text-text-secondary mb-1.5">Admin PIN</label>
+          <input
+            type="password"
+            value={deletePin}
+            onChange={(e) => setDeletePin(e.target.value.replace(/\D/g, ''))}
+            placeholder="Enter 4-digit PIN"
+            maxLength={4}
+            autoComplete="new-password"
+            className="w-full px-3.5 py-3 rounded-[11px] border border-border bg-card text-[15px] font-money outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)]"
+          />
+          <p className="text-[11px] text-text-secondary mt-1.5">This action is permanent. The order will be marked as cancelled.</p>
+        </div>
+      </ActionSheetModal>
     </div>
   );
 }

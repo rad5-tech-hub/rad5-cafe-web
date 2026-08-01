@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '~/lib/api';
-import { Card } from '~/components/ui/card';
-import { Badge } from '~/components/ui/badge';
-import { Button } from '~/components/ui/button';
+import { PillButton } from '~/components/ui/pill-button';
+import { Money } from '~/components/ui/money';
 import { Icon } from '~/components/ui/icon';
+import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
 
 type RewardTransaction = {
   id: string;
@@ -24,7 +24,6 @@ export default function AdminRewards() {
   const [rewardsList, setRewardsList] = useState<RewardTransaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 50;
 
@@ -51,8 +50,8 @@ export default function AdminRewards() {
             createdAt: parseDate(tx.createdAt),
           }));
           setRewardsList(normalized);
-          setTotal(res.total ?? normalized.length);
-          setTotalPages(res.totalPages ?? Math.ceil((res.total ?? normalized.length) / limit));
+          const total = res.total ?? normalized.length;
+          setTotalPages(res.totalPages ?? Math.ceil(total / limit));
         } else {
           setRewardsList([]);
         }
@@ -65,102 +64,68 @@ export default function AdminRewards() {
     fetchRewards(page);
   }, [page]);
 
-  return (
-    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto pb-12 animate-in fade-in zoom-in-95 duration-300">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-extrabold text-text-main tracking-tight">Rewards Given</h1>
-          <p className="text-sm font-medium text-text-secondary">
-            Audit log of all referral and cashback rewards.
-          </p>
-        </div>
-      </div>
-
-      <Card className="flex flex-col overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
-            <thead>
-              <tr className="border-b border-border bg-bg-main/40">
-                <th className="p-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Date & Time</th>
-                <th className="p-4 text-xs font-bold text-text-secondary uppercase tracking-wider">User ID</th>
-                <th className="p-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Description</th>
-                <th className="p-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {loading && rewardsList.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="p-8 text-center text-text-secondary">
-                    <Icon name="loading" size={24} className="animate-spin mx-auto mb-2 text-tint" />
-                    Loading rewards...
-                  </td>
-                </tr>
-              ) : rewardsList.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="p-12 text-center flex flex-col items-center justify-center gap-2">
-                    <Icon name="star-outline" size={48} className="text-text-secondary opacity-50" />
-                    <span className="text-text-secondary font-medium mt-2">No rewards found.</span>
-                  </td>
-                </tr>
-              ) : (
-                rewardsList.map((tx) => {
-                  const txDate = new Date(tx.createdAt);
-                  return (
-                    <tr key={tx.id} className="hover:bg-bg-selected/20 transition-colors group">
-                      <td className="p-4 text-sm font-medium text-text-main whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-success/15 flex items-center justify-center">
-                            <Icon name="star-circle" size={16} className="text-success" />
-                          </div>
-                          <div>
-                            <div>{txDate.toLocaleDateString()}</div>
-                            <div className="text-xs text-text-secondary">{txDate.toLocaleTimeString()}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm font-mono text-text-secondary">
-                        {tx.userId}
-                      </td>
-                      <td className="p-4 text-sm font-medium text-text-main">
-                        {tx.description}
-                      </td>
-                      <td className="p-4 text-sm font-extrabold text-success text-right whitespace-nowrap tabular-nums">
-                        +₦{tx.amount.toLocaleString()}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between p-4 border-t border-border bg-bg-main/30">
-            <span className="text-sm font-medium text-text-secondary">
-              Showing page {page} of {totalPages}
+  const columns: DataTableColumn<RewardTransaction>[] = [
+    {
+      key: 'when',
+      header: 'Date & time',
+      width: '1.2fr',
+      render: (tx) => {
+        const d = new Date(tx.createdAt);
+        return (
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 flex-shrink-0 rounded-full grid place-items-center bg-tint-a text-tint">
+              <Icon name="star-circle" size={15} />
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1 || loading}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages || loading}
-              >
-                Next
-              </Button>
+            <div>
+              <div className="text-[13px] font-semibold">{d.toLocaleDateString()}</div>
+              <div className="text-[11px] text-text-secondary">{d.toLocaleTimeString()}</div>
             </div>
           </div>
-        )}
-      </Card>
+        );
+      },
+    },
+    {
+      key: 'user',
+      header: 'User ID',
+      render: (tx) => <span className="font-money text-xs text-text-secondary truncate block">{tx.userId}</span>,
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      width: '1.6fr',
+      render: (tx) => <span className="text-[13.5px] font-medium truncate block">{tx.description}</span>,
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      align: 'right',
+      render: (tx) => <Money amount={tx.amount} showSign className="text-sm font-bold text-ok" />,
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-5 w-full">
+      <div>
+        <h1 className="text-2xl font-extrabold tracking-tight">Rewards given</h1>
+        <p className="text-text-secondary text-xs mt-1">Audit log of all referral and cashback rewards issued to customers.</p>
+      </div>
+
+      <DataTable
+        columns={columns}
+        rows={rewardsList}
+        keyExtractor={(tx) => tx.id}
+        loading={loading}
+        emptyMessage="No rewards found."
+        minWidth={620}
+      />
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3">
+          <PillButton onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || loading}>Previous</PillButton>
+          <span className="text-xs font-bold text-text-secondary">Page {page} of {totalPages}</span>
+          <PillButton onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages || loading}>Next</PillButton>
+        </div>
+      )}
     </div>
   );
 }

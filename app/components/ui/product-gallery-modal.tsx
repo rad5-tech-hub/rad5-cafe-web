@@ -1,31 +1,34 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icon } from './icon';
+import { Money } from './money';
 import { useCart } from '~/context/cart-context';
 
-type CartItem = {
+type GalleryProduct = {
   id: string;
   name: string;
+  category?: string;
   price: number;
   image: string;
+  inStock?: boolean;
 };
 
 type ProductGalleryModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  items: CartItem[];
+  items: GalleryProduct[];
   initialIndex?: number;
-  onAddToCart?: (item: CartItem) => void;
+  onAddToCart?: (item: GalleryProduct) => void;
 };
 
-export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
-  isOpen,
-  onClose,
-  items,
-  initialIndex = 0,
-}) => {
-  const { cart, addToCart, removeFromCart, getItemQuantity, cartCount, cartTotal, setIsCartOpen } = useCart();
+/**
+ * ProductGalleryModal — full-screen product viewer/lightbox. Prev/next
+ * navigation through the currently-filtered product list, a qty stepper,
+ * an add-to-cart/view-cart CTA and dot pagination — the glass "viewer" overlay.
+ */
+export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({ isOpen, onClose, items, initialIndex = 0 }) => {
+  const { addToCart, removeFromCart, getItemQuantity, cartCount, setIsCartOpen } = useCart();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -40,160 +43,165 @@ export const ProductGalleryModal: React.FC<ProductGalleryModalProps> = ({
   }, [isOpen, initialIndex]);
 
   useEffect(() => {
-    if (scrollRef.current && isOpen) {
-      const activeThumbnail = scrollRef.current.children[currentIndex] as HTMLElement;
-      if (activeThumbnail) {
-        activeThumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      }
-    }
-  }, [currentIndex, isOpen]);
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') goPrev();
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, items.length]);
 
   if (!isOpen || items.length === 0) return null;
 
   const currentItem = items[currentIndex];
+  const quantity = getItemQuantity(currentItem.id);
+  const inStock = currentItem.inStock !== false;
 
-  const goNext = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentIndex((prev) => (prev === items.length - 1 ? 0 : prev + 1));
-  };
+  const goNext = () => setCurrentIndex((prev) => (prev === items.length - 1 ? 0 : prev + 1));
+  const goPrev = () => setCurrentIndex((prev) => (prev - 1 + items.length) % items.length);
 
-  const goPrev = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentIndex((prev) => (prev - 1 + items.length) % items.length);
-  };
-
-  const handleAdd = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    addToCart(currentItem);
-    
-    // Optional: visual feedback
-    const btn = e.currentTarget as HTMLButtonElement;
-    btn.style.transform = 'scale(0.9)';
-    setTimeout(() => {
-      btn.style.transform = 'scale(1)';
-    }, 150);
+  const handleTouchStart = (e: React.TouchEvent) => setTouchStartX(e.touches[0].clientX);
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX == null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) (dx > 0 ? goPrev() : goNext());
+    setTouchStartX(null);
   };
 
   return (
-    <div 
-      className="fixed inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="fixed inset-0 z-[65] flex flex-col animate-rad5-in"
+      style={{ background: 'var(--viewer-bg)', backdropFilter: 'blur(20px) saturate(150%)' }}
     >
-      {/* Top Header / Close Button */}
-      <div className="absolute top-0 w-full flex justify-between items-center p-4 z-10 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
-        <div className="flex items-center gap-2 pointer-events-auto">
-          <div className="text-white text-sm font-semibold bg-black/40 px-3 py-1.5 rounded-full border border-white/10 shadow-sm backdrop-blur-md">
-            {currentIndex + 1} / {items.length}
-          </div>
-          {cartCount > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-                setIsCartOpen(true);
-              }}
-              className="text-white text-sm font-bold bg-tint px-3 py-1.5 rounded-full border border-tint/25 shadow-lg flex items-center gap-1.5 animate-pulse-slow cursor-pointer hover:bg-tint-dark active:scale-95 transition-all"
-            >
-              <Icon name="shopping-cart" size={14} />
-              <span>{cartCount} in cart (₦{cartTotal.toLocaleString()})</span>
-            </button>
-          )}
-        </div>
-        <button 
+      <div className="flex items-center gap-3 px-4.5 py-4">
+        <span className="font-money text-xs text-text-secondary">
+          {currentIndex + 1} / {items.length}
+        </span>
+        <span className="text-xs text-text-secondary hidden sm:inline">Use arrow keys or swipe to browse</span>
+        {cartCount > 0 && (
+          <button
+            onClick={() => {
+              onClose();
+              setIsCartOpen(true);
+            }}
+            className="ml-2 px-3 py-1.5 rounded-full bg-tint-dark text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-tint transition-colors"
+          >
+            <Icon name="shopping-cart" size={13} />
+            {cartCount} in cart
+          </button>
+        )}
+        <button
           onClick={onClose}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-white/20 transition-colors pointer-events-auto border border-white/10 shadow-sm backdrop-blur-md"
+          className="ml-auto w-[38px] h-[38px] rounded-xl border border-border bg-surface grid place-items-center cursor-pointer hover:border-tint hover:text-tint transition-colors"
         >
-          <Icon name="x" size={24} />
+          <Icon name="x" size={16} />
         </button>
       </div>
 
-      {/* Main Image Area */}
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden w-full h-full">
-        {/* Navigation Arrows */}
-        <button 
+      <div className="flex-1 min-h-0 flex items-center gap-3.5 px-4 pb-4">
+        <button
           onClick={goPrev}
-          className="absolute left-4 z-20 w-12 h-12 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-white/20 transition-all border border-white/10 backdrop-blur-md"
+          className="hidden sm:grid w-[46px] h-[46px] flex-shrink-0 rounded-full border border-border bg-surface place-items-center cursor-pointer hover:border-tint hover:text-tint transition-colors"
         >
-          <Icon name="chevron-left" size={32} />
+          <Icon name="chevron-left" size={18} />
         </button>
 
-        <img 
-          src={currentItem.image}
-          alt={currentItem.name}
-          loading="lazy"
-          decoding="async"
-          className="max-h-full max-w-full object-contain select-none animate-in zoom-in-95 duration-300"
-          onClick={(e) => e.stopPropagation()}
-        />
+        <div className="flex-1 min-w-0 max-w-[860px] mx-auto flex flex-col gap-4.5">
+          <div
+            className="relative rounded-[26px] overflow-hidden border border-glass-border grid place-items-center animate-rad5-pop bg-cover bg-center"
+            style={{
+              height: 'min(46vh, 420px)',
+              backgroundImage: currentItem.image
+                ? `url(${currentItem.image})`
+                : 'repeating-linear-gradient(135deg, var(--tint-b) 0 12px, transparent 12px 24px)',
+            }}
+          >
+            <span
+              className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap"
+              style={{
+                background: 'var(--sheet)',
+                border: '1px solid var(--glass-border)',
+                color: inStock ? 'var(--color-ok)' : 'var(--color-err)',
+              }}
+            >
+              {inStock ? 'In stock' : 'Sold out'}
+            </span>
+          </div>
 
-        <button 
-          onClick={goNext}
-          className="absolute right-4 z-20 w-12 h-12 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-white/20 transition-all border border-white/10 backdrop-blur-md"
-        >
-          <Icon name="chevron-right" size={32} />
-        </button>
-        
-        {/* Product Details & Add to Cart over the image */}
-        <div className="absolute bottom-6 w-full px-6 flex flex-col items-center pointer-events-none">
-           <div className="bg-black/70 backdrop-blur-md p-4 rounded-2xl flex items-center justify-between gap-6 pointer-events-auto border border-white/10 shadow-2xl min-w-[300px] max-w-[90%]">
-             <div className="flex flex-col">
-               <span className="text-white font-bold text-lg leading-tight">{currentItem.name}</span>
-               <span className="text-tint font-extrabold text-xl mt-0.5">₦{currentItem.price.toLocaleString()}</span>
-             </div>
-             {getItemQuantity(currentItem.id) > 0 ? (
-               <div className="flex items-center gap-2 bg-black/75 rounded-xl p-0.5 border border-white/10">
-                 <button
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     removeFromCart(currentItem.id);
-                   }}
-                   className="w-8 h-8 flex items-center justify-center rounded-full bg-tint hover:bg-tint/90 active:scale-95 text-white font-bold text-base cursor-pointer"
-                 >
-                   −
-                 </button>
-                 <span className="text-white font-bold text-sm min-w-[20px] text-center">
-                   {getItemQuantity(currentItem.id)}
-                 </span>
-                 <button
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     addToCart(currentItem);
-                   }}
-                   className="w-8 h-8 flex items-center justify-center rounded-full bg-tint hover:bg-tint/90 active:scale-95 text-white font-bold text-base cursor-pointer"
-                 >
-                   +
-                 </button>
-               </div>
-             ) : (
-               <button
-                 onClick={handleAdd}
-                 className="bg-tint hover:bg-tint/90 text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 transition-transform shadow-lg shadow-tint/30 cursor-pointer"
-               >
-                 <Icon name="shopping-cart" size={18} />
-                 <span>Add</span>
-               </button>
-             )}
-           </div>
+          <div className="flex items-end gap-4 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              {currentItem.category && (
+                <div className="text-xs font-bold tracking-[0.08em] text-text-secondary uppercase">{currentItem.category}</div>
+              )}
+              <h2 className="mt-1.5 text-2xl sm:text-[28px] tracking-tight font-extrabold text-balance">{currentItem.name}</h2>
+              <Money amount={currentItem.price} className="block mt-2 text-2xl font-semibold tracking-tight" />
+            </div>
+
+            <div className="flex items-center gap-3">
+              {inStock && (
+                <div className="flex items-center gap-1.5 p-1.5 rounded-full glass-surface">
+                  <button
+                    onClick={() => removeFromCart(currentItem.id)}
+                    disabled={quantity === 0}
+                    className="w-[46px] h-[46px] rounded-full border border-border bg-card grid place-items-center cursor-pointer hover:border-tint hover:text-tint disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Icon name="minus" size={17} />
+                  </button>
+                  <span className="min-w-[34px] text-center font-money text-[17px] font-semibold">{quantity}</span>
+                  <button
+                    onClick={() => addToCart(currentItem)}
+                    className="w-[46px] h-[46px] rounded-full border-none bg-tint-dark text-white grid place-items-center cursor-pointer hover:brightness-110 transition-all"
+                  >
+                    <Icon name="plus" size={17} />
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  if (!inStock) return;
+                  if (quantity > 0) {
+                    onClose();
+                    setIsCartOpen(true);
+                  } else {
+                    addToCart(currentItem);
+                  }
+                }}
+                disabled={!inStock}
+                className="h-[58px] flex-shrink-0 whitespace-nowrap px-6 rounded-full border-none text-white text-[14.5px] font-bold cursor-pointer hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                style={{ background: inStock ? 'var(--color-tint-dark)' : 'var(--color-border-strong)' }}
+              >
+                {!inStock ? 'Sold out' : quantity > 0 ? 'View cart' : 'Add to cart'}
+              </button>
+            </div>
+          </div>
         </div>
+
+        <button
+          onClick={goNext}
+          className="hidden sm:grid w-[46px] h-[46px] flex-shrink-0 rounded-full border border-border bg-surface place-items-center cursor-pointer hover:border-tint hover:text-tint transition-colors"
+        >
+          <Icon name="chevron-right" size={18} />
+        </button>
       </div>
 
-      {/* Thumbnail Strip */}
-      <div className="h-28 w-full bg-black/80 flex items-center px-4 overflow-hidden border-t border-white/10">
-        <div 
-          ref={scrollRef}
-          className="flex gap-3 overflow-x-auto w-full py-2 no-scrollbar"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {items.map((item, idx) => (
-            <div 
-              key={item.id}
-              onClick={() => setCurrentIndex(idx)}
-              className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${idx === currentIndex ? 'border-tint scale-105 shadow-[0_0_15px_rgba(var(--tint),0.5)]' : 'border-transparent opacity-50 hover:opacity-80'}`}
-            >
-              <img src={item.image} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-            </div>
-          ))}
-        </div>
+      <div className="flex justify-center gap-1.5 px-4 pb-6 pt-1 flex-wrap">
+        {items.map((item, i) => (
+          <span
+            key={item.id}
+            onClick={() => setCurrentIndex(i)}
+            title={item.name}
+            className="h-[7px] rounded-full cursor-pointer transition-all"
+            style={{
+              width: i === currentIndex ? 22 : 7,
+              background: i === currentIndex ? 'var(--color-tint)' : 'var(--color-border-strong)',
+            }}
+          />
+        ))}
       </div>
     </div>
   );

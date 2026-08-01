@@ -45,7 +45,15 @@ export type IconName =
   | 'clock'
   | 'cash'
   | 'shopping-cart'
-  | 'scale';
+  | 'scale'
+  | 'sun'
+  | 'moon'
+  | 'eye'
+  | 'eye-off'
+  | 'coffee'
+  | 'send'
+  | 'menu'
+  | 'zap-off';
 
 
 interface IconProps {
@@ -146,6 +154,22 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.ShoppingCart;
       case 'scale':
         return Lucide.Scale;
+      case 'sun':
+        return Lucide.Sun;
+      case 'moon':
+        return Lucide.Moon;
+      case 'eye':
+        return Lucide.Eye;
+      case 'eye-off':
+        return Lucide.EyeOff;
+      case 'coffee':
+        return Lucide.Coffee;
+      case 'send':
+        return Lucide.Send;
+      case 'menu':
+        return Lucide.Menu;
+      case 'zap-off':
+        return Lucide.ZapOff;
       default:
         return Lucide.HelpCircle;
     }

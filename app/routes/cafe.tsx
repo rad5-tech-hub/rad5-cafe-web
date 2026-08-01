@@ -3,10 +3,8 @@ import { useCart } from '~/context/cart-context';
 import { api } from '~/lib/api';
 import { ProductCard } from '~/components/ui/product-card';
 import { ProductGalleryModal } from '~/components/ui/product-gallery-modal';
-import { Badge } from '~/components/ui/badge';
-import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
-
+import { PillButton } from '~/components/ui/pill-button';
+import { Icon } from '~/components/ui/icon';
 
 type Product = {
   id: string;
@@ -27,7 +25,7 @@ export function meta() {
 }
 
 export default function Cafe() {
-  const { cart, addToCart, removeFromCart, getItemQuantity, cartCount, cartTotal } = useCart();
+  const { addToCart, removeFromCart, getItemQuantity } = useCart();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [productsList, setProductsList] = useState<Product[]>([]);
@@ -82,80 +80,35 @@ export default function Cafe() {
   });
 
   return (
-    <div className="flex flex-col gap-6 pb-20 min-w-0">
-      {/* Featured Header Banner */}
-      <div
-        className="relative w-full h-56 md:h-72 overflow-hidden bg-gray-950 flex flex-col justify-end p-6 md:p-8"
-        style={{
-          borderRadius: 'var(--radius-lg)',
-        }}
-      >
-        <img
-          src="https://www.africanrecipes.com.ng/wp-content/uploads/2025/07/meat-pie-featured-nigerian-snack.png.webp"
-          alt="Nigeria meat pies layout"
-          loading="lazy"
-          decoding="async"
-          className="absolute inset-0 w-full h-full object-cover opacity-60"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col gap-1 text-white">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-rounded)' }}>
-            RAD5 Café Menu
-          </h1>
-          <p className="text-white/80 text-xs md:text-sm font-medium">
-            Hot coffee, fresh Nigerian snacks, pastries, and smart orders.
-          </p>
-        </div>
-      </div>
-
-      {/* Sticky Categories Bar + Search Box */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-card border border-border p-4 rounded-xl shadow-xs">
-        {/* Horizontal Scroll Categories */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1.5 md:pb-0 scrollbar-none min-w-0 flex-1 w-full md:w-auto">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
-                selectedCategory === cat
-                  ? 'bg-tint text-white'
-                  : 'bg-bg-selected/50 text-text-secondary hover:bg-bg-selected hover:text-text-main'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative w-full md:w-80">
+    <div className="flex flex-col gap-5 pb-16 min-w-0">
+      {/* Search + Category chips */}
+      <div className="flex gap-3 items-center flex-wrap">
+        <div className="relative flex-1 min-w-[240px]">
           <input
             type="text"
-            placeholder="Search catalog items..."
+            placeholder="Search the menu"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-10 py-2.5 text-xs font-semibold bg-bg-element border border-border rounded-xl text-text-main placeholder:text-text-secondary/60 outline-none transition-all duration-200 focus:border-tint focus:ring-2 focus:ring-tint/10 focus:shadow-md cursor-pointer"
+            className="w-full pl-11 pr-10 py-3 text-sm font-medium glass-chip rounded-xl text-text-main placeholder:text-text-secondary/70 outline-none transition-all focus:border-tint"
           />
-          <div className="absolute top-1/2 left-4 -translate-y-1/2 text-text-secondary/70 pointer-events-none flex items-center justify-center">
-            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
+          <div className="absolute top-1/2 left-4 -translate-y-1/2 text-text-secondary/70 pointer-events-none">
+            <Icon name="search" size={16} />
           </div>
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
               className="absolute top-1/2 right-3 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-text-secondary hover:bg-bg-selected/80 hover:text-text-main transition-colors cursor-pointer"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <Icon name="x" size={14} />
             </button>
           )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {categories.map((cat) => (
+            <PillButton key={cat} active={selectedCategory === cat} onClick={() => setSelectedCategory(cat)}>
+              {cat}
+            </PillButton>
+          ))}
         </div>
       </div>
 
@@ -163,19 +116,17 @@ export default function Cafe() {
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="shimmer h-64 rounded-xl" />
+            <div key={i} className="shimmer h-64 rounded-2xl" />
           ))}
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="text-center py-20 text-text-secondary bg-card border border-border rounded-xl flex flex-col items-center justify-center gap-3">
-          <svg className="w-12 h-12" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-          </svg>
-          <span className="font-bold text-base text-text-main">No Products Found</span>
-          <span className="text-xs">Try adjusting your category filter or search queries.</span>
+        <div className="text-center py-20 glass-surface rounded-2xl flex flex-col items-center justify-center gap-3">
+          <Icon name="package-variant-closed" size={40} className="text-text-secondary" />
+          <span className="font-bold text-base">No Products Found</span>
+          <span className="text-xs text-text-secondary">Try adjusting your category filter or search queries.</span>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-1">
           {filteredProducts.map((product, idx) => (
             <ProductCard
               key={product.id}
@@ -192,7 +143,6 @@ export default function Cafe() {
           ))}
         </div>
       )}
-
 
       <ProductGalleryModal
         isOpen={galleryOpen}

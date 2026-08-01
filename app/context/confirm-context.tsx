@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Button } from '../components/ui/button';
-import { Icon, type IconName } from '../components/ui/icon';
+import { GlassSheet } from '../components/ui/glass-panel';
+import type { IconName } from '../components/ui/icon';
 
 type ConfirmOptions = {
   title: string;
@@ -21,64 +21,37 @@ type ConfirmContextValue = {
 
 const ConfirmContext = createContext<ConfirmContextValue | null>(null);
 
-const variantConfig = {
-  default: { confirmVariant: 'primary' as const, icon: 'alert-triangle' as IconName, accentClass: 'bg-tint', textAccentClass: 'text-tint', bgLightClass: 'bg-tint/10' },
-  danger: { confirmVariant: 'danger' as const, icon: 'alert-triangle' as IconName, accentClass: 'bg-error-val', textAccentClass: 'text-error-val', bgLightClass: 'bg-error-val/10' },
-};
-
 function ConfirmModal({ item, onDismiss }: { item: ConfirmItem; onDismiss: (value: boolean) => void }) {
-  const config = variantConfig[item.variant ?? 'default'];
-  const icon = item.icon ?? config.icon;
+  const isDanger = (item.variant ?? 'default') === 'danger';
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity duration-300">
-      {/* Backdrop */}
-      <div className="absolute inset-0" onClick={() => onDismiss(false)} />
+    <div
+      onClick={() => onDismiss(false)}
+      className="fixed inset-0 z-9999 grid place-items-center p-5"
+      style={{ background: 'rgba(17,24,39,0.38)', backdropFilter: 'blur(5px)' }}
+    >
+      <GlassSheet onClick={stop} className="w-full animate-rad5-pop" radius="lg" style={{ maxWidth: 360 }}>
+        <h2 className="text-[19px] font-extrabold tracking-tight">{item.title}</h2>
+        {item.message && <p className="mt-2 text-[13.5px] leading-relaxed text-text-secondary select-all">{item.message}</p>}
 
-      {/* Dialog Wrapper */}
-      <div
-        className="relative bg-card border border-border w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-scale-up"
-        style={{
-          borderRadius: 'var(--radius-xl)',
-        }}
-      >
-        <div className={`h-1.5 w-full ${config.accentClass}`} />
-
-        <div className="p-6 flex flex-col items-center gap-3">
-          {icon && (
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center ${config.bgLightClass}`}>
-              <Icon name={icon} size={28} className={config.textAccentClass} />
-            </div>
-          )}
-
-          <h3 className="text-xl font-bold text-text-main text-center leading-snug select-none">{item.title}</h3>
-
-          {item.message && (
-            <p className="text-text-secondary text-sm text-center leading-relaxed select-all">
-              {item.message}
-            </p>
-          )}
-
-          <div className="flex gap-3 w-full mt-4">
-            <Button
-              variant="ghost"
-              size="md"
-              fullWidth
-              onClick={() => onDismiss(false)}
-            >
-              {item.cancelLabel ?? 'Cancel'}
-            </Button>
-            <Button
-              variant={config.confirmVariant}
-              size="md"
-              fullWidth
-              onClick={() => onDismiss(true)}
-            >
-              {item.confirmLabel ?? 'Confirm'}
-            </Button>
-          </div>
+        <div className="flex gap-2.5 mt-5.5">
+          <button
+            onClick={() => onDismiss(false)}
+            className="flex-1 py-3 rounded-xl border border-border bg-card text-sm font-semibold cursor-pointer hover:border-tint hover:text-tint transition-colors"
+          >
+            {item.cancelLabel ?? 'Stay'}
+          </button>
+          <button
+            onClick={() => onDismiss(true)}
+            className={`flex-1 py-3 rounded-xl border-none text-white text-sm font-bold cursor-pointer transition-colors ${
+              isDanger ? 'bg-error-val hover:brightness-110' : 'bg-tint-dark hover:bg-tint'
+            }`}
+          >
+            {item.confirmLabel ?? 'Confirm'}
+          </button>
         </div>
-      </div>
+      </GlassSheet>
     </div>
   );
 }

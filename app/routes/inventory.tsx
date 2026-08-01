@@ -1,31 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { Card } from '~/components/ui/card';
-import { Badge } from '~/components/ui/badge';
-import { Button } from '~/components/ui/button';
+import { PillButton } from '~/components/ui/pill-button';
+import { IconButton } from '~/components/ui/icon-button';
+import { StatCard } from '~/components/ui/stat-card';
+import { Money } from '~/components/ui/money';
+import { Icon } from '~/components/ui/icon';
+import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
 import { RestockModal } from '~/components/modals/restock-modal';
 import { EditProductModal } from '~/components/modals/edit-product-modal';
 import { ProductInfoModal } from '~/components/modals/product-info-modal';
 import { api } from '~/lib/api';
 
-type InventoryProduct = {
-  id: string;
-  name: string;
-  category: string;
-  imageUrl?: string;
-  costPrice: number;
-  sellingPrice: number;
-  stock: number;
-  totalAdded: number;
-  totalSold: number;
-};
-
-const initialInventory: InventoryProduct[] = [];
-
 export function meta() {
   return [
-    { title: "Inventory Database - RAD5 Café" },
-    { name: "description", content: "Manage stock levels, units, cost, and selling prices." },
+    { title: "Inventory - RAD5 Café" },
+    { name: "description", content: "Track cost, profit margins, quantities and stock levels." },
   ];
 }
 
@@ -35,12 +24,12 @@ export default function Inventory() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Hidden'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [restockProductId, setRestockProductId] = useState<string | undefined>(undefined);
   const [showRestock, setShowRestock] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
   const [infoProduct, setInfoProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 50;
 
@@ -57,7 +46,6 @@ export default function Inventory() {
           quantity: p.currentStock ?? p.quantity ?? 0,
         }));
         setInventoryList(mapped);
-        setTotal(prodRes.total ?? mapped.length);
         setTotalPages(prodRes.totalPages ?? Math.ceil((prodRes.total ?? mapped.length) / limit));
       } else {
         setInventoryList([]);
@@ -78,12 +66,6 @@ export default function Inventory() {
   useEffect(() => {
     if (page > 1) fetchInventoryData(page);
   }, [page]);
-
-  const changeCategory = (cat: string) => {
-    setSelectedCategory(cat);
-    setPage(1);
-    fetchInventoryData(1);
-  };
 
   const getCategoryName = (product: any) => {
     if (product.category) return product.category;
@@ -107,8 +89,6 @@ export default function Inventory() {
       || p.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesStatus && matchesSearch;
   });
-
-
 
   const updateLocalItem = (productId: string, updated: any) => {
     setInventoryList(prev => prev.map(p => {
@@ -196,212 +176,130 @@ export default function Inventory() {
     stock: p.quantity ?? p.stock ?? 0,
   }));
 
+  const totalProducts = inventoryList.length;
+  const stockValue = inventoryList.reduce((sum, p) => sum + (p.costPrice ?? 0) * (p.quantity ?? p.stock ?? 0), 0);
+  const lowStockItems = inventoryList.filter(p => (p.quantity ?? p.stock ?? 0) > 0 && (p.quantity ?? p.stock ?? 0) < 10);
+  const outOfStockCount = inventoryList.filter(p => (p.quantity ?? p.stock ?? 0) === 0).length;
+
+  const columns: DataTableColumn<any>[] = [
+    {
+      key: 'name', header: 'Product', width: '1.7fr',
+      render: (p) => (
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 border border-border bg-tint-a grid place-items-center">
+            {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <Icon name="package-variant-closed" size={14} className="text-text-secondary" />}
+          </div>
+          <div className="min-w-0">
+            <div className="text-[13.5px] font-semibold truncate">{p.name}</div>
+            <div className="text-[11px] text-text-secondary truncate">{getCategoryName(p)}{p.isActive === false ? ' · Hidden' : ''}</div>
+          </div>
+        </div>
+      ),
+    },
+    { key: 'cost', header: 'Cost', render: (p) => <Money amount={p.costPrice ?? 0} className="text-[13px] text-text-secondary" /> },
+    { key: 'selling', header: 'Selling', render: (p) => <Money amount={p.sellingPrice ?? 0} className="text-[13px]" /> },
+    { key: 'profit', header: 'Profit/unit', render: (p) => <Money amount={(p.sellingPrice ?? 0) - (p.costPrice ?? 0)} className="text-[13px] font-semibold text-ok" /> },
+    {
+      key: 'stock', header: 'Stock', render: (p) => {
+        const s = p.quantity ?? p.stock ?? 0;
+        const color = s === 0 ? 'var(--color-err)' : s < 10 ? 'var(--color-warn)' : undefined;
+        return <span className="text-[13px] font-semibold" style={color ? { color } : undefined}>{s} units</span>;
+      },
+    },
+    {
+      key: 'actions', header: '', width: '0.9fr', align: 'right',
+      render: (p) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <IconButton icon="package-variant-closed" size={36} iconSize={14} title="Restock" onClick={() => { setRestockProductId(p.id ?? p._id); setShowRestock(true); }} />
+          <IconButton icon="edit" size={36} iconSize={14} title="Edit product" onClick={() => setEditProduct(p)} />
+          <IconButton icon="search" size={36} iconSize={14} title="Product info" onClick={() => setInfoProduct(p)} />
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="flex flex-col gap-6 select-none max-w-2xl mx-auto">
-      {/* Top Header Controls */}
-      <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-6 w-full">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Inventory Manager</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight">Inventory</h1>
           <p className="text-text-secondary text-xs mt-1">
-            Track cost profit margins, total quantities, and stocks.
+            Track cost, profit margins, quantities and stock levels.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link to="/admin/products/add">
-            <Button variant="primary" size="sm">
-              + Add Product
-            </Button>
-          </Link>
-          <Button variant="outline" size="sm" onClick={() => setShowRestock(true)}>
-            Restock
-          </Button>
-        </div>
+        <Link
+          to="/admin/products/add"
+          className="px-4 py-2.5 rounded-xl border-none bg-tint-dark text-white text-[13.5px] font-bold cursor-pointer hover:bg-tint transition-colors whitespace-nowrap flex items-center gap-1.5"
+        >
+          <Icon name="plus" size={15} />
+          Add product
+        </Link>
       </div>
 
-      {/* Search & Status Filter Row */}
-      <div className="flex items-center gap-3">
+      {lowStockItems.length > 0 && (
+        <div className="flex items-center gap-3 px-4.5 py-3.5 rounded-2xl border" style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.28)' }}>
+          <Icon name="alert-triangle" size={18} className="flex-shrink-0 text-warn" />
+          <span className="text-[13px] font-semibold">
+            {lowStockItems.length} product{lowStockItems.length === 1 ? '' : 's'} running low on stock — restock soon to avoid going out of stock.
+          </span>
+        </div>
+      )}
+
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <StatCard label="Total products" value={totalProducts} sub="active listings" />
+        <StatCard label="Stock value" value={<Money amount={stockValue} />} sub="at cost price" />
+        <StatCard label="Low stock" value={lowStockItems.length} sub="below 10 units" valueColor={lowStockItems.length ? 'var(--color-warn)' : undefined} />
+        <StatCard label="Out of stock" value={outOfStockCount} sub="unavailable to order" valueColor={outOfStockCount ? 'var(--color-err)' : undefined} />
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <div className="relative flex-1 min-w-0">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary"
-            fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
-          >
-            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-          </svg>
+          <Icon name="search" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-bg-element border border-border text-text-main text-sm pl-10 pr-4 py-2 rounded-xl outline-none focus:border-tint placeholder:text-text-secondary transition-colors"
+            className="w-full glass-chip text-sm pl-9 pr-4 py-2.5 rounded-full outline-none focus:border-tint placeholder:text-text-secondary transition-colors border"
           />
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span className="text-xs font-semibold text-text-secondary">Status:</span>
           {(['All', 'Active', 'Hidden'] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-2.5 py-1 text-xs font-bold rounded-full border transition-all cursor-pointer ${
-                statusFilter === s
-                  ? 'bg-tint text-white border-tint'
-                  : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
-              }`}
-            >
-              {s}
-            </button>
+            <PillButton key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>{s}</PillButton>
           ))}
         </div>
       </div>
 
-      {/* Category Chips Bar */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => changeCategory(cat)}
-            className={`px-4.5 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer ${
-              selectedCategory === cat
-                ? 'bg-tint text-white border-tint'
-                : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
-            }`}
-          >
+          <PillButton key={cat} active={selectedCategory === cat} onClick={() => { setSelectedCategory(cat); setPage(1); }}>
             {cat}
-          </button>
+          </PillButton>
         ))}
       </div>
 
-      {/* Inventory Listings */}
-      {loading ? (
-        <div className="flex justify-center items-center py-20">
-          <svg className="animate-spin h-8 w-8 text-tint" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-text-secondary text-sm">
-          No inventory products found.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {filtered.map((product) => {
-            const pid = product.id ?? product._id;
-            const cost = product.costPrice ?? 0;
-            const selling = product.sellingPrice ?? 0;
-            const profit = selling - cost;
-            const stock = product.quantity ?? product.stock ?? 0;
-            const stockStatus = stock === 0 ? 'error' : stock < 10 ? 'warning' : 'success';
-            const stockLabel = stock === 0 ? 'Out of Stock' : stock < 10 ? 'Low Stock' : 'In Stock';
-            const totalAdded = product.totalAdded ?? stock;
-            const totalSold = product.totalSold ?? 0;
+      <DataTable
+        columns={columns}
+        rows={filtered}
+        keyExtractor={(p) => p.id ?? p._id}
+        loading={loading}
+        emptyMessage="No inventory products found."
+        minWidth={720}
+      />
 
-            return (
-              <Card key={pid} className="flex flex-col gap-4 shadow-xs">
-                {/* Card Title & Tag */}
-                <div className="flex justify-between items-center gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-lg border border-border overflow-hidden bg-bg-page flex-shrink-0">
-                      {product.imageUrl ? (
-                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-text-secondary">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <h3 className="text-base font-bold text-text-main leading-tight truncate">{product.name}</h3>
-                      <span className="text-xs text-text-secondary font-semibold">{getCategoryName(product)}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {product.isActive === false && (
-                      <Badge label="Hidden" variant="default" />
-                    )}
-                    <Badge label={stockLabel} variant={stockStatus} />
-                    <button
-                      type="button"
-                      onClick={() => setInfoProduct(product)}
-                      className="text-text-secondary hover:text-tint transition-colors cursor-pointer p-1 rounded-md hover:bg-bg-selected"
-                      title="Product info"
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditProduct(product)}
-                      className="text-text-secondary hover:text-tint transition-colors cursor-pointer"
-                      title="Edit product"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Data Margins Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-3 border-y border-border text-xs">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-text-secondary font-semibold">Cost Price</span>
-                    <span className="text-sm font-bold text-text-main select-all">₦{cost.toLocaleString()}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-text-secondary font-semibold">Selling Price</span>
-                    <span className="text-sm font-bold text-text-main select-all">₦{selling.toLocaleString()}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-text-secondary font-semibold">Profit / Unit</span>
-                    <span className="text-sm font-extrabold text-success select-all">₦{profit.toLocaleString()}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-text-secondary font-semibold">Current Stock</span>
-                    <span className={`text-sm font-extrabold ${stock === 0 ? 'text-error-val' : stock < 10 ? 'text-warning' : 'text-text-main'}`}>
-                      {stock} units
-                    </span>
-                  </div>
-                </div>
-
-                {/* Stock Bar Metrics */}
-                <div className="text-xs text-text-secondary font-semibold">
-                  Stock Summary: Added {totalAdded} units | Sold {totalSold} units | Remaining {stock} units
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="text-xs font-bold cursor-pointer"
-          >
-            Previous
-          </Button>
-          <span className="text-xs font-bold text-text-secondary">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            className="text-xs font-bold cursor-pointer"
-          >
-            Next
-          </Button>
+          <PillButton onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Previous</PillButton>
+          <span className="text-xs font-bold text-text-secondary">Page {page} of {totalPages}</span>
+          <PillButton onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</PillButton>
         </div>
       )}
-
 
       <RestockModal
         isOpen={showRestock}
-        onClose={() => setShowRestock(false)}
+        onClose={() => { setShowRestock(false); setRestockProductId(undefined); }}
         products={mappedProductsForRestock}
+        initialProductId={restockProductId}
         onRestock={handleRestockProduct}
         onRemoveStock={handleRemoveStockProduct}
       />

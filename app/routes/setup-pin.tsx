@@ -1,9 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useToast } from '~/context/toast-context';
 import { api } from '~/lib/api';
-import { AuthBackground } from '~/components/auth-background';
-import { Card } from '~/components/ui/card';
+import { PinPad } from '~/components/ui/pin-pad';
 import { AnimatedButton } from '~/components/ui/animated-button';
 
 export function meta() {
@@ -16,47 +15,17 @@ export function meta() {
 export default function SetupPin() {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const [pin, setPin] = useState(['', '', '', '']);
+  const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const handlePinChange = (val: string, index: number) => {
-    const cleanVal = val.replace(/[^0-9]/g, '');
-    if (cleanVal.length > 1) return; // restrict to single digit
-
-    const newPin = [...pin];
-    newPin[index] = cleanVal;
-    setPin(newPin);
-
-    // Auto-focus next input on entry
-    if (cleanVal && index < 3) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    // Backspace: clear current cell and focus previous
-    if (e.key === 'Backspace') {
-      if (!pin[index] && index > 0) {
-        const newPin = [...pin];
-        newPin[index - 1] = '';
-        setPin(newPin);
-        inputRefs.current[index - 1]?.focus();
-      } else {
-        const newPin = [...pin];
-        newPin[index] = '';
-        setPin(newPin);
-      }
-    }
-  };
+  const pinComplete = pin.length === 4;
 
   const handleSetup = async () => {
-    const fullPin = pin.join('');
-    if (fullPin.length !== 4) return;
+    if (!pinComplete) return;
 
     setLoading(true);
     try {
-      await api.auth.setupPin(fullPin);
+      await api.auth.setupPin(pin);
       showToast('Transaction PIN created successfully!', 'success');
       navigate('/dashboard');
     } catch (error: any) {
@@ -67,65 +36,35 @@ export default function SetupPin() {
     }
   };
 
-  const pinComplete = pin.every((digit) => digit.length === 1);
-
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-6 overflow-hidden">
-      {/* Slideshow background */}
-      <AuthBackground />
-
-      {/* Brand Header */}
-      <div className="relative z-10 text-center mb-8 select-none animate-fade-in">
-        <h1
-          className="text-3xl font-extrabold text-white tracking-tight drop-shadow-md"
-          style={{ fontFamily: 'var(--font-rounded)' }}
-        >
-          Set Transaction PIN
-        </h1>
-        <p className="text-white/80 text-sm mt-1.5 max-w-xs mx-auto drop-shadow-sm leading-relaxed">
-          Create a secure 4-digit PIN to authenticate purchases.
-        </p>
+    <div className="relative min-h-screen w-full flex items-center justify-center p-5 overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute -top-44 -left-28 w-[620px] h-[620px] rounded-full" style={{ background: 'radial-gradient(circle at 30% 30%, var(--tint-c), rgba(0,61,153,0) 70%)' }} />
+        <div className="absolute top-28 -right-40 w-[560px] h-[560px] rounded-full" style={{ background: 'radial-gradient(circle at 60% 40%, rgba(59,130,246,0.22), rgba(59,130,246,0) 70%)' }} />
       </div>
 
-      {/* Action Card */}
-      <Card
-        padded={true}
-        className="relative z-10 w-full max-w-sm flex flex-col items-center gap-8 bg-card border border-border shadow-2xl"
-      >
-        <div className="flex justify-center gap-4 w-full">
-          {pin.map((digit, i) => (
-            <input
-              key={i}
-              type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={1}
-              ref={(el) => {
-                inputRefs.current[i] = el;
-              }}
-              value={digit}
-              onChange={(e) => handlePinChange(e.target.value, i)}
-              onKeyDown={(e) => handleKeyDown(e, i)}
-              autoFocus={i === 0}
-              className="w-14 h-16 text-center text-3xl font-extrabold text-text-main bg-bg-element border-2 rounded-xl outline-none focus:outline-none transition-colors duration-200 select-all"
-              style={{
-                borderColor: digit ? 'var(--color-tint)' : 'var(--color-border)',
-              }}
-            />
-          ))}
+      <div className="relative z-10 w-full max-w-[400px] p-7 sm:p-8 rounded-[22px] text-center glass-surface rad5-pop">
+        <h2 className="mb-1.5 text-2xl font-extrabold tracking-tight">Set your transaction PIN</h2>
+        <p className="mx-auto text-sm text-text-secondary max-w-[32ch]">
+          Four digits. You will enter this to pay, transfer or confirm any wallet action.
+        </p>
+
+        <div className="mt-7">
+          <PinPad value={pin} onChange={setPin} showConfirmKey={false} disabled={loading} />
         </div>
 
         <AnimatedButton
           variant="primary"
           size="lg"
-          fullWidth={true}
+          fullWidth
           loading={loading}
           disabled={!pinComplete || loading}
           onClick={handleSetup}
+          className="mt-5 font-bold"
         >
-          {loading ? 'Setting Up...' : 'Create PIN'}
+          Save PIN and continue
         </AnimatedButton>
-      </Card>
+      </div>
     </div>
   );
 }

@@ -18,12 +18,38 @@ import { ToastProvider, useToast } from './context/toast-context';
 import { NotificationProvider, useNotifications } from './context/notification-context';
 import { CartProvider, useCart } from './context/cart-context';
 import { ConfirmProvider, useConfirm } from './context/confirm-context';
+import { ThemeProvider } from './context/theme-context';
 import { Icon } from './components/ui/icon';
-import { Badge } from './components/ui/badge';
-import { Button } from './components/ui/button';
+import { NavRail, type NavRailItem } from './components/ui/nav-rail';
+import { TopBar } from './components/ui/top-bar';
 import { CartModal } from './components/modals/cart-modal';
 import { FullNameModal } from './components/modals/fullname-modal';
+import { CartPill } from './components/ui/cart-pill';
 import { api } from './lib/api';
+import { useViewport } from './lib/use-viewport';
+
+const PAGE_TITLES: Record<string, { crumb: string; title: string }> = {
+  '/dashboard': { crumb: 'Wallet', title: 'Wallet' },
+  '/cafe': { crumb: 'Café', title: "Today's menu" },
+  '/history': { crumb: 'Wallet', title: 'Transaction history' },
+  '/notifications': { crumb: 'Activity', title: 'Notifications' },
+  '/profile': { crumb: 'Account', title: 'Profile & security' },
+  '/admin': { crumb: 'Console', title: 'Admin panel' },
+  '/inventory': { crumb: 'Console', title: 'Inventory' },
+  '/sales': { crumb: 'Console', title: 'Sales logs' },
+  '/accounting': { crumb: 'Console', title: 'Accounting reconciliation' },
+  '/accounting/manual': { crumb: 'Console', title: 'Manual accounting override' },
+  '/analytics': { crumb: 'Console', title: 'Advanced analytics' },
+  '/admin/stock-balance': { crumb: 'Console', title: 'Stock balance out' },
+  '/admin/users': { crumb: 'Console', title: 'Users & access' },
+  '/admin/pin-changes': { crumb: 'Console', title: 'PIN change requests' },
+  '/admin/audit-logs': { crumb: 'Console', title: 'Audit logs' },
+  '/admin/cash-orders': { crumb: 'Console', title: 'Cash orders' },
+  '/admin/expenses': { crumb: 'Console', title: 'Sales ledger / expenses' },
+  '/admin/updates': { crumb: 'Console', title: 'App updates' },
+  '/admin/products/add': { crumb: 'Console', title: 'Add product' },
+  '/reports': { crumb: 'Console', title: 'Reports' },
+};
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -34,7 +60,7 @@ export const links: Route.LinksFunction = () => [
   },
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap",
+    href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
   },
   { rel: "icon", href: "/RAD5 Cafe.svg", type: "image/svg+xml" },
   { rel: "apple-touch-icon", href: "/RAD5 Cafe.svg" },
@@ -76,10 +102,30 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [appUpdateInfo, setAppUpdateInfo] = useState<any>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [showFullNameModal, setShowFullNameModal] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [collapsed, setCollapsed] = useState(false);
+  const { narrow } = useViewport();
 
   const isAuthRoute = ['/', '/login', '/register', '/setup-pin'].includes(location.pathname);
-  const isAdminRoute = location.pathname.startsWith('/admin') || 
+  const isAdminRoute = location.pathname.startsWith('/admin') ||
                        ['/inventory', '/analytics', '/sales', '/reports', '/accounting'].includes(location.pathname);
+
+  // Lightweight unread-notifications count for the top-bar bell badge — reuses
+  // the same read path as the Notifications screen, refetched on navigation
+  // so the badge stays in sync after visiting/marking-read there.
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+    api.notifications.list(1, 20).then((res: any) => {
+      const rawList = res.data || res.notifications;
+      if (res.success && Array.isArray(rawList)) {
+        const unread = rawList.filter((n: any) => !(n.read ?? n.isRead ?? false)).length;
+        setUnreadCount(unread);
+      }
+    }).catch(() => {});
+  }, [user, location.pathname]);
 
   // Check user profile for admin role
   useEffect(() => {
@@ -227,117 +273,97 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  const userNavItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: 'bank' as const },
-    { label: 'Café Menu', path: '/cafe', icon: 'cart' as const },
-    { label: 'Transactions', path: '/history', icon: 'sync' as const },
-    { label: 'Notifications', path: '/notifications', icon: 'bell' as const },
-    { label: 'My Profile', path: '/profile', icon: 'user' as const },
+  const userNavItems: Omit<NavRailItem, 'active'>[] = [
+    { label: 'Dashboard', path: '/dashboard', icon: 'bank' },
+    { label: 'Café Menu', path: '/cafe', icon: 'cart' },
+    { label: 'Transactions', path: '/history', icon: 'sync' },
+    { label: 'Notifications', path: '/notifications', icon: 'bell', badgeCount: unreadCount },
+    { label: 'My Profile', path: '/profile', icon: 'user' },
   ];
 
-  const adminNavItems = [
-    { label: 'Admin Panel', path: '/admin', icon: 'chart-bar' as const },
-    { label: 'Inventory', path: '/inventory', icon: 'package-variant-closed' as const },
-    { label: 'Analytics', path: '/analytics', icon: 'trending-up' as const },
-    { label: 'Accounting', path: '/accounting', icon: 'cash' as const },
-    { label: 'Sales Logs', path: '/sales', icon: 'dollar' as const },
-    { label: 'Sales Ledger / Expenses', path: '/admin/expenses', icon: 'dollar' as const },
-    { label: 'Stock Balance Out', path: '/admin/stock-balance', icon: 'scale' as const },
-    { label: 'Cash Orders', path: '/admin/cash-orders', icon: 'dollar' as const },
-    { label: 'Users', path: '/admin/users', icon: 'account-group' as const },
-    { label: 'Audit Logs', path: '/admin/audit-logs', icon: 'shield-check' as const },
-    { label: 'Reports', path: '/reports', icon: 'file-document' as const },
-    { label: 'App Updates', path: '/admin/updates', icon: 'smartphone' as const },
+  const adminNavItems: Omit<NavRailItem, 'active'>[] = [
+    { label: 'Admin Panel', path: '/admin', icon: 'chart-bar' },
+    { label: 'Inventory', path: '/inventory', icon: 'package-variant-closed' },
+    { label: 'Analytics', path: '/analytics', icon: 'trending-up' },
+    { label: 'Accounting', path: '/accounting', icon: 'cash' },
+    { label: 'Sales Logs', path: '/sales', icon: 'dollar' },
+    { label: 'Sales Ledger / Expenses', path: '/admin/expenses', icon: 'dollar' },
+    { label: 'Stock Balance Out', path: '/admin/stock-balance', icon: 'scale' },
+    { label: 'Cash Orders', path: '/admin/cash-orders', icon: 'dollar' },
+    { label: 'Users', path: '/admin/users', icon: 'account-group' },
+    { label: 'Audit Logs', path: '/admin/audit-logs', icon: 'shield-check' },
+    { label: 'Reports', path: '/reports', icon: 'file-document' },
+    { label: 'App Updates', path: '/admin/updates', icon: 'smartphone' },
   ];
 
-  const navItems = isAdmin ? adminNavItems : userNavItems;
+  const rawNavItems = isAdmin ? adminNavItems : userNavItems;
+  const isNavItemActive = (path: string) =>
+    location.pathname === path ||
+    (path === '/admin' && ['/admin', '/admin/users', '/admin/audit-logs', '/inventory', '/analytics', '/sales', '/reports', '/accounting'].includes(location.pathname));
+  const navItems: NavRailItem[] = rawNavItems.map((item) => ({ ...item, active: isNavItemActive(item.path) }));
+
+  const sidebarCollapsed = collapsed || narrow;
+  const pageMeta = PAGE_TITLES[location.pathname] || { crumb: isAdminRoute ? 'Console' : 'RAD5', title: 'RAD5 Café' };
+  const displayName = profile?.fullName || user?.displayName || user?.email?.split('@')[0] || 'there';
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s: string) => s[0]?.toUpperCase())
+    .join('') || 'U';
 
   return (
-    <div className={`min-h-screen flex bg-bg-page transition-colors duration-300 ${isAdminRoute ? 'admin-layout' : ''}`}>
+    <div
+      className={`min-h-screen flex bg-bg-page transition-colors duration-300 relative ${isAdminRoute ? 'admin-layout' : ''}`}
+      style={{ ['--sidebar-w' as string]: sidebarCollapsed ? '74px' : '246px' } as React.CSSProperties}
+    >{/* --sidebar-w drives the floating cart bar's desktop left offset below */}
+      {/* Ambient glass background blobs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div
+          className="absolute -top-44 -left-28 w-[620px] h-[620px] rounded-full"
+          style={{ background: 'radial-gradient(circle at 30% 30%, var(--tint-c), rgba(0,61,153,0) 70%)' }}
+        />
+        <div
+          className="absolute top-28 -right-40 w-[560px] h-[560px] rounded-full"
+          style={{ background: 'radial-gradient(circle at 60% 40%, rgba(59,130,246,0.18), rgba(59,130,246,0) 70%)' }}
+        />
+      </div>
+
       {/* Desktop Sidebar Navigation */}
-      <aside className="hidden md:flex flex-col w-72 glass-heavy fixed top-0 bottom-0 left-0 z-20 border-r-0 rounded-r-3xl">
-        <div className="h-20 flex items-center gap-3 px-8 border-b border-border/50">
-          <div className="w-10 h-10 flex items-center justify-center">
-            <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-10 h-10" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-extrabold text-xl tracking-tight text-text-main">RAD5 Café</span>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-text-secondary">Smart Wallet</span>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-4 py-6 flex flex-col gap-1.5 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.label}
-                to={item.path}
-                className={`group flex items-center justify-between px-4 py-3 text-sm rounded-xl transition-all duration-300 ${
-                  isActive
-                    ? 'text-text-main font-extrabold'
-                    : 'text-text-secondary font-semibold hover:bg-bg-selected hover:text-text-main'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 ${isActive ? 'text-text-main' : 'text-text-secondary group-hover:text-text-main'}`}>
-                    <Icon name={item.icon} size={18} color="currentColor" />
-                  </div>
-                  <span>{item.label}</span>
-                </div>
-              </Link>
-            );
-          })}
-
-        </nav>
-
-        {/* Bottom Switch & Sign Out Area */}
-        <div className="p-4 border-t border-border/50 mt-auto flex flex-col gap-1.5">
-          {isAdmin ? (
-            <button
-              onClick={handleSwitchToPersonal}
-              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold text-tint hover:bg-tint/10 rounded-xl transition-all duration-200 cursor-pointer"
-            >
-              <Icon name="sync" size={18} color="var(--color-tint)" />
-              <span>Switch to Personal</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleSwitchToAdmin}
-              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold text-tint hover:bg-tint/10 rounded-xl transition-all duration-200 cursor-pointer"
-            >
-              <Icon name="shield-check" size={18} color="var(--color-tint)" />
-              <span>Switch to Admin</span>
-            </button>
-          )}
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold text-error-val hover:bg-error-val/10 rounded-xl transition-all duration-200 cursor-pointer"
-          >
-            <Icon name="log-out" size={18} color="var(--color-error)" />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </aside>
+      <NavRail
+        items={navItems}
+        sectionLabel={isAdmin ? 'ADMIN CONSOLE' : 'MY WALLET'}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setCollapsed((c) => !c)}
+        roleSwitchLabel={isAdmin ? 'Switch to personal' : 'Switch to admin'}
+        roleSwitchIcon={isAdmin ? 'sync' : 'shield-check'}
+        onRoleSwitch={isAdmin ? handleSwitchToPersonal : handleSwitchToAdmin}
+      />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col md:pl-72 min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Mobile Header */}
-        <header className="md:hidden h-16 flex items-center justify-between px-6 glass sticky top-0 z-20">
+        <header className="md:hidden h-16 flex items-center justify-between px-5 glass-surface sticky top-0 z-20">
           <div className="flex items-center gap-2">
             <img src="/RAD5 Cafe.svg" alt="RAD5 Café" className="w-8 h-8" />
             <span className="font-extrabold text-base tracking-tight text-text-main">RAD5 Café</span>
           </div>
           <Link
             to="/notifications"
-            className="p-2 rounded-full hover:bg-bg-selected text-text-main relative"
+            className="relative p-2 rounded-full hover:bg-bg-selected text-text-main"
           >
             <Icon name="bell" size={20} />
+            {unreadCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-error-val" />
+            )}
           </Link>
         </header>
 
-        <main className="flex-1 overflow-x-hidden p-6 md:p-10 pb-24 md:pb-10">
+        <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8 pb-24 md:pb-10">
           <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-6">
+            <div className="hidden md:block">
+              <TopBar crumb={pageMeta.crumb} title={pageMeta.title} unreadCount={unreadCount} userName={displayName} initials={initials} />
+            </div>
             {showBanner && appUpdateInfo && (
               <div className="p-4 bg-tint/10 border border-tint/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in select-none">
                 <div className="flex items-start gap-3 flex-1 min-w-0 w-full">
@@ -397,41 +423,33 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
 
         {/* Mobile Sticky Bottom Navbar */}
-        <nav className="md:hidden sticky bottom-0 w-full h-16 bg-card/95 backdrop-blur-md border-t border-border flex items-center px-2 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] overflow-x-auto scrollbar-none snap-x">
+        <nav className="md:hidden sticky bottom-0 w-full h-16 glass-surface border-t border-border flex items-center px-2 z-20 overflow-x-auto scrollbar-none snap-x" style={{ borderRadius: 0 }}>
           <div className="flex items-center justify-around min-w-full gap-2 px-1">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path || (item.path === '/admin' && ['/admin', '/admin/users', '/admin/audit-logs', '/inventory', '/analytics', '/sales', '/reports', '/accounting'].includes(location.pathname));
-              return (
-                <Link
-                  key={item.label}
-                  to={item.path}
-                  className={`flex flex-col items-center justify-center w-14 h-12 shrink-0 snap-center rounded-xl transition-all duration-300 relative ${
-                    isActive ? 'text-tint font-extrabold scale-105' : 'text-text-secondary hover:text-text-main'
-                  }`}
-                >
-                  <Icon name={item.icon} size={20} color={isActive ? 'var(--color-tint)' : 'currentColor'} />
-                  <span className="text-[10px] font-bold mt-1.5 leading-none whitespace-nowrap">{item.label.split(' ')[0]}</span>
-                  {isActive && (
-                    <span className="absolute bottom-0 w-1.5 h-1.5 rounded-full bg-tint animate-pulse-slow" />
-                  )}
-                </Link>
-              );
-            })}
+            {navItems.map((item) => (
+              <Link
+                key={item.label}
+                to={item.path}
+                className={`flex flex-col items-center justify-center w-14 h-12 shrink-0 snap-center rounded-xl transition-all duration-300 relative ${
+                  item.active ? 'text-tint font-extrabold scale-105' : 'text-text-secondary hover:text-text-main'
+                }`}
+              >
+                <Icon name={item.icon} size={20} color={item.active ? 'var(--color-tint)' : 'currentColor'} />
+                <span className="text-[10px] font-bold mt-1.5 leading-none whitespace-nowrap">{item.label.split(' ')[0]}</span>
+                {item.active && <span className="absolute bottom-0 w-1.5 h-1.5 rounded-full bg-tint animate-pulse-slow" />}
+              </Link>
+            ))}
           </div>
         </nav>
       </div>
 
-      {/* Floating Bottom Cart Status Bar */}
-      {!isAuthRoute && cartCount > 0 && (
-        <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-[19.5rem] md:right-6 glass-heavy rounded-xl p-4 flex justify-between items-center z-30 animate-slide-up">
-          <div className="flex flex-col">
-            <span className="text-xs text-text-secondary font-semibold">{cartCount} items in basket</span>
-            <span className="text-lg font-extrabold text-tint">₦{cartTotal.toLocaleString()}</span>
-          </div>
-          <Button variant="primary" size="md" onClick={() => setIsCartOpen(true)}>
-            View Cart Checkout
-          </Button>
-        </div>
+      {/* Floating Cart Pill */}
+      {!isAuthRoute && !isCartOpen && (
+        <CartPill
+          count={cartCount}
+          total={cartTotal}
+          onClick={() => setIsCartOpen(true)}
+          className="right-4 bottom-20 md:right-6 md:bottom-6"
+        />
       )}
 
       {/* Global Checkout Modal */}
@@ -463,17 +481,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <ToastProvider>
-          <NotificationProvider>
-            <AuthProvider>
-              <CartProvider>
-                <ConfirmProvider>
-                  <AppLayout>{children}</AppLayout>
-                </ConfirmProvider>
-              </CartProvider>
-            </AuthProvider>
-          </NotificationProvider>
-        </ToastProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <NotificationProvider>
+              <AuthProvider>
+                <CartProvider>
+                  <ConfirmProvider>
+                    <AppLayout>{children}</AppLayout>
+                  </ConfirmProvider>
+                </CartProvider>
+              </AuthProvider>
+            </NotificationProvider>
+          </ToastProvider>
+        </ThemeProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

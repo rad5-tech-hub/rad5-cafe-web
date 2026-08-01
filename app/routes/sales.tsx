@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { Card } from '~/components/ui/card';
-import { Badge } from '~/components/ui/badge';
-import { Input } from '~/components/ui/input';
-import { Button } from '~/components/ui/button';
+import { PillButton } from '~/components/ui/pill-button';
+import { IconButton } from '~/components/ui/icon-button';
+import { StatCard } from '~/components/ui/stat-card';
+import { Money } from '~/components/ui/money';
+import { Icon } from '~/components/ui/icon';
+import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
+import { PinConfirmModal } from '~/components/ui/pin-confirm-modal';
+import { useConfirm } from '~/context/confirm-context';
 import { useToast } from '~/context/toast-context';
 import { api, type Sale } from '~/lib/api';
 
@@ -29,6 +33,20 @@ const filters = [
   { label: 'Monthly', value: 'monthly' },
 ] as const;
 
+const statusTone: Record<string, string> = {
+  completed: 'text-ok',
+  cancelled: 'text-err',
+  pending: 'text-warn',
+};
+
+function StatusChip({ label, tone }: { label: string; tone: string }) {
+  return (
+    <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap bg-tint-a ${tone}`}>
+      {label}
+    </span>
+  );
+}
+
 export function meta() {
   return [
     { title: "Sales Logs - RAD5 Café" },
@@ -38,6 +56,7 @@ export function meta() {
 
 export default function Sales() {
   const { showToast } = useToast();
+  const { showConfirm } = useConfirm();
   const [salesList, setSalesList] = useState<Sale[]>([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -47,12 +66,9 @@ export default function Sales() {
   const [totalPages, setTotalPages] = useState(1);
   const limit = 20;
 
-  // Cancellation state
   const [cancellingSaleId, setCancellingSaleId] = useState<string | null>(null);
-  const [cancelPin, setCancelPin] = useState('');
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [adjusting, setAdjusting] = useState(false);
-
-  const [issuingSaleId, setIssuingSaleId] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
 
   const [aggregateRevenue, setAggregateRevenue] = useState(0);
@@ -97,7 +113,6 @@ export default function Sales() {
     if (page > 1) fetchSalesData(activeFilter, page);
   }, [page]);
 
-  // Auto-refresh every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       fetchSalesData(activeFilter, page, true);
@@ -105,74 +120,66 @@ export default function Sales() {
     return () => clearInterval(interval);
   }, [activeFilter, page]);
 
-  const handleConfirmCancel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!cancellingSaleId || !cancelPin) return;
-
+  const handleConfirmCancel = async (pin: string) => {
+    if (!cancellingSaleId) return;
     const saleToCancel = salesList.find(s => s.id === cancellingSaleId);
     if (saleToCancel?.issued) {
-      showToast('Issued orders cannot be cancelled.', 'error');
+      showToast({ type: 'error', title: 'Issued orders cannot be cancelled.' });
       setCancellingSaleId(null);
-      setCancelPin('');
       return;
     }
     if (saleToCancel?.reconciliationStatus === 'limbo') {
-      showToast('This is an unreconciled cash order. Manage it from Cash Orders instead of Sales.', 'error');
+      showToast({ type: 'error', title: 'Unreconciled cash order', message: 'Manage it from Cash Orders instead of Sales.' });
       setCancellingSaleId(null);
-      setCancelPin('');
       return;
     }
 
     setAdjusting(true);
+    setCancelError(null);
     try {
-      const res = await api.adminDashboard.sales.adjust(cancellingSaleId, {
-        status: 'cancelled',
-        pin: cancelPin,
-      });
-
+      const res = await api.adminDashboard.sales.adjust(cancellingSaleId, { status: 'cancelled', pin });
       if (res.success) {
-        showToast('Order cancelled and customer refunded successfully!', 'success');
+        showToast({ type: 'success', title: 'Order cancelled', message: 'Customer refunded successfully.' });
         setSalesList(prev => prev.map(s => s.id === cancellingSaleId ? { ...s, status: 'cancelled' } : s));
         setCancellingSaleId(null);
-        setCancelPin('');
       } else {
-        showToast(res.message || 'Failed to cancel order.', 'error');
+        setCancelError(res.message || 'Failed to cancel order.');
       }
     } catch (err: any) {
-      showToast(err.message || 'Failed to cancel order.', 'error');
+      setCancelError(err.message || 'Failed to cancel order.');
     } finally {
       setAdjusting(false);
     }
   };
 
-  const handleConfirmIssue = async () => {
-    if (!issuingSaleId) return;
-
-    const saleToIssue = salesList.find(s => s.id === issuingSaleId);
-    if (saleToIssue?.reconciliationStatus === 'limbo') {
-      showToast('This is an unreconciled cash order. Manage it from Cash Orders instead of Sales.', 'error');
-      setIssuingSaleId(null);
+  const handleIssue = async (sale: Sale) => {
+    if (sale.reconciliationStatus === 'limbo') {
+      showToast({ type: 'error', title: 'Unreconciled cash order', message: 'Manage it from Cash Orders instead of Sales.' });
       return;
     }
+    const confirmed = await showConfirm({
+      title: 'Issue this order?',
+      message: 'This confirms the items have been handed over to the customer.',
+      confirmLabel: 'Confirm issue',
+    });
+    if (!confirmed) return;
 
     setIssuing(true);
     try {
-      const res = await api.adminDashboard.sales.issue(issuingSaleId);
-
+      const res = await api.adminDashboard.sales.issue(sale.id);
       if (res.success) {
-        showToast('Order issued successfully!', 'success');
+        showToast({ type: 'success', title: 'Order issued' });
         if (res.data) {
           const updatedSale = res.data;
-          setSalesList(prev => prev.map(s => s.id === issuingSaleId ? { ...s, ...updatedSale } : s));
+          setSalesList(prev => prev.map(s => s.id === sale.id ? { ...s, ...updatedSale } : s));
         } else {
-          setSalesList(prev => prev.map(s => s.id === issuingSaleId ? { ...s, issued: true, status: 'completed' } : s));
+          setSalesList(prev => prev.map(s => s.id === sale.id ? { ...s, issued: true, status: 'completed' } : s));
         }
-        setIssuingSaleId(null);
       } else {
-        showToast(res.message || 'Failed to issue order.', 'error');
+        showToast({ type: 'error', title: 'Failed to issue order', message: res.message });
       }
     } catch (err: any) {
-      showToast(err.message || 'Failed to issue order.', 'error');
+      showToast({ type: 'error', title: 'Failed to issue order', message: err.message });
     } finally {
       setIssuing(false);
     }
@@ -182,327 +189,128 @@ export default function Sales() {
     ? salesList.filter((sale) => sale.reconciliationStatus !== 'limbo')
     : salesList;
 
+  const columns: DataTableColumn<Sale>[] = [
+    {
+      key: 'receipt', header: 'Order', width: '1.5fr',
+      render: (s) => (
+        <div className="min-w-0">
+          <div className="text-[13px] font-bold truncate">{s.receiptNumber}</div>
+          <div className="text-[11px] text-text-secondary truncate">{s.customerName}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'items', header: 'Items', width: '1.7fr',
+      render: (s) => <span className="text-[12.5px] text-text-secondary truncate block">{s.items.map(i => `${i.productName} (x${i.quantity})`).join(', ')}</span>,
+    },
+    {
+      key: 'date', header: 'Date', width: '1.1fr',
+      render: (s) => <span className="text-[12px] text-text-secondary">{new Date(parseDate(s.date)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>,
+    },
+    {
+      key: 'revenue', header: 'Revenue', width: '1fr', align: 'right',
+      render: (s) => (
+        <div className="text-right">
+          <Money amount={s.revenue} className="text-[13px] font-semibold block" />
+          {s.status !== 'cancelled' && s.profit > 0 && <Money amount={s.profit} showSign className="text-[11px] text-ok" />}
+        </div>
+      ),
+    },
+    {
+      key: 'status', header: 'Status', width: '1.1fr',
+      render: (s) => (
+        <div className="flex flex-col gap-1 items-start">
+          <StatusChip label={s.status} tone={statusTone[s.status] ?? 'text-tint'} />
+          {s.reconciliationStatus === 'limbo' && <StatusChip label="Unreconciled cash" tone="text-warn" />}
+          {s.issued && <span className="text-[10px] text-text-secondary">Issued{s.issuedBy ? ` · ${s.issuedBy}` : ''}</span>}
+        </div>
+      ),
+    },
+    {
+      key: 'actions', header: '', width: '1fr', align: 'right',
+      render: (s) => (
+        <div className="flex items-center justify-end gap-1.5">
+          {s.reconciliationStatus === 'limbo' ? (
+            <Link to="/admin/cash-orders" className="text-[11px] font-bold text-tint hover:underline whitespace-nowrap">Cash Orders</Link>
+          ) : (
+            <>
+              {s.status === 'completed' && !s.issued && (
+                <IconButton icon="check" size={36} iconSize={14} title="Issue order" onClick={() => handleIssue(s)} disabled={issuing} />
+              )}
+              {s.status !== 'cancelled' && !s.issued && (
+                <IconButton icon="x" size={36} iconSize={14} title="Cancel & refund" onClick={() => { setCancellingSaleId(s.id); setCancelError(null); }} />
+              )}
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="flex flex-col gap-6 select-none max-w-2xl mx-auto">
-      <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-6 w-full">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Sales Records</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight">Sales logs</h1>
           <p className="text-text-secondary text-xs mt-1">
-            Review summary cash flow indexes and transaction checkout rows.
+            Review revenue, margins, and processed transaction counts.
           </p>
         </div>
         <button
-          onClick={() => {
-            fetchSalesData(activeFilter, page, true);
-          }}
+          onClick={() => fetchSalesData(activeFilter, page, true)}
           disabled={loading || isRefreshing}
-          className="text-text-secondary hover:text-tint transition-colors cursor-pointer p-2 rounded-full hover:bg-bg-selected disabled:opacity-50"
-          title="Refresh Sales"
+          className="w-10 h-10 rounded-xl glass-surface grid place-items-center cursor-pointer hover:border-tint hover:text-tint transition-colors disabled:opacity-50"
+          title="Refresh sales"
         >
-          <svg className={`w-5 h-5 ${(loading || isRefreshing) ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-          </svg>
+          <Icon name="sync" size={16} className={(loading || isRefreshing) ? 'animate-spin' : ''} />
         </button>
       </div>
 
-      {/* Summary Row */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="p-4 flex flex-col gap-1 text-center shadow-xs">
-          <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Revenue</span>
-          <span className="text-lg md:text-xl font-extrabold text-success select-all">₦{aggregateRevenue.toLocaleString()}</span>
-        </Card>
-        <Card className="p-4 flex flex-col gap-1 text-center shadow-xs">
-          <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Profit</span>
-          <span className="text-lg md:text-xl font-extrabold text-success select-all">₦{aggregateProfit.toLocaleString()}</span>
-        </Card>
-        <Card className="p-4 flex flex-col gap-1 text-center shadow-xs">
-          <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Orders</span>
-          <span className="text-lg md:text-xl font-extrabold text-tint select-all">{aggregateOrders}</span>
-        </Card>
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <StatCard label="Revenue" value={<Money amount={aggregateRevenue} />} valueColor="var(--color-ok)" />
+        <StatCard label="Profit" value={<Money amount={aggregateProfit} />} valueColor="var(--color-ok)" />
+        <StatCard label="Orders" value={aggregateOrders} />
       </div>
 
-      {/* Filters chips horizontal scrolling */}
-      <div className="flex justify-between items-center gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {filters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setActiveFilter(f.value)}
-              className={`px-4 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer ${
-                activeFilter === f.value
-                  ? 'bg-tint text-white border-tint shadow-xs'
-                  : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
-              }`}
-            >
-              {f.label}
-            </button>
+            <PillButton key={f.value} active={activeFilter === f.value} onClick={() => setActiveFilter(f.value)}>{f.label}</PillButton>
           ))}
         </div>
-        <button
-          onClick={() => setHideUnreconciled((v) => !v)}
-          className={`shrink-0 px-3 py-1.5 text-[11px] font-bold rounded-full border transition-all cursor-pointer ${
-            hideUnreconciled
-              ? 'bg-tint text-white border-tint shadow-xs'
-              : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
-          }`}
-        >
+        <PillButton active={hideUnreconciled} onClick={() => setHideUnreconciled((v) => !v)}>
           Hide unreconciled cash orders
-        </button>
+        </PillButton>
       </div>
 
-      {/* Sales Rows list */}
-      <Card padded={false} className="overflow-hidden shadow-xs">
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <svg className="animate-spin h-8 w-8 text-tint" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-        ) : visibleSalesList.length === 0 ? (
-          <div className="text-center py-16 text-text-secondary text-sm">
-            No sales logs found.
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {visibleSalesList.map((sale) => (
-              <div key={sale.id} className="flex flex-col md:flex-row md:justify-between md:items-center p-4 hover:bg-bg-selected/10 transition-colors gap-3">
-                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-sm text-text-main select-all">
-                      {sale.receiptNumber}
-                    </span>
-                    <Badge
-                      label={sale.status}
-                      variant={sale.status === 'completed' ? 'success' : sale.status === 'cancelled' ? 'error' : 'warning'}
-                    />
-                    {sale.reconciliationStatus === 'limbo' && (
-                      <Badge label="Cash — Unreconciled" variant="warning" />
-                    )}
-                  </div>
-                  <span className="text-xs text-text-main font-semibold mt-1">
-                    {sale.items.map(item => `${item.productName} (x${item.quantity})`).join(', ')}
-                  </span>
-                  <span className="text-[10px] text-text-secondary">
-                    {sale.customerName} • {new Date(parseDate(sale.date)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
+      <DataTable
+        columns={columns}
+        rows={visibleSalesList}
+        keyExtractor={(s) => s.id}
+        loading={loading}
+        emptyMessage="No sales logs found."
+        minWidth={760}
+      />
 
-                <div className="flex md:flex-col items-end justify-between md:justify-center gap-2">
-                  <div className="flex flex-col items-end">
-                    <span className="font-bold text-sm text-text-main select-all">
-                      ₦{sale.revenue.toLocaleString()}
-                    </span>
-                    {sale.status !== 'cancelled' && sale.profit > 0 && (
-                      <span className="text-[10px] font-bold text-success select-all">
-                        +₦{sale.profit.toLocaleString()} profit
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 mt-1">
-                    {sale.reconciliationStatus === 'limbo' ? (
-                      <Link
-                        to="/admin/cash-orders"
-                        className="text-[10px] font-bold text-tint hover:underline cursor-pointer border border-tint/30 hover:border-tint/80 py-1 px-2 rounded-lg bg-tint/5 transition-all"
-                      >
-                        Manage in Cash Orders
-                      </Link>
-                    ) : (
-                      <>
-                        {sale.status === 'completed' && !sale.issued && (
-                          <button
-                            onClick={() => setIssuingSaleId(sale.id)}
-                            className="text-[10px] font-bold text-success hover:underline cursor-pointer border border-success/30 hover:border-success/80 py-1 px-2 rounded-lg bg-success/5 transition-all"
-                          >
-                            Issue
-                          </button>
-                        )}
-                        {sale.status !== 'cancelled' && !sale.issued && (
-                          <button
-                            onClick={() => setCancellingSaleId(sale.id)}
-                            className="text-[10px] font-bold text-error-val hover:underline cursor-pointer border border-error-val/30 hover:border-error-val/80 py-1 px-2 rounded-lg bg-error-val/5 transition-all"
-                          >
-                            Cancel & Refund
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {sale.status === 'completed' && sale.issued && (
-                    <div className="flex flex-col items-end gap-0.5">
-                      <Badge label="Issued" variant="success" />
-                      {sale.issuedBy && (
-                        <span 
-                          className="text-[10px] text-text-secondary cursor-pointer hover:text-tint transition-colors"
-                          onClick={() => {
-                            navigator.clipboard.writeText(sale.issuedBy!);
-                            showToast('Copied ID to clipboard!', 'success');
-                          }}
-                          title="Click to copy ID"
-                        >
-                          by {sale.issuedBy}
-                        </span>
-                      )}
-                      {sale.issuedAt && (
-                        <span className="text-[10px] text-text-secondary">
-                          {new Date(parseDate(sale.issuedAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {sale.status === 'cancelled' && (sale.cancelledBy || sale.cancelledAt) && (
-                    <div className="flex flex-col items-end gap-0.5 mt-1">
-                      {sale.cancelledBy && (
-                        <span 
-                          className="text-[10px] text-text-secondary cursor-pointer hover:text-error-val transition-colors"
-                          onClick={() => {
-                            navigator.clipboard.writeText(sale.cancelledBy!);
-                            showToast('Copied ID to clipboard!', 'success');
-                          }}
-                          title="Click to copy ID"
-                        >
-                          by {sale.cancelledBy}
-                        </span>
-                      )}
-                      {sale.cancelledAt && (
-                        <span className="text-[10px] text-text-secondary">
-                          {new Date(parseDate(sale.cancelledAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-between items-center gap-3">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
           <span className="text-xs text-text-secondary">{total} total results</span>
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="text-xs font-bold cursor-pointer"
-            >
-              Previous
-            </Button>
-            <span className="text-xs font-bold text-text-secondary">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="text-xs font-bold cursor-pointer"
-            >
-              Next
-            </Button>
+            <PillButton onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Previous</PillButton>
+            <span className="text-xs font-bold text-text-secondary">Page {page} of {totalPages}</span>
+            <PillButton onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</PillButton>
           </div>
         </div>
       )}
 
-      {/* Confirmation Modal for PIN validation */}
-      {cancellingSaleId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="absolute inset-0" onClick={() => setCancellingSaleId(null)} />
-          <Card
-            padded={true}
-            className="relative bg-card border border-border w-full max-w-sm rounded-2xl flex flex-col gap-4 shadow-2xl animate-scale-up"
-            style={{ borderRadius: 'var(--radius-xl)' }}
-          >
-            <div className="flex flex-col gap-1">
-              <h3 className="text-lg font-bold text-text-main">Cancel Order & Refund</h3>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                This action is irreversible. The customer's wallet balance will be credited with the order amount, and product quantities will be returned to stock.
-              </p>
-            </div>
-            <form onSubmit={handleConfirmCancel} className="flex flex-col gap-4">
-              <Input
-                label="Admin Transaction PIN"
-                placeholder="4-digit PIN"
-                type="password"
-                maxLength={4}
-                pattern="\d{4}"
-                value={cancelPin}
-                onChange={(e) => setCancelPin(e.target.value.replace(/\D/g, ''))}
-                required
-                autoComplete="new-password"
-                autoFocus
-              />
-              <div className="flex gap-2 justify-end border-t border-border pt-3 mt-1">
-                <Button
-                  variant="outline"
-                  size="md"
-                  type="button"
-                  onClick={() => {
-                    setCancellingSaleId(null);
-                    setCancelPin('');
-                  }}
-                  className="cursor-pointer"
-                >
-                  Close
-                </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  type="submit"
-                  disabled={adjusting}
-                  className="bg-error-val hover:opacity-90 font-bold"
-                >
-                  {adjusting ? 'Adjusting...' : 'Cancel & Refund'}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {issuingSaleId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="absolute inset-0" onClick={() => setIssuingSaleId(null)} />
-          <Card
-            padded={true}
-            className="relative bg-card border border-border w-full max-w-sm rounded-2xl flex flex-col gap-4 shadow-2xl animate-scale-up"
-            style={{ borderRadius: 'var(--radius-xl)' }}
-          >
-            <div className="flex flex-col gap-1">
-              <h3 className="text-lg font-bold text-text-main">Issue Order</h3>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                Mark this order as processed/fulfilled. This confirms the items have been handed over to the customer.
-              </p>
-            </div>
-            <div className="flex gap-2 justify-end border-t border-border pt-3 mt-1">
-              <Button
-                variant="outline"
-                size="md"
-                type="button"
-                onClick={() => setIssuingSaleId(null)}
-                className="cursor-pointer"
-              >
-                Close
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                type="button"
-                onClick={handleConfirmIssue}
-                disabled={issuing}
-                className="bg-success hover:opacity-90 font-bold"
-              >
-                {issuing ? 'Issuing...' : 'Confirm Issue'}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+      <PinConfirmModal
+        isOpen={!!cancellingSaleId}
+        onClose={() => { setCancellingSaleId(null); setCancelError(null); }}
+        onConfirm={handleConfirmCancel}
+        title="Cancel order & refund"
+        loading={adjusting}
+        error={cancelError}
+      />
     </div>
   );
 }

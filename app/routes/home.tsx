@@ -1,30 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useAuth } from '~/context/auth-context';
 import { useCart } from '~/context/cart-context';
 import { useToast } from '~/context/toast-context';
 import { api } from '~/lib/api';
-import { BalanceDisplay } from '~/components/ui/balance-display';
-import { Card } from '~/components/ui/card';
-import { Icon } from '~/components/ui/icon';
-import { Badge } from '~/components/ui/badge';
-import { Button } from '~/components/ui/button';
-import { ProductCard } from '~/components/ui/product-card';
 import { ProductGalleryModal } from '~/components/ui/product-gallery-modal';
 import { FundWalletModal } from '~/components/modals/fund-wallet-modal';
 import { PinSetupModal } from '~/components/modals/pin-setup-modal';
 import { TransferWalletModal } from '~/components/modals/transfer-wallet-modal';
-
-
-type Transaction = {
-  _id: string;
-  type: string;
-  amount: number;
-  status: string;
-  createdAt: string;
-};
+import { DashboardHero } from '~/components/dashboard/dashboard-hero';
+import { SpendChartCard } from '~/components/dashboard/spend-chart-card';
+import { FrequentItems, type FrequentItem } from '~/components/dashboard/frequent-items';
+import { RecentActivity, type RecentTxn } from '~/components/dashboard/recent-activity';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=200&h=200&fit=crop';
+const SPEND_BUCKET_DAYS = 12;
 
 export function meta() {
   return [
@@ -33,21 +23,34 @@ export function meta() {
   ];
 }
 
+function parseDate(val: any): string {
+  if (!val) return new Date().toISOString();
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return new Date(val).toISOString();
+  if (typeof val === 'object') {
+    if (typeof val.toDate === 'function') return val.toDate().toISOString();
+    if (typeof val._seconds === 'number') return new Date(val._seconds * 1000).toISOString();
+    if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+  }
+  return new Date(val).toISOString();
+}
+
 export default function Home() {
   const { user } = useAuth();
-  const { cart, addToCart, removeFromCart, getItemQuantity, cartCount, cartTotal } = useCart();
+  const { addToCart, removeFromCart, getItemQuantity } = useCart();
   const { showToast } = useToast();
-
+  const navigate = useNavigate();
 
   const [balance, setBalance] = useState(0);
   const [walletId, setWalletId] = useState('RAD500000');
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<RecentTxn[]>([]);
+  const [spendTxns, setSpendTxns] = useState<RecentTxn[]>([]);
   const [loadingBalance, setLoadingBalance] = useState(false);
   const [loadingTx, setLoadingTx] = useState(false);
-  const [pinSetupNeeded, setPinSetupNeeded] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [popularItems, setPopularItems] = useState<any[]>([]);
+  const [popularItems, setPopularItems] = useState<FrequentItem[]>([]);
   const [loadingPopular, setLoadingPopular] = useState(false);
+  const [masked, setMasked] = useState(false);
 
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
@@ -55,8 +58,6 @@ export default function Home() {
   const [showFund, setShowFund] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
-  
-
 
   const fetchWalletDetails = () => {
     if (!user) return;
@@ -75,27 +76,23 @@ export default function Home() {
     api.wallet.transactions({ limit: 5 }).then((res: any) => {
       const rawList = res.transactions || res.data;
       if (res.success && Array.isArray(rawList)) {
-        const parseDate = (val: any): string => {
-          if (!val) return new Date().toISOString();
-          if (typeof val === 'string') return val;
-          if (typeof val === 'number') return new Date(val).toISOString();
-          if (typeof val === 'object') {
-            if (typeof val.toDate === 'function') return val.toDate().toISOString();
-            if (typeof val._seconds === 'number') return new Date(val._seconds * 1000).toISOString();
-            if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
-          }
-          return new Date(val).toISOString();
-        };
-        const normalized = rawList.map((tx: any) => ({
-          ...tx,
-          _id: tx.id ?? tx._id,
-          createdAt: parseDate(tx.createdAt),
-        }));
-        setTransactions(normalized);
+        setTransactions(rawList.map((tx: any) => ({ ...tx, id: tx.id ?? tx._id, createdAt: parseDate(tx.createdAt) })));
       } else {
         setTransactions([]);
       }
     }).catch(() => setTransactions([])).finally(() => setLoadingTx(false));
+  };
+
+  // A larger window of recent transactions purely to derive the "spent this
+  // month" sparkline from real debit history (no fabricated numbers).
+  const fetchSpendHistory = () => {
+    if (!user) return;
+    api.wallet.transactions({ limit: 60 }).then((res: any) => {
+      const rawList = res.transactions || res.data;
+      if (res.success && Array.isArray(rawList)) {
+        setSpendTxns(rawList.map((tx: any) => ({ ...tx, id: tx.id ?? tx._id, createdAt: parseDate(tx.createdAt) })));
+      }
+    }).catch(() => {});
   };
 
   const fetchPopularItems = () => {
@@ -121,13 +118,15 @@ export default function Home() {
       .finally(() => setLoadingPopular(false));
   };
 
+  const [pinSetupNeeded, setPinSetupNeeded] = useState(false);
+
   useEffect(() => {
     if (user) {
       fetchWalletDetails();
       fetchTransactions();
+      fetchSpendHistory();
       fetchPopularItems();
 
-      // Check user details for admin role and transaction PIN setup
       api.auth.me().then((res: any) => {
         if (res.success && res.data) {
           if (res.data.role === 'admin' || user.email === 'admin@rad5.cafe' || res.data.email === 'admin@rad5.cafe') {
@@ -142,21 +141,21 @@ export default function Home() {
     }
   }, [user]);
 
-
-
   useEffect(() => {
     const handleOrderPlaced = () => {
       fetchWalletDetails();
       fetchTransactions();
+      fetchSpendHistory();
       fetchPopularItems();
     };
     window.addEventListener('order-placed', handleOrderPlaced);
     return () => window.removeEventListener('order-placed', handleOrderPlaced);
   }, [user]);
 
-  const handleFundSuccess = (amount?: number) => {
+  const handleFundSuccess = () => {
     fetchWalletDetails();
     fetchTransactions();
+    fetchSpendHistory();
   };
 
   const formatTxDate = (iso: string): string => {
@@ -169,171 +168,72 @@ export default function Home() {
     return d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
   };
 
+  // Derive the trailing-12-day spend sparkline + calendar month-to-date total
+  // from the user's own transaction history.
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const buckets = Array.from({ length: SPEND_BUCKET_DAYS }, () => 0);
+  let monthTotal = 0;
+  spendTxns.forEach((tx) => {
+    if (tx.amount >= 0) return;
+    const t = new Date(tx.createdAt).getTime();
+    if (t >= startOfMonth) monthTotal += Math.abs(tx.amount);
+    const diffDays = Math.floor((now.getTime() - t) / 86400000);
+    if (diffDays >= 0 && diffDays < SPEND_BUCKET_DAYS) {
+      buckets[SPEND_BUCKET_DAYS - 1 - diffDays] += Math.abs(tx.amount);
+    }
+  });
+  const maxBucket = Math.max(1, ...buckets);
+  const spendBars = buckets.map((v) => Math.round((v / maxBucket) * 100));
+
   return (
-    <div className="flex flex-col xl:flex-row gap-8 w-full">
-      {/* Left Column (Main) */}
-      <div className="flex-1 flex flex-col min-w-0">
-
-
-
-        {/* Header matching Logip */}
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-text-main" style={{ fontFamily: 'var(--font-sans)' }}>
-              Hello, {user?.displayName || user?.email?.split('@')[0] || 'Margaret'}
-            </h1>
-            <p className="text-text-secondary text-sm mt-1">
-              Track team progress here. You almost reach a goal!
-            </p>
-          </div>
-          <div className="hidden md:flex items-center gap-3">
-             <span className="text-sm font-semibold text-text-secondary">
-               {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-             </span>
-             <button className="w-10 h-10 rounded-xl bg-bg-element border border-border flex items-center justify-center shadow-sm hover:bg-bg-selected transition-colors cursor-pointer">
-               <Icon name="calendar" size={18} className="text-text-main" />
-             </button>
-          </div>
-        </div>
-
-        <BalanceDisplay
-          label="Available Balance"
-          amount={balance}
-          subtitle={`Wallet ID: ${walletId}`}
-          onSubtitleClick={() => {
+    <div className="flex flex-col min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-4 items-start">
+        <DashboardHero
+          balance={balance}
+          walletId={walletId}
+          masked={masked}
+          onToggleMask={() => setMasked((m) => !m)}
+          onFund={() => setShowFund(true)}
+          onTransfer={() => setShowTransfer(true)}
+          onOrder={() => navigate('/cafe')}
+          onCopyWalletId={() => {
             if (walletId && walletId !== 'RAD500000') {
               navigator.clipboard.writeText(walletId);
               showToast('Wallet ID copied to clipboard!', 'success');
             }
           }}
-          actions={[
-            {
-              icon: 'plus',
-              label: 'Fund Wallet',
-              onPress: () => setShowFund(true),
-            },
-            {
-              icon: 'arrow-up',
-              label: 'Transfer',
-              onPress: () => setShowTransfer(true),
-            },
-          ]}
         />
-
-        {/* Popular Items Area (Where Chart would be in Logip) */}
-        <div className="mb-8">
-           <div className="flex justify-between items-center mb-4">
-             <h2 className="text-lg font-bold text-text-main">Menu Highlights</h2>
-             <Link to="/cafe" className="flex items-center gap-2 bg-bg-element border border-border px-3 py-1.5 rounded-lg shadow-sm hover:bg-bg-selected transition-colors cursor-pointer text-xs font-semibold text-text-main">
-               <span>View All</span>
-               <Icon name="chevron-right" size={14} />
-             </Link>
-           </div>
-           
-           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {loadingPopular ? (
-                [...Array(4)].map((_, i) => (
-                  <div key={i} className="shimmer h-64 rounded-xl" />
-                ))
-              ) : popularItems.length > 0 ? (
-                popularItems.map((item, idx) => (
-                  <ProductCard
-                    key={item.id}
-                    item={item}
-                    quantity={getItemQuantity(item.id)}
-                    onAdd={addToCart}
-                    onRemove={removeFromCart}
-                    onImageClick={() => {
-                      setGalleryIndex(idx);
-                      setGalleryOpen(true);
-                    }}
-                  />
-                ))
-              ) : (
-                <div className="col-span-full text-center py-10 text-text-secondary text-sm bg-bg-element rounded-xl border border-border border-dashed">
-                  No products available yet.
-                </div>
-              )}
-           </div>
-        </div>
-
-        {/* Recent Activity (Where Current Tasks is in Logip) */}
-        <div>
-           <div className="flex justify-between items-center mb-4">
-             <div className="flex items-center gap-4">
-                <h2 className="text-lg font-bold text-text-main">Recent Transactions</h2>
-             </div>
-             <div className="flex items-center gap-2 bg-bg-element border border-border px-3 py-1.5 rounded-lg shadow-sm hover:bg-bg-selected transition-colors cursor-pointer text-xs font-semibold text-text-main">
-               <span>Week</span>
-               <Icon name="arrow-down" size={14} />
-             </div>
-           </div>
-
-           <Card padded={false} className="divide-y divide-border shadow-sm">
-              {loadingTx ? (
-                <div className="flex justify-center items-center py-10">
-                  <Icon name="sync" size={24} className="animate-spin text-tint" />
-                </div>
-              ) : transactions.length === 0 ? (
-                <div className="text-center py-8 text-text-secondary text-sm">
-                  No transactions recorded yet.
-                </div>
-              ) : (
-                transactions.map((tx) => {
-                  const isDebit = tx.amount < 0;
-                  const isFailed = tx.status === 'failed';
-                  return (
-                    <div key={tx._id} className="flex justify-between items-center p-5 hover:bg-bg-selected/30 transition-colors group cursor-pointer">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${
-                            isFailed
-                              ? 'bg-error-val/10 text-error-val'
-                              : isDebit
-                              ? 'bg-accent/10 text-accent'
-                              : 'bg-success/10 text-success'
-                          }`}
-                        >
-                          <Icon
-                            name={isFailed ? 'x' : isDebit ? 'arrow-up' : 'arrow-down'}
-                            size={18}
-                          />
-                        </div>
-                        <div className="flex items-center gap-4 md:gap-8 flex-1">
-                           <span className="font-semibold text-sm text-text-main w-1/3 capitalize">
-                             {tx.type === 'reward' && tx.amount < 0 ? 'Reward Reversal' : tx.type}
-                           </span>
-                           <div className="flex items-center gap-2 w-1/4 hidden md:flex">
-                             <div className={`w-2 h-2 rounded-full ${isFailed ? 'bg-error-val' : isDebit ? 'bg-accent' : 'bg-success'}`}></div>
-                             <span className="text-xs font-semibold text-text-main capitalize">{tx.status}</span>
-                           </div>
-                           <div className="flex items-center gap-2 hidden md:flex text-text-secondary text-xs font-semibold w-1/4">
-                             <Icon name="sync" size={12} />
-                             <span>{formatTxDate(tx.createdAt)}</span>
-                           </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span
-                          className={`font-bold text-sm select-all ${
-                            isFailed ? 'text-text-secondary line-through' : isDebit ? 'text-accent' : 'text-success'
-                          }`}
-                        >
-                          {isDebit ? '-' : '+'}₦{Math.abs(tx.amount).toLocaleString()}
-                        </span>
-                        <button className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-bg-element text-text-secondary transition-colors cursor-pointer">
-                           <Icon name="more-vertical" size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-           </Card>
+        <div className="grid gap-3.5">
+          <SpendChartCard total={monthTotal} bars={spendBars} />
         </div>
       </div>
 
+      <div className="flex items-center justify-between mt-8 mb-3">
+        <h2 className="text-[17px] font-bold tracking-tight">You order these often</h2>
+        <Link to="/cafe" className="text-[13px] font-semibold text-tint hover:text-tint-dark">
+          Full menu
+        </Link>
+      </div>
+      <FrequentItems
+        items={popularItems}
+        loading={loadingPopular}
+        getQuantity={getItemQuantity}
+        onAdd={addToCart}
+        onRemove={removeFromCart}
+        onOpen={(idx) => {
+          setGalleryIndex(idx);
+          setGalleryOpen(true);
+        }}
+      />
 
+      <div className="flex items-center justify-between mt-8 mb-3">
+        <h2 className="text-[17px] font-bold tracking-tight">Recent activity</h2>
+        <Link to="/history" className="text-[13px] font-semibold text-tint hover:text-tint-dark">
+          Full ledger
+        </Link>
+      </div>
+      <RecentActivity transactions={transactions} loading={loadingTx} formatWhen={formatTxDate} />
 
       {/* Modals Mounting */}
       <FundWalletModal

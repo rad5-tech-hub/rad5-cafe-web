@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
-import { Icon, type IconName } from '../components/ui/icon';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -16,39 +15,33 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const toastConfig: Record<ToastType, { bgKey: string; iconName: IconName }> = {
-  success: { bgKey: 'bg-success', iconName: 'check' },
-  error: { bgKey: 'bg-error-val', iconName: 'x' },
-  warning: { bgKey: 'bg-warning', iconName: 'alert-triangle' },
-  info: { bgKey: 'bg-tint', iconName: 'bell' },
+const dotColor: Record<ToastType, string> = {
+  success: 'var(--color-ok)',
+  error: 'var(--color-err)',
+  warning: 'var(--color-warn)',
+  info: 'var(--color-tint)',
 };
 
 function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: string) => void }) {
-  const config = toastConfig[item.type];
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onDismiss(item.id);
-    }, 4000);
+    const timer = setTimeout(() => onDismiss(item.id), 2600);
     return () => clearTimeout(timer);
   }, [item.id, onDismiss]);
 
   return (
     <div
       onClick={() => onDismiss(item.id)}
-      className={`flex items-center gap-3 px-4 py-3 text-white rounded-xl shadow-xl border border-white/10 max-w-sm w-full cursor-pointer animate-bounce-in transition-all duration-300 hover:scale-[1.02] ${config.bgKey}`}
+      className="flex items-center gap-3 px-5 py-3.5 rounded-[14px] text-white cursor-pointer animate-rad5-pop"
       style={{
-        borderRadius: 'var(--radius-md)',
+        background: 'rgba(17,24,39,0.92)',
+        backdropFilter: 'blur(14px)',
+        boxShadow: '0 24px 50px -20px rgba(17,24,39,0.7)',
       }}
     >
-      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
-        <Icon name={config.iconName} size={18} color="#FFFFFF" />
-      </div>
-      <div className="flex-1 flex flex-col gap-0.5 min-w-0">
-        <span className="font-bold text-sm leading-snug truncate">{item.title}</span>
-        {item.message && (
-          <span className="text-white/85 text-xs leading-normal break-words">{item.message}</span>
-        )}
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor[item.type] }} />
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="text-[13.5px] font-semibold leading-snug truncate">{item.title}</span>
+        {item.message && <span className="text-white/75 text-xs leading-normal break-words">{item.message}</span>}
       </div>
     </div>
   );
@@ -75,10 +68,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {/* Toast Overlay Container */}
-      <div className="fixed top-4 right-4 z-9999 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+      {/* Toast Overlay Container — bottom-center, stacked upward */}
+      <div className="fixed z-9999 bottom-6 left-1/2 -translate-x-1/2 flex flex-col-reverse gap-2.5 items-center pointer-events-none px-4">
         {toasts.map((toast) => (
-          <div key={toast.id} className="pointer-events-auto w-full">
+          <div key={toast.id} className="pointer-events-auto">
             <ToastCard item={toast} onDismiss={dismiss} />
           </div>
         ))}

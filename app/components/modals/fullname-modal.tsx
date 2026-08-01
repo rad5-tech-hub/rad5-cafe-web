@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { api } from '~/lib/api';
+import React, { useState } from 'react';
+import { GlassSheet } from '../ui/glass-panel';
 import { useToast } from '~/context/toast-context';
-import { Card } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { api } from '~/lib/api';
 
 interface FullNameModalProps {
   isOpen: boolean;
@@ -11,26 +9,17 @@ interface FullNameModalProps {
   onDone: (fullName: string) => void;
 }
 
+/** FullNameModal — the "what should we call you?" name-prompt overlay. */
 export const FullNameModal: React.FC<FullNameModalProps> = ({ isOpen, onDismiss, onDone }) => {
   const { showToast } = useToast();
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   const isValid = fullName.trim().length >= 2;
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   const handleSubmit = async () => {
     if (!isValid) return;
@@ -53,56 +42,37 @@ export const FullNameModal: React.FC<FullNameModalProps> = ({ isOpen, onDismiss,
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-xs transition-opacity duration-300">
-      <div className="absolute inset-0" onClick={onDismiss} />
+    <div
+      onClick={onDismiss}
+      className="fixed inset-0 z-[58] grid place-items-center p-5"
+      style={{ background: 'rgba(17,24,39,0.4)', backdropFilter: 'blur(6px)' }}
+    >
+      <GlassSheet onClick={stop} className="w-full animate-rad5-pop" style={{ maxWidth: 380 }}>
+        <h2 className="text-xl font-extrabold tracking-tight">What should we call you?</h2>
+        <p className="mt-1.5 text-[13.5px] text-text-secondary">This shows on your receipts and the café pickup screen.</p>
 
-      <Card
-        padded={true}
-        className="relative glass-heavy border border-border w-full md:max-w-sm flex flex-col gap-6 shadow-2xl animate-scale-up max-h-[90vh] overflow-hidden"
-        style={{
-          borderTopLeftRadius: 'var(--radius-xl)',
-          borderTopRightRadius: 'var(--radius-xl)',
-          borderBottomLeftRadius: 'window' in globalThis && window.innerWidth >= 768 ? 'var(--radius-xl)' : '0px',
-          borderBottomRightRadius: 'window' in globalThis && window.innerWidth >= 768 ? 'var(--radius-xl)' : '0px',
-        }}
-      >
-        <div className="flex md:hidden justify-center py-1 select-none">
-          <div className="w-12 h-1 bg-border rounded-full" />
-        </div>
+        <input
+          type="text"
+          value={fullName}
+          onChange={(e) => {
+            setError(null);
+            setFullName(e.target.value);
+          }}
+          placeholder="Full name"
+          autoFocus
+          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+          className="w-full mt-4 px-3.5 py-3 rounded-[11px] border border-border bg-card text-[14.5px] outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)]"
+        />
+        {error && <div className="mt-2 text-xs font-semibold text-error-val">{error}</div>}
 
-        <div className="flex-1 overflow-y-auto flex flex-col gap-6">
-          <div className="text-center flex flex-col gap-1">
-            <h3 className="text-xl font-bold text-text-main leading-tight">Welcome to RAD5 Café!</h3>
-            <p className="text-text-secondary text-sm leading-normal">
-              Please enter your full name so we can better personalise your experience and track your rewards.
-            </p>
-          </div>
-
-          <Input
-            label="Full Name"
-            id="fullName"
-            type="text"
-            placeholder="e.g. Ikechukwu Nwankwo"
-            value={fullName}
-            onChange={(e) => {
-              setError(null);
-              setFullName(e.target.value);
-            }}
-            autoFocus
-            error={error ?? undefined}
-          />
-
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth={true}
-            onClick={handleSubmit}
-            disabled={!isValid || loading}
-          >
-            {loading ? 'Saving...' : 'Save & Continue'}
-          </Button>
-        </div>
-      </Card>
+        <button
+          onClick={handleSubmit}
+          disabled={!isValid || loading}
+          className="w-full mt-4.5 py-3.5 rounded-xl border-none bg-tint-dark text-white text-[14.5px] font-bold cursor-pointer hover:bg-tint disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {loading ? 'Saving…' : 'Continue'}
+        </button>
+      </GlassSheet>
     </div>
   );
 };

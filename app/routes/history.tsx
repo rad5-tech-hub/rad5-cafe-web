@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '~/lib/api';
-import { Card } from '~/components/ui/card';
-import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import { Icon } from '~/components/ui/icon';
+import { PillButton } from '~/components/ui/pill-button';
+import { Money } from '~/components/ui/money';
+import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
+import { getTxMeta, getStatusMeta } from '~/components/ui/transaction-row';
 
 type Transaction = {
   _id: string;
@@ -27,7 +28,6 @@ export default function History() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 20;
 
@@ -55,8 +55,8 @@ export default function History() {
             createdAt: parseDate(tx.createdAt),
           }));
           setTransactionsList(normalized);
-          setTotal(res.total ?? normalized.length);
-          setTotalPages(res.totalPages ?? Math.ceil((res.total ?? normalized.length) / limit));
+          const total = res.total ?? normalized.length;
+          setTotalPages(res.totalPages ?? Math.ceil(total / limit));
         } else {
           setTransactionsList([]);
         }
@@ -77,18 +77,16 @@ export default function History() {
   const filterTransactions = () => {
     const now = new Date();
     const todayStr = now.toDateString();
-    
+
     return transactionsList.filter((tx) => {
       const txDate = new Date(tx.createdAt);
-      
+
       switch (activeFilter) {
         case 'Today':
           return txDate.toDateString() === todayStr;
         case 'Weekly':
-          // Past 7 days
           return (now.getTime() - txDate.getTime()) <= 7 * 24 * 60 * 60 * 1000;
         case 'Monthly':
-          // Past 30 days
           return (now.getTime() - txDate.getTime()) <= 30 * 24 * 60 * 60 * 1000;
         case 'All':
         default:
@@ -106,95 +104,91 @@ export default function History() {
     return `${dateStr} • ${timeStr}`;
   };
 
+  const columns: DataTableColumn<Transaction>[] = [
+    {
+      key: 'transaction',
+      header: 'Transaction',
+      width: '1.6fr',
+      render: (tx) => {
+        const meta = getTxMeta(tx.type);
+        return (
+          <div className="flex items-center gap-3 min-w-0">
+            <span
+              className="w-[30px] h-[30px] flex-shrink-0 rounded-[9px] grid place-items-center font-money text-[11px] font-semibold"
+              style={{ background: meta.tintBg, color: meta.color }}
+            >
+              {meta.tag}
+            </span>
+            <div className="min-w-0">
+              <div className="text-[13.5px] font-semibold capitalize truncate">
+                {tx.type === 'reward' && tx.amount < 0 ? 'Reward reversal' : tx.type}
+              </div>
+              <div className="text-[11.5px] text-text-secondary">{formatTxDate(tx.createdAt)}</div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'reference',
+      header: 'Reference',
+      width: '0.9fr',
+      render: (tx) => <span className="font-money text-xs text-text-secondary">#{tx._id.slice(-8).toUpperCase()}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '0.8fr',
+      render: (tx) => {
+        const s = getStatusMeta(tx.status);
+        return (
+          <span className="px-2.5 py-[3px] rounded-full text-[11.5px] font-bold whitespace-nowrap" style={{ background: s.bg, color: s.color }}>
+            {tx.status}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      width: '0.7fr',
+      align: 'right',
+      render: (tx) => (
+        <Money
+          amount={tx.amount}
+          showSign
+          className="text-sm font-semibold"
+        />
+      ),
+    },
+  ];
+
   return (
-    <div className="flex flex-col gap-6 select-none w-full">
+    <div className="flex flex-col gap-5 w-full">
       <div>
-        <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Transaction Statement</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">Transaction history</h1>
         <p className="text-text-secondary text-xs mt-1">
           Review all debits, credits, and orders associated with your wallet.
         </p>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2.5 overflow-x-auto pb-1">
+      <div className="flex gap-2 flex-wrap">
         {filters.map((f) => (
-          <button
-            key={f}
-            onClick={() => setActiveFilter(f)}
-            className={`px-4.5 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer ${
-              activeFilter === f
-                ? 'bg-tint text-white border-tint shadow-xs'
-                : 'bg-bg-element text-text-secondary border-border hover:bg-bg-selected hover:text-text-main'
-            }`}
-          >
+          <PillButton key={f} active={activeFilter === f} onClick={() => setActiveFilter(f)}>
             {f}
-          </button>
+          </PillButton>
         ))}
       </div>
 
-      {/* Transactions List */}
-      <Card padded={false} className="overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <svg className="animate-spin h-8 w-8 text-tint" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-        ) : filteredTransactions.length === 0 ? (
-          <div className="text-center py-16 text-text-secondary text-sm flex flex-col items-center justify-center gap-3">
-            <Icon name="sync" size={40} className="text-text-secondary animate-pulse-slow" />
-            <span className="font-semibold text-text-main">No Transactions Found</span>
-            <span className="text-xs">No records matched your selected filter period.</span>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {filteredTransactions.map((tx) => {
-              const isDebit = tx.amount < 0;
-              const isFailed = tx.status === 'failed';
-              return (
-                <div key={tx._id} className="flex justify-between items-center p-4 md:p-5 hover:bg-bg-selected/35 transition-colors">
-                  <div className="flex items-center gap-3.5">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        isFailed
-                          ? 'bg-error-val/10 text-error-val'
-                          : isDebit
-                          ? 'bg-accent/10 text-accent'
-                          : 'bg-success/10 text-success'
-                      }`}
-                    >
-                      <Icon
-                        name={isFailed ? 'x' : isDebit ? 'arrow-up' : 'arrow-down'}
-                        size={18}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-sm md:text-base text-text-main capitalize">
-                        {tx.type === 'reward' && tx.amount < 0 ? 'Reward Reversal' : tx.type}
-                      </span>
-                      <span className="text-xs text-text-secondary">{formatTxDate(tx.createdAt)}</span>
-                    </div>
-                  </div>
+      <DataTable
+        columns={columns}
+        rows={filteredTransactions}
+        keyExtractor={(tx) => tx._id}
+        loading={loading}
+        emptyMessage="No records matched your selected filter period."
+        minWidth={620}
+      />
 
-                  <div className="flex flex-col items-end gap-1">
-                    <span
-                      className={`font-bold text-sm md:text-base select-all ${
-                        isFailed ? 'text-error-val line-through' : isDebit ? 'text-accent' : 'text-success'
-                      }`}
-                    >
-                      {isDebit ? '-' : '+'}₦{Math.abs(tx.amount).toLocaleString()}
-                    </span>
-                    {isFailed && <Badge label="Failed" variant="error" />}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
-
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-3">
           <Button

@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '~/lib/firebase';
 import { api } from '~/lib/api';
-import { Card } from '~/components/ui/card';
-import { Icon } from '~/components/ui/icon';
-import { Badge } from '~/components/ui/badge';
-import { Input } from '~/components/ui/input';
-import { Button } from '~/components/ui/button';
+import { StatCard } from '~/components/ui/stat-card';
+import { Money } from '~/components/ui/money';
+import { ConsoleTileGrid, type ConsoleTile } from '~/components/admin/console-tile-grid';
+import { MiniStatList, type MiniStat } from '~/components/admin/mini-stat-list';
+import { LowStockAlertsCard } from '~/components/admin/low-stock-alerts-card';
+import { WalletAdjustCard } from '~/components/admin/wallet-adjust-card';
 import { useToast } from '~/context/toast-context';
 import { AdminPinSetupModal } from '~/components/modals/admin-pin-setup-modal';
-
 
 export function meta() {
   return [
@@ -19,80 +18,54 @@ export function meta() {
   ];
 }
 
-type StatCardProps = {
-  label: string;
-  value: string;
-  icon: any;
-  variant?: 'default' | 'success' | 'warning' | 'error';
-};
-
-function StatCard({ label, value, icon, variant = 'default' }: StatCardProps) {
-  const getColors = () => {
-    switch (variant) {
-      case 'success':
-        return 'text-success bg-success/15';
-      case 'warning':
-        return 'text-warning bg-warning/15';
-      case 'error':
-        return 'text-error-val bg-error-val/15';
-      case 'default':
-      default:
-        return 'text-tint bg-tint/15';
-    }
-  };
-
-  return (
-    <Card className="flex flex-col gap-2 items-center text-center p-5 select-none hover:scale-[1.02] transition-transform duration-200 shadow-xs">
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getColors()}`}>
-        <Icon name={icon} size={20} />
-      </div>
-      <span className="text-xl font-extrabold text-text-main tabular-nums select-all">{value}</span>
-      <span className="text-xs font-semibold text-text-secondary select-all">{label}</span>
-    </Card>
-  );
-}
+const CONSOLE_TILES: ConsoleTile[] = [
+  { key: 'inventory', title: 'Inventory', sub: 'Stock levels, thresholds & restocking', icon: 'package-variant-closed', to: '/inventory' },
+  { key: 'sales', title: 'Sales logs', sub: 'Orders, refunds & daily takings', icon: 'dollar', to: '/sales' },
+  { key: 'accounting', title: 'Accounting', sub: 'Reconciliation & variance review', icon: 'cash', to: '/accounting' },
+  { key: 'analytics', title: 'Analytics', sub: 'Trends, top products & busy hours', icon: 'trending-up', to: '/analytics' },
+  { key: 'stock-balance', title: 'Stock balance out', sub: 'Write off stock loss against profit', icon: 'scale', to: '/admin/stock-balance' },
+  { key: 'users', title: 'Users & access', sub: 'Customer accounts, tiers & status', icon: 'account-group', to: '/admin/users' },
+  { key: 'rewards', title: 'Rewards given', sub: 'Points & cashback distributed', icon: 'star-circle', to: '/admin/rewards' },
+  { key: 'pin-changes', title: 'PIN approvals', sub: 'Review pending PIN change requests', icon: 'lock', to: '/admin/pin-changes' },
+  { key: 'add-product', title: 'Add product', sub: 'List a new item on the menu', icon: 'plus', to: '/admin/products/add' },
+  { key: 'reports', title: 'Export reports', sub: 'Download revenue & inventory reports', icon: 'file-document', to: '/reports' },
+  { key: 'updates', title: 'App updates', sub: 'Publish new Android release info', icon: 'smartphone', to: '/admin/updates' },
+];
 
 export default function Admin() {
-  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const [stats, setStats] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Manual Wallet form state
+  // Manual wallet adjustment form state
   const [walletUserId, setWalletUserId] = useState('');
   const [walletAmount, setWalletAmount] = useState('');
   const [walletDesc, setWalletDesc] = useState('');
   const [walletPin, setWalletPin] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
 
-  const [adminPinSetupNeeded, setAdminPinSetupNeeded] = useState(false);
   const [showAdminPinSetup, setShowAdminPinSetup] = useState(false);
 
   const fetchAdminData = () => {
     setLoading(true);
-    setAlerts([]);
 
     api.adminDashboard.overview()
-      .then((res) => {
+      .then((res: any) => {
         const overview = res.data ?? res;
-        if (overview) {
-          setStats(overview);
-        }
+        if (overview) setStats(overview);
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.warn('Could not load admin dashboard stats:', err);
       });
 
     api.adminDashboard.alerts.list()
-      .then((res) => {
+      .then((res: any) => {
         const list = res.data ?? res;
-        if (res.success && Array.isArray(list)) {
-          setAlerts(list);
-        }
+        if (res.success && Array.isArray(list)) setAlerts(list);
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.warn('Could not load alerts:', err);
       })
       .finally(() => setLoading(false));
@@ -102,33 +75,28 @@ export default function Admin() {
     fetchAdminData();
 
     api.adminDashboard.auth.me()
-      .then((res) => {
+      .then((res: any) => {
         if (res.success && res.data && res.data.pinSetup === false) {
-          setAdminPinSetupNeeded(true);
           setShowAdminPinSetup(true);
         }
       })
       .catch(() => {
-        // fallback: check user /auth/me for adminPinSetup field
         api.auth.me().then((res: any) => {
           if (res.success && res.data) {
             if (res.data.adminPinSetup === false || (!res.data.adminPinSetup && res.data.pinSetup === false)) {
-              setAdminPinSetupNeeded(true);
               setShowAdminPinSetup(true);
             }
           }
         }).catch(() => {});
       });
 
-    // Request Notification permission
     if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
       Notification.requestPermission();
     }
 
-    // Set up Firebase listener for new orders
     const ordersRef = collection(db, 'orders');
     const q = query(ordersRef, orderBy('createdAt', 'desc'), limit(1));
-    
+
     let initialLoad = true;
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (initialLoad) {
@@ -137,7 +105,7 @@ export default function Admin() {
       }
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
-          const order = change.doc.data();
+          const order = change.doc.data() as any;
           if ('Notification' in window && Notification.permission === 'granted') {
             const itemsStr = order.items?.map((i: any) => `${i.quantity}x ${i.productName}`).join(', ');
             const body = `Customer: ${order.customerName || 'Unknown'}\nProducts: ${itemsStr}`;
@@ -154,22 +122,21 @@ export default function Admin() {
     try {
       const res = await api.adminDashboard.alerts.acknowledge(id);
       if (res.success) {
-        showToast('Alert acknowledged successfully', 'success');
+        showToast({ type: 'success', title: 'Alert acknowledged' });
         setAlerts((prev) => prev.filter((a) => (a.id ?? a._id) !== id));
-        // Refresh overview
-        api.adminDashboard.overview().then((res) => {
-          if (res.success && res.data) setStats(res.data);
+        api.adminDashboard.overview().then((r: any) => {
+          if (r.success && r.data) setStats(r.data);
         });
       }
     } catch (err: any) {
-      showToast(err.message || 'Failed to acknowledge alert', 'error');
+      showToast({ type: 'error', title: 'Failed to acknowledge alert', message: err.message });
     }
   };
 
   const handleWalletAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!walletUserId.trim() || !walletAmount || !walletPin) {
-      showToast('User ID, Amount, and PIN are required.', 'warning');
+      showToast({ type: 'warning', title: 'User ID, amount and PIN are required.' });
       return;
     }
 
@@ -183,347 +150,90 @@ export default function Admin() {
       });
 
       if (res.success) {
-        showToast(`Wallet balance adjusted successfully! New Balance: ₦${res.data?.balance?.toLocaleString()}`, 'success');
+        showToast({ type: 'success', title: 'Wallet balance adjusted', message: `New balance: ${res.data?.balance != null ? '₦' + Number(res.data.balance).toLocaleString() : ''}` });
         setWalletUserId('');
         setWalletAmount('');
         setWalletDesc('');
         setWalletPin('');
-        fetchAdminData(); // Refresh stats
+        fetchAdminData();
       } else {
-        showToast(res.message || 'Balance adjustment failed.', 'error');
+        showToast({ type: 'error', title: 'Balance adjustment failed', message: res.message });
       }
     } catch (err: any) {
-      showToast(err.message || 'Balance adjustment failed.', 'error');
+      showToast({ type: 'error', title: 'Balance adjustment failed', message: err.message });
     } finally {
       setWalletLoading(false);
     }
   };
 
-
-
-  const todayStats = [
-    {
-      label: 'Revenue Today',
-      value: stats?.today ? `₦${Number(stats.today.revenue ?? 0).toLocaleString()}` : '₦0',
-      icon: 'dollar' as const,
-      variant: 'success' as const
-    },
-    {
-      label: 'Calculated Profit',
-      value: stats?.today ? `₦${Number(stats.today.profit ?? 0).toLocaleString()}` : '₦0',
-      icon: 'trending-up' as const,
-      variant: 'success' as const
-    },
-    {
-      label: 'Sales Count',
-      value: stats?.today ? `${stats.today.salesCount ?? 0} orders` : '0 orders',
-      icon: 'cart' as const,
-      variant: 'default' as const
-    },
+  const inventoryStats: MiniStat[] = [
+    { label: 'Total products', value: `${stats?.inventory?.totalProducts ?? 0} items`, icon: 'package-variant-closed' },
+    { label: 'Low stock alerts', value: `${stats?.inventory?.lowStock ?? 0} alerts`, icon: 'alert-triangle', tone: 'warning' },
+    { label: 'Out of stock', value: `${stats?.inventory?.outOfStock ?? 0} items`, icon: 'block-helper', tone: 'error' },
   ];
 
-  const inventoryStats = [
-    {
-      label: 'Total Products',
-      value: stats?.inventory ? `${stats.inventory.totalProducts ?? 0} items` : '0 items',
-      icon: 'package-variant-closed' as const,
-      variant: 'default' as const
-    },
-    {
-      label: 'Low Stock Alerts',
-      value: stats?.inventory ? `${stats.inventory.lowStock ?? 0} alerts` : '0 alerts',
-      icon: 'alert-triangle' as const,
-      variant: 'warning' as const
-    },
-    {
-      label: 'Out of Stock',
-      value: stats?.inventory ? `${stats.inventory.outOfStock ?? 0} items` : '0 items',
-      icon: 'block-helper' as const,
-      variant: 'error' as const
-    },
+  const customerStats: MiniStat[] = [
+    { label: 'Total customers', value: `${stats?.customers?.total ?? 0} users`, icon: 'account-group' },
+    { label: 'Active today', value: `${stats?.customers?.active ?? 0} users`, icon: 'check', tone: 'success' },
   ];
 
-  const customerStats = [
-    {
-      label: 'Total Customers',
-      value: stats?.customers ? `${stats.customers.total ?? 0} users` : '0 users',
-      icon: 'account-group' as const,
-      variant: 'default' as const
-    },
-    {
-      label: 'Active Today',
-      value: stats?.customers ? `${stats.customers.active ?? 0} users` : '0 users',
-      icon: 'check' as const,
-      variant: 'success' as const
-    },
-  ];
-
-  const walletStats = [
-    {
-      label: 'Total Wallet Escrow',
-      value: stats?.wallet ? `₦${Number(stats.wallet.totalValue ?? 0).toLocaleString()}` : '₦0',
-      icon: 'bank' as const,
-      variant: 'default' as const
-    },
-    {
-      label: 'Processed Tx',
-      value: stats?.wallet ? Number(stats.wallet.totalTransactions ?? 0).toLocaleString() : '0',
-      icon: 'sync' as const,
-      variant: 'default' as const
-    },
+  const walletStats: MiniStat[] = [
+    { label: 'Total wallet escrow', value: stats?.wallet ? `₦${Number(stats.wallet.totalValue ?? 0).toLocaleString()}` : '₦0', icon: 'bank' },
+    { label: 'Processed tx', value: stats?.wallet ? Number(stats.wallet.totalTransactions ?? 0).toLocaleString() : '0', icon: 'sync' },
   ];
 
   return (
-    <div className="flex flex-col gap-6 select-none max-w-4xl mx-auto">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-extrabold text-text-main tracking-tight">Staff Console</h1>
-          <p className="text-text-secondary text-xs mt-1">
-            Monitor inventory, checkout analytics, sales balances, and exports.
-          </p>
-        </div>
-        <Badge label="Active Today" variant="success" />
+    <div className="flex flex-col gap-6 w-full">
+      <div>
+        <h1 className="text-2xl font-extrabold tracking-tight">Staff console</h1>
+        <p className="text-text-secondary text-xs mt-1">
+          Monitor inventory, checkout analytics, sales balances, and exports.
+        </p>
       </div>
 
-
-
-      {/* Today Performance widgets */}
-      <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider pl-1">Today's Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {todayStats.map((stat) => (
-            <StatCard key={stat.label} {...stat} />
-          ))}
-        </div>
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <StatCard label="Revenue today" value={loading ? '—' : <Money amount={stats?.today?.revenue ?? 0} />} sub={`${stats?.today?.salesCount ?? 0} orders`} />
+        <StatCard label="Profit today" value={loading ? '—' : <Money amount={stats?.today?.profit ?? 0} />} sub="calculated, before write-offs" valueColor="var(--color-ok)" />
+        <StatCard label="Low stock" value={loading ? '—' : `${stats?.inventory?.lowStock ?? 0}`} sub={`${stats?.inventory?.outOfStock ?? 0} out of stock`} valueColor={stats?.inventory?.lowStock ? 'var(--color-warn)' : undefined} />
+        <StatCard
+          label="Unreconciled"
+          value={loading ? '—' : `${stats?.wallet?.unreconciledLimboCount ?? 0}`}
+          sub={stats?.wallet?.unreconciledLimboTotal ? <Money amount={stats.wallet.unreconciledLimboTotal} /> : 'cash orders in limbo'}
+          valueColor={stats?.wallet?.unreconciledLimboCount ? 'var(--color-err)' : undefined}
+        />
       </div>
 
-      {/* Quick Action Navigation Buttons */}
-      <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-text-secondary uppercase tracking-wider pl-1 font-semibold">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Link
-            to="/admin/products/add"
-            className="flex flex-col items-center justify-center p-5 bg-card border border-border rounded-2xl hover:bg-bg-selected/35 hover:scale-[1.03] transition-all text-center gap-2 shadow-xs"
-            style={{ borderRadius: 'var(--radius-lg)' }}
-          >
-            <Icon name="plus" size={24} className="text-tint" />
-            <span className="text-xs font-bold text-text-main">Add Product</span>
-          </Link>
-
-          <Link
-            to="/inventory"
-            className="flex flex-col items-center justify-center p-5 bg-card border border-border rounded-2xl hover:bg-bg-selected/35 hover:scale-[1.03] transition-all text-center gap-2 shadow-xs"
-            style={{ borderRadius: 'var(--radius-lg)' }}
-          >
-            <Icon name="package-variant-closed" size={24} className="text-text-secondary" />
-            <span className="text-xs font-bold text-text-main">Inventory</span>
-          </Link>
-
-          <Link
-            to="/sales"
-            className="flex flex-col items-center justify-center p-5 bg-card border border-border rounded-2xl hover:bg-bg-selected/35 hover:scale-[1.03] transition-all text-center gap-2 shadow-xs"
-            style={{ borderRadius: 'var(--radius-lg)' }}
-          >
-            <Icon name="dollar" size={24} className="text-success" />
-            <span className="text-xs font-bold text-text-main">Sales Logs</span>
-          </Link>
-
-          <Link
-            to="/analytics"
-            className="flex flex-col items-center justify-center p-5 bg-card border border-border rounded-2xl hover:bg-bg-selected/35 hover:scale-[1.03] transition-all text-center gap-2 shadow-xs"
-            style={{ borderRadius: 'var(--radius-lg)' }}
-          >
-            <Icon name="trending-up" size={24} className="text-tint" />
-            <span className="text-xs font-bold text-text-main">Analytics</span>
-          </Link>
-
-          <Link
-            to="/reports"
-            className="flex flex-col items-center justify-center p-5 bg-card border border-border rounded-2xl hover:bg-bg-selected/35 hover:scale-[1.03] transition-all text-center gap-2 shadow-xs"
-            style={{ borderRadius: 'var(--radius-lg)' }}
-          >
-            <Icon name="file-document" size={24} className="text-warning" />
-            <span className="text-xs font-bold text-text-main">Export Reports</span>
-          </Link>
-
-          <Link
-            to="/admin/rewards"
-            className="flex flex-col items-center justify-center p-5 bg-card border border-border rounded-2xl hover:bg-bg-selected/35 hover:scale-[1.03] transition-all text-center gap-2 shadow-xs"
-            style={{ borderRadius: 'var(--radius-lg)' }}
-          >
-            <Icon name="star-circle" size={24} className="text-success" />
-            <span className="text-xs font-bold text-text-main">Rewards Given</span>
-          </Link>
-
-          <Link
-            to="/admin/pin-changes"
-            className="flex flex-col items-center justify-center p-5 bg-card border border-border rounded-2xl hover:bg-bg-selected/35 hover:scale-[1.03] transition-all text-center gap-2 shadow-xs"
-            style={{ borderRadius: 'var(--radius-lg)' }}
-          >
-            <Icon name="lock" size={24} className="text-warning" />
-            <span className="text-xs font-bold text-text-main">PIN Approvals</span>
-          </Link>
-        </div>
+      <div>
+        <h2 className="text-[17px] font-bold tracking-tight mb-3">Console</h2>
+        <ConsoleTileGrid tiles={CONSOLE_TILES} />
       </div>
 
-      {/* Grid of Sections (Inventory, Customers, Wallets) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-        {/* Inventory Summary */}
-        <div className="flex flex-col gap-2.5">
-          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider pl-1">Inventory Levels</span>
-          <div className="flex flex-col gap-3">
-            {inventoryStats.map((stat) => (
-              <Card key={stat.label} className="p-4.5 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <Icon name={stat.icon} className={stat.variant === 'error' ? 'text-error-val' : stat.variant === 'warning' ? 'text-warning' : 'text-text-secondary'} />
-                  <span className="text-xs font-bold text-text-main">{stat.label}</span>
-                </div>
-                <span className={`text-sm font-extrabold ${stat.variant === 'error' ? 'text-error-val' : stat.variant === 'warning' ? 'text-warning' : 'text-tint'}`}>
-                  {stat.value}
-                </span>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Customer Activity */}
-        <div className="flex flex-col gap-2.5">
-          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider pl-1">Customer Activity</span>
-          <div className="flex flex-col gap-3">
-            {customerStats.map((stat) => (
-              <Card key={stat.label} className="p-4.5 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <Icon name={stat.icon} className="text-text-secondary" />
-                  <span className="text-xs font-bold text-text-main">{stat.label}</span>
-                </div>
-                <span className="text-sm font-extrabold text-tint">{stat.value}</span>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Smart Wallet Escrows */}
-        <div className="flex flex-col gap-2.5">
-          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider pl-1">System Wallets</span>
-          <div className="flex flex-col gap-3">
-            {walletStats.map((stat) => (
-              <Card key={stat.label} className="p-4.5 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <Icon name={stat.icon} className="text-text-secondary" />
-                  <span className="text-xs font-bold text-text-main">{stat.label}</span>
-                </div>
-                <span className="text-sm font-extrabold text-tint">{stat.value}</span>
-              </Card>
-            ))}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <MiniStatList title="Inventory levels" stats={inventoryStats} />
+        <MiniStatList title="Customer activity" stats={customerStats} />
+        <MiniStatList title="System wallets" stats={walletStats} />
       </div>
 
-      {/* Advanced Admin Actions (Alerts log and Manual Wallet control) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-        {/* Left Column: Stock Alerts */}
-        <div className="flex flex-col gap-2.5">
-          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider pl-1">
-            Low Stock Alerts ({alerts.length})
-          </span>
-          <Card padded={false} className="flex flex-col overflow-hidden max-h-[350px] overflow-y-auto shadow-xs">
-            {alerts.length === 0 ? (
-              <div className="text-center py-12 text-text-secondary text-xs">
-                All inventory products are above safety threshold levels.
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {alerts.map((alert) => (
-                  <div key={alert.id || alert._id} className="p-4 flex items-center justify-between gap-4">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm font-bold text-text-main">
-                        {alert.productName}
-                      </span>
-                      <span className="text-xs text-text-secondary">
-                        Stock: <strong className="text-error-val">{alert.currentStock}</strong> / threshold: {alert.threshold}
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAcknowledgeAlert(alert.id || alert._id)}
-                      className="text-xs font-bold cursor-pointer"
-                    >
-                      Acknowledge
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Right Column: Secure Wallet Adjustment Form */}
-        <div className="flex flex-col gap-2.5">
-          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider pl-1">
-            Manual Wallet Operation
-          </span>
-          <Card className="flex flex-col gap-4 shadow-xs">
-            <form onSubmit={handleWalletAdjust} className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Customer User ID"
-                  placeholder="e.g. RAD500042"
-                  value={walletUserId}
-                  onChange={(e) => setWalletUserId(e.target.value)}
-                  required
-                />
-                <Input
-                  label="Amount (₦)"
-                  placeholder="e.g. 5000 or -2000"
-                  type="number"
-                  value={walletAmount}
-                  onChange={(e) => setWalletAmount(e.target.value)}
-                  required
-                />
-              </div>
-
-              <Input
-                label="Adjustment Reason"
-                placeholder="Compensation refund for billing issue"
-                value={walletDesc}
-                onChange={(e) => setWalletDesc(e.target.value)}
-              />
-
-              <div className="grid grid-cols-2 gap-3 items-end pt-2 border-t border-border mt-1">
-                <Input
-                  label="Transaction PIN"
-                  placeholder="4-digit PIN"
-                  type="password"
-                  maxLength={4}
-                  pattern="\d{4}"
-                  value={walletPin}
-                  onChange={(e) => setWalletPin(e.target.value.replace(/\D/g, ''))}
-                  required
-                  autoComplete="new-password"
-                />
-                <Button
-                  type="submit"
-                  variant="secondary"
-                  size="md"
-                  fullWidth={true}
-                  disabled={walletLoading}
-                >
-                  {walletLoading ? 'Adjusting...' : 'Perform Adjustment'}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <LowStockAlertsCard alerts={alerts} onAcknowledge={handleAcknowledgeAlert} />
+        <WalletAdjustCard
+          userId={walletUserId}
+          onUserIdChange={setWalletUserId}
+          amount={walletAmount}
+          onAmountChange={setWalletAmount}
+          description={walletDesc}
+          onDescriptionChange={setWalletDesc}
+          pin={walletPin}
+          onPinChange={setWalletPin}
+          loading={walletLoading}
+          onSubmit={handleWalletAdjust}
+        />
       </div>
 
       <AdminPinSetupModal
         isOpen={showAdminPinSetup}
         onDismiss={() => setShowAdminPinSetup(false)}
-        onDone={() => {
-          setShowAdminPinSetup(false);
-          setAdminPinSetupNeeded(false);
-        }}
+        onDone={() => setShowAdminPinSetup(false)}
       />
     </div>
   );

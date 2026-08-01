@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '~/components/ui/card';
-import { Badge } from '~/components/ui/badge';
-import { Input } from '~/components/ui/input';
-import { Button } from '~/components/ui/button';
+import { GlassPanel } from '~/components/ui/glass-panel';
+import { Money } from '~/components/ui/money';
+import { Icon } from '~/components/ui/icon';
+import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
+import { SheetField } from '~/components/ui/action-sheet-modal';
+import { PillButton } from '~/components/ui/pill-button';
 import { useToast } from '~/context/toast-context';
 import { api } from '~/lib/api';
 
@@ -27,7 +29,6 @@ export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 20;
 
@@ -41,7 +42,6 @@ export default function Expenses() {
       .then((res: any) => {
         if (res.success && Array.isArray(res.data)) {
           setExpenses(res.data);
-          setTotal(res.total ?? res.data.length);
           setTotalPages(res.totalPages ?? Math.ceil((res.total ?? res.data.length) / limit));
         } else {
           setExpenses([]);
@@ -61,7 +61,7 @@ export default function Expenses() {
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.amount || !formData.description || !formData.date || !formData.pin) return;
-    
+
     setAdding(true);
     try {
       const res = await api.adminDashboard.salesLedger.addExpense({
@@ -72,129 +72,91 @@ export default function Expenses() {
       });
 
       if (res.success) {
-        showToast({ type: 'success', title: 'Expense Added', message: 'The business expense has been recorded successfully.' });
+        showToast({ type: 'success', title: 'Expense added', message: 'The business expense has been recorded successfully.' });
         setShowAddForm(false);
         setFormData({ amount: '', description: '', date: '', pin: '' });
         fetchExpenses(page);
       } else {
-        showToast({ type: 'error', title: 'Failed to add expense', message: res.message || 'Error occurred.' });
+        showToast({ type: 'error', title: 'Failed to add expense', message: res.message });
       }
     } catch (error: any) {
-      showToast({ type: 'error', title: 'Error', message: error.message || 'Failed to add expense.' });
+      showToast({ type: 'error', title: 'Failed to add expense', message: error.message });
     } finally {
       setAdding(false);
     }
   };
 
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  const columns: DataTableColumn<Expense>[] = [
+    { key: 'date', header: 'Date', render: (e) => <span className="text-[12.5px] text-text-secondary">{new Date(e.date).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}</span> },
+    { key: 'description', header: 'Description', width: '1.8fr', render: (e) => <span className="text-[13px] font-semibold truncate block">{e.description}</span> },
+    { key: 'amount', header: 'Amount', align: 'right', render: (e) => <Money amount={-Math.abs(e.amount || 0)} showSign className="text-[13px] font-semibold text-err" /> },
+  ];
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col gap-6 w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-brand-900 dark:text-brand-100">
-            Sales Ledger / Expenses
-          </h1>
-          <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
-            Track business expenses manually deducted from revenue.
-          </p>
+          <h1 className="text-2xl font-extrabold tracking-tight">Sales ledger / expenses</h1>
+          <p className="text-text-secondary text-xs mt-1">Track business expenses manually deducted from revenue.</p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)} variant={showAddForm ? 'outline' : 'primary'}>
-          {showAddForm ? 'Cancel' : 'Add Expense'}
-        </Button>
+        <button
+          onClick={() => setShowAddForm((v) => !v)}
+          className={`px-4 py-2.5 rounded-xl text-[13.5px] font-bold cursor-pointer transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+            showAddForm ? 'border border-border bg-card hover:border-tint hover:text-tint' : 'border-none bg-tint-dark text-white hover:bg-tint'
+          }`}
+        >
+          <Icon name={showAddForm ? 'x' : 'plus'} size={14} />
+          {showAddForm ? 'Cancel' : 'Add expense'}
+        </button>
+      </div>
+
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <div className="glass-surface rounded-2xl p-5">
+          <div className="text-[12.5px] font-semibold text-text-secondary">Total recorded</div>
+          <Money amount={totalExpenses} className="font-money text-[25px] font-semibold tracking-tight mt-2 block text-err" />
+          <div className="text-xs text-text-secondary mt-1">{expenses.length} expenses on this page</div>
+        </div>
       </div>
 
       {showAddForm && (
-        <Card className="p-6 bg-brand-50/50 dark:bg-brand-900/10 border-brand-200 dark:border-brand-800">
-          <h3 className="text-lg font-semibold mb-4">Record New Expense</h3>
-          <form onSubmit={handleAddExpense} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Amount (₦)</label>
-                <Input
-                  type="number"
-                  placeholder="e.g. 5000"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  required
-                />
+        <GlassPanel radius="lg">
+          <h3 className="text-[15px] font-bold mb-3.5">Record new expense</h3>
+          <form onSubmit={handleAddExpense} className="flex flex-col">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3">
+              <SheetField label="Amount (₦)" value={formData.amount} onChange={(v) => setFormData({ ...formData, amount: v })} type="number" mono placeholder="e.g. 5000" required />
+              <SheetField label="Date" value={formData.date} onChange={(v) => setFormData({ ...formData, date: v })} type="date" required />
+              <div className="md:col-span-2">
+                <SheetField label="Description" value={formData.description} onChange={(v) => setFormData({ ...formData, description: v })} placeholder="e.g. Purchased cleaning supplies" required />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Date</label>
-                <Input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Description</label>
-                <Input
-                  placeholder="e.g. Purchased cleaning supplies"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-brand-700 dark:text-brand-300">Admin PIN</label>
-                <Input
-                  type="password"
-                  placeholder="Enter 4-digit PIN"
-                  maxLength={4}
-                  value={formData.pin}
-                  onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
-                  required
-                />
-              </div>
+              <SheetField label="Admin PIN" value={formData.pin} onChange={(v) => setFormData({ ...formData, pin: v.replace(/\D/g, '') })} type="password" mono maxLength={4} placeholder="4-digit PIN" required />
             </div>
             <div className="flex justify-end mt-4">
-              <Button type="submit" disabled={adding}>
-                {adding ? 'Adding...' : 'Save Expense'}
-              </Button>
+              <button type="submit" disabled={adding} className="px-4 py-2.5 rounded-xl border-none bg-tint-dark text-white text-sm font-bold cursor-pointer hover:bg-tint disabled:opacity-50 transition-colors">
+                {adding ? 'Adding…' : 'Save expense'}
+              </button>
             </div>
           </form>
-        </Card>
+        </GlassPanel>
       )}
 
-      <Card className="overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-brand-500">
-            <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p>Loading expenses...</p>
-          </div>
-        ) : expenses.length === 0 ? (
-          <div className="p-12 text-center text-brand-500">
-            <p>No expenses found.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-brand-500 uppercase bg-brand-50 dark:bg-brand-900/20 border-b border-brand-200 dark:border-brand-800">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Date</th>
-                  <th className="px-6 py-4 font-medium">Description</th>
-                  <th className="px-6 py-4 font-medium text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-100 dark:divide-brand-800/50">
-                {expenses.map((exp) => (
-                  <tr key={exp.id} className="hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-brand-600 dark:text-brand-400">
-                      {new Date(exp.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      {exp.description}
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-red-600 dark:text-red-400">
-                      -₦{(exp.amount || 0).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+      <DataTable
+        columns={columns}
+        rows={expenses}
+        keyExtractor={(e) => e.id}
+        loading={loading}
+        emptyMessage="No expenses found."
+        minWidth={520}
+      />
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3">
+          <PillButton onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Previous</PillButton>
+          <span className="text-xs font-bold text-text-secondary">Page {page} of {totalPages}</span>
+          <PillButton onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</PillButton>
+        </div>
+      )}
     </div>
   );
 }

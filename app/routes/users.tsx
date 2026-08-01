@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card } from '~/components/ui/card';
-import { Badge } from '~/components/ui/badge';
-import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
+import { GlassSheet } from '~/components/ui/glass-panel';
+import { PillButton } from '~/components/ui/pill-button';
+import { IconButton } from '~/components/ui/icon-button';
+import { Icon } from '~/components/ui/icon';
+import { Money } from '~/components/ui/money';
+import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
+import { SheetField } from '~/components/ui/action-sheet-modal';
 import { useToast } from '~/context/toast-context';
 import { useConfirm } from '~/context/confirm-context';
 import { api } from '~/lib/api';
@@ -21,22 +24,6 @@ type User = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-};
-
-type PaymentLog = {
-  id: string;
-  userId: string;
-  action: string;
-  resource: string;
-  resourceId: string;
-  details: {
-    amount: number;
-    amountKobo: number;
-    transactionId: string;
-    source: string;
-  };
-  ip: string;
-  createdAt: string;
 };
 
 function parseDate(val: any): string {
@@ -59,9 +46,13 @@ function getDisplayName(user: any): string {
   return name || 'Unnamed User';
 }
 
+function StatusChip({ label, tone }: { label: string; tone: string }) {
+  return <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap bg-tint-a ${tone}`}>{label}</span>;
+}
+
 export function meta() {
   return [
-    { title: "User Management - RAD5 Café" },
+    { title: "Users & Access - RAD5 Café" },
     { name: "description", content: "Manage customer accounts, view balances, and toggle account status." },
   ];
 }
@@ -75,6 +66,7 @@ export default function Users() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -152,21 +144,9 @@ export default function Users() {
     setShowWalletAdjust(false);
   };
 
-  const handleMenuAction = (action: string) => {
-    setMenuOpen(false);
-    if (action === 'wallet') {
-      setShowWalletAdjust((prev) => !prev);
-    } else if (action === 'toggle-status') {
-      handleToggleStatus(selectedUser!);
-    } else if (action === 'toggle-role') {
-      const newRole = selectedUser!.role === 'admin' ? 'customer' : 'admin';
-      handleSetRole(selectedUser!, newRole);
-    }
-  };
-
   const handleToggleStatus = async (user: User) => {
     const confirmed = await showConfirm({
-      title: user.isActive ? 'Deactivate User' : 'Activate User',
+      title: user.isActive ? 'Deactivate user' : 'Activate user',
       message: user.isActive
         ? `Are you sure you want to deactivate ${getDisplayName(user)}? They will no longer be able to access their account.`
         : `Are you sure you want to reactivate ${getDisplayName(user)}? They will regain full access to their account.`,
@@ -174,23 +154,20 @@ export default function Users() {
       confirmLabel: user.isActive ? 'Deactivate' : 'Activate',
       cancelLabel: 'Cancel',
     });
-
     if (!confirmed) return;
 
     setTogglingUserId(user.id);
     try {
       const res = await api.admin.users.toggleStatus(user.id);
       if (res.success) {
-        showToast(`User ${user.isActive ? 'deactivated' : 'activated'} successfully.`, 'success');
+        showToast({ type: 'success', title: `User ${user.isActive ? 'deactivated' : 'activated'}` });
         fetchUsers(page);
-        if (selectedUser?.id === user.id) {
-          setSelectedUser({ ...user, isActive: !user.isActive });
-        }
+        if (selectedUser?.id === user.id) setSelectedUser({ ...user, isActive: !user.isActive });
       } else {
-        showToast(res.message || 'Failed to update user status.', 'error');
+        showToast({ type: 'error', title: 'Failed to update user status', message: res.message });
       }
     } catch (err: any) {
-      showToast(err.message || 'Failed to update user status.', 'error');
+      showToast({ type: 'error', title: 'Failed to update user status', message: err.message });
     } finally {
       setTogglingUserId(null);
     }
@@ -199,40 +176,36 @@ export default function Users() {
   const handleSetRole = async (user: User, newRole: string) => {
     const isPromoting = newRole === 'admin';
     const confirmed = await showConfirm({
-      title: isPromoting ? 'Promote to Admin' : 'Remove Admin',
+      title: isPromoting ? 'Promote to admin' : 'Remove admin',
       message: isPromoting
         ? `Are you sure you want to make ${getDisplayName(user)} an admin? They will gain full access to the admin panel.`
         : `Are you sure you want to remove admin privileges from ${getDisplayName(user)}?`,
       variant: isPromoting ? 'default' : 'danger',
-      confirmLabel: isPromoting ? 'Make Admin' : 'Remove Admin',
+      confirmLabel: isPromoting ? 'Make admin' : 'Remove admin',
       cancelLabel: 'Cancel',
     });
-
     if (!confirmed) return;
 
     try {
       const res = await api.admin.users.setRole(user.uid, newRole);
       if (res.success) {
-        showToast(`User role updated to ${newRole} successfully.`, 'success');
+        showToast({ type: 'success', title: `User role updated to ${newRole}` });
         fetchUsers(page);
-        if (selectedUser?.id === user.id) {
-          setSelectedUser({ ...user, role: newRole });
-        }
+        if (selectedUser?.id === user.id) setSelectedUser({ ...user, role: newRole });
       } else {
-        showToast(res.message || 'Failed to update user role.', 'error');
+        showToast({ type: 'error', title: 'Failed to update user role', message: res.message });
       }
     } catch (err: any) {
-      showToast(err.message || 'Failed to update user role.', 'error');
+      showToast({ type: 'error', title: 'Failed to update user role', message: err.message });
     }
   };
 
   const handleWalletAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser || !walletAmount || !walletPin) {
-      showToast('Amount and PIN are required.', 'warning');
+      showToast({ type: 'warning', title: 'Amount and PIN are required.' });
       return;
     }
-
     setWalletLoading(true);
     try {
       const res = await api.adminDashboard.wallet.adjust({
@@ -241,19 +214,18 @@ export default function Users() {
         description: walletDesc.trim() || `Admin balance adjustment for ${getDisplayName(selectedUser)}`,
         pin: walletPin,
       });
-
       if (res.success) {
-        showToast(`Wallet adjusted! New balance: ₦${res.data?.balance?.toLocaleString()}`, 'success');
+        showToast({ type: 'success', title: 'Wallet adjusted', message: res.data?.balance != null ? `New balance: ₦${Number(res.data.balance).toLocaleString()}` : undefined });
         setWalletAmount('');
         setWalletDesc('');
         setWalletPin('');
         setShowWalletAdjust(false);
         fetchTimeline(selectedUser.id, 1);
       } else {
-        showToast(res.message || 'Balance adjustment failed.', 'error');
+        showToast({ type: 'error', title: 'Balance adjustment failed', message: res.message });
       }
     } catch (err: any) {
-      showToast(err.message || 'Balance adjustment failed.', 'error');
+      showToast({ type: 'error', title: 'Balance adjustment failed', message: err.message });
     } finally {
       setWalletLoading(false);
     }
@@ -267,348 +239,216 @@ export default function Users() {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    if (menuOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  return (
-    <div className="flex flex-col gap-6 select-none max-w-3xl mx-auto">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-extrabold text-text-main tracking-tight">User Management</h1>
-          <p className="text-text-secondary text-xs mt-1">
-            {total} registered users · Page {page} of {totalPages}
-          </p>
+  const visibleUsers = search.trim()
+    ? users.filter(u => getDisplayName(u).toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()))
+    : users;
+
+  const columns: DataTableColumn<User>[] = [
+    {
+      key: 'user', header: 'User', width: '1.8fr',
+      render: (u) => (
+        <button onClick={() => openUserDetail(u)} className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer">
+          <div className="w-8 h-8 rounded-full bg-tint-b text-tint grid place-items-center flex-shrink-0 text-xs font-bold">
+            {getDisplayName(u)[0]?.toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold truncate">{getDisplayName(u)}</div>
+            <div className="text-[11px] text-text-secondary truncate">{u.email}</div>
+          </div>
+        </button>
+      ),
+    },
+    {
+      key: 'status', header: 'Status', width: '1.1fr',
+      render: (u) => (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {u.role === 'admin' && <StatusChip label="Admin" tone="text-warn" />}
+          <StatusChip label={u.isActive ? 'Active' : 'Inactive'} tone={u.isActive ? 'text-ok' : 'text-err'} />
         </div>
-        <Badge label={`${total} total`} variant="info" />
+      ),
+    },
+    {
+      key: 'joined', header: 'Joined', width: '1fr',
+      render: (u) => <span className="text-[12px] text-text-secondary">{new Date(parseDate(u.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}</span>,
+    },
+    {
+      key: 'actions', header: '', width: '1fr', align: 'right',
+      render: (u) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <IconButton
+            icon={u.isActive ? 'zap-off' : 'check'}
+            size={36} iconSize={14}
+            title={u.isActive ? 'Deactivate' : 'Activate'}
+            onClick={() => handleToggleStatus(u)}
+            disabled={togglingUserId === u.id}
+          />
+          <IconButton
+            icon="shield-check"
+            size={36} iconSize={14}
+            title={u.role === 'admin' ? 'Remove admin' : 'Make admin'}
+            onClick={() => handleSetRole(u, u.role === 'admin' ? 'customer' : 'admin')}
+          />
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6 w-full">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight">Users & access</h1>
+          <p className="text-text-secondary text-xs mt-1">{total} registered users · Page {page} of {totalPages}</p>
+        </div>
       </div>
 
-      <Card padded={false} className="overflow-hidden shadow-xs">
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <svg className="animate-spin h-8 w-8 text-tint" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-        ) : users.length === 0 ? (
-          <div className="text-center py-16 text-text-secondary text-sm">
-            No users found.
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {users.map((user) => (
-              <div
-                key={user.id}
-                onClick={() => openUserDetail(user)}
-                className="flex items-center p-4 hover:bg-bg-selected/10 transition-colors cursor-pointer gap-4"
-              >
-                <div className="w-10 h-10 rounded-full bg-bg-element border border-border flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-text-secondary">
-                    {getDisplayName(user)[0].toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-sm text-text-main truncate">
-                      {getDisplayName(user)}
-                    </span>
-                    {user.role === 'admin' && (
-                      <Badge label="Admin" variant="warning" />
-                    )}
-                    {!user.isActive && (
-                      <Badge label="Inactive" variant="error" />
-                    )}
-                  </div>
-                  <span className="text-xs text-text-main font-semibold truncate">
-                    {user.email}
-                  </span>
-                </div>
-                <span className="text-xs text-text-secondary flex-shrink-0">
-                  {new Date(parseDate(user.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <div className="relative max-w-md">
+        <Icon name="search" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full glass-chip text-sm pl-9 pr-4 py-2.5 rounded-full outline-none focus:border-tint placeholder:text-text-secondary transition-colors border"
+        />
+      </div>
+
+      <DataTable
+        columns={columns}
+        rows={visibleUsers}
+        keyExtractor={(u) => u.id}
+        loading={loading}
+        emptyMessage="No users found."
+        minWidth={640}
+      />
 
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="text-xs font-bold cursor-pointer"
-          >
-            Previous
-          </Button>
-          <span className="text-xs font-bold text-text-secondary">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            className="text-xs font-bold cursor-pointer"
-          >
-            Next
-          </Button>
+          <PillButton onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Previous</PillButton>
+          <span className="text-xs font-bold text-text-secondary">Page {page} of {totalPages}</span>
+          <PillButton onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Next</PillButton>
         </div>
       )}
 
-      {/* User Detail Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="absolute inset-0" onClick={closeUserDetail} />
-          <Card
-            padded={true}
-            className="relative bg-card border border-border w-full max-w-md rounded-2xl flex flex-col gap-4 shadow-2xl animate-scale-up max-h-[85vh] overflow-hidden"
-            style={{ borderRadius: 'var(--radius-xl)' }}
-          >
-            {/* Header */}
+        <div onClick={closeUserDetail} className="fixed inset-0 z-50 grid place-items-center p-5" style={{ background: 'rgba(17,24,39,0.4)', backdropFilter: 'blur(6px)' }}>
+          <GlassSheet onClick={(e) => e.stopPropagation()} className="w-full animate-rad5-pop max-h-[88vh] overflow-y-auto flex flex-col gap-4" style={{ maxWidth: 460 }}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-12 h-12 rounded-full bg-bg-element border border-border flex items-center justify-center flex-shrink-0">
-                  <span className="text-lg font-bold text-text-secondary">
-                    {getDisplayName(selectedUser)[0].toUpperCase()}
-                  </span>
+                <div className="w-12 h-12 rounded-full bg-tint-b text-tint grid place-items-center flex-shrink-0 text-lg font-bold">
+                  {getDisplayName(selectedUser)[0]?.toUpperCase()}
                 </div>
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <h3 className="text-lg font-bold text-text-main truncate">
-                    {getDisplayName(selectedUser)}
-                  </h3>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Badge
-                      label={selectedUser.role}
-                      variant={selectedUser.role === 'admin' ? 'warning' : 'default'}
-                    />
-                    {selectedUser.isActive ? (
-                      <Badge label="Active" variant="success" />
-                    ) : (
-                      <Badge label="Inactive" variant="error" />
-                    )}
-                    {selectedUser.pinSetup && (
-                      <Badge label="PIN Set" variant="info" />
-                    )}
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold truncate">{getDisplayName(selectedUser)}</h3>
+                  <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                    <StatusChip label={selectedUser.role} tone={selectedUser.role === 'admin' ? 'text-warn' : 'text-tint'} />
+                    <StatusChip label={selectedUser.isActive ? 'Active' : 'Inactive'} tone={selectedUser.isActive ? 'text-ok' : 'text-err'} />
+                    {selectedUser.pinSetup && <StatusChip label="PIN set" tone="text-tint" />}
                   </div>
                 </div>
               </div>
 
-              {/* Kebab Menu */}
               <div className="relative flex-shrink-0" ref={menuRef}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-bg-selected transition-colors cursor-pointer"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-text-secondary">
-                    <circle cx="5" cy="12" r="2" />
-                    <circle cx="12" cy="12" r="2" />
-                    <circle cx="19" cy="12" r="2" />
-                  </svg>
+                <button onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }} className="w-8 h-8 rounded-lg grid place-items-center hover:bg-tint-a transition-colors cursor-pointer">
+                  <Icon name="more-vertical" size={16} />
                 </button>
-
                 {menuOpen && (
-                  <div
-                    className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-10 animate-scale-up"
-                    style={{ borderRadius: 'var(--radius-lg)' }}
-                  >
-                    <button
-                      onClick={() => handleMenuAction('wallet')}
-                      className="w-full text-left px-4 py-2.5 text-sm font-semibold text-text-main hover:bg-bg-selected transition-colors flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-tint flex-shrink-0">
-                        <path d="M21 12V7H5a2 2 0 010-4h14v4"/>
-                        <path d="M3 5v14a2 2 0 002 2h16v-5"/>
-                        <path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/>
-                      </svg>
-                      Adjust Wallet
+                  <div className="absolute right-0 top-full mt-1 w-48 glass-sheet rounded-xl overflow-hidden z-10 animate-rad5-pop">
+                    <button onClick={() => { setMenuOpen(false); setShowWalletAdjust((v) => !v); }} className="w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-tint-a transition-colors flex items-center gap-2.5 cursor-pointer">
+                      <Icon name="bank" size={14} className="text-tint" />
+                      Adjust wallet
                     </button>
                     <button
-                      onClick={() => handleMenuAction('toggle-status')}
+                      onClick={() => { setMenuOpen(false); handleToggleStatus(selectedUser); }}
                       disabled={togglingUserId === selectedUser.id}
-                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-bg-selected transition-colors flex items-center gap-2.5 cursor-pointer disabled:opacity-50 ${
-                        selectedUser.isActive ? 'text-error-val' : 'text-success'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-tint-a transition-colors flex items-center gap-2.5 cursor-pointer disabled:opacity-50 ${selectedUser.isActive ? 'text-err' : 'text-ok'}`}
                     >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
-                        {selectedUser.isActive ? (
-                          <>
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                          </>
-                        ) : (
-                          <>
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="8 12 11 15 16 9"/>
-                          </>
-                        )}
-                      </svg>
-                      {togglingUserId === selectedUser.id
-                        ? 'Updating...'
-                        : selectedUser.isActive
-                          ? 'Deactivate'
-                          : 'Activate'}
+                      <Icon name={selectedUser.isActive ? 'zap-off' : 'check'} size={14} />
+                      {togglingUserId === selectedUser.id ? 'Updating…' : selectedUser.isActive ? 'Deactivate' : 'Activate'}
                     </button>
                     <button
-                      onClick={() => handleMenuAction('toggle-role')}
-                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-bg-selected transition-colors flex items-center gap-2.5 cursor-pointer ${
-                        selectedUser.role === 'admin' ? 'text-error-val' : 'text-warning'
-                      }`}
+                      onClick={() => { setMenuOpen(false); handleSetRole(selectedUser, selectedUser.role === 'admin' ? 'customer' : 'admin'); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-tint-a transition-colors flex items-center gap-2.5 cursor-pointer ${selectedUser.role === 'admin' ? 'text-err' : 'text-warn'}`}
                     >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
-                        <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                      </svg>
-                      {selectedUser.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                      <Icon name="shield-check" size={14} />
+                      {selectedUser.role === 'admin' ? 'Remove admin' : 'Make admin'}
                     </button>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* User Info Grid */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 py-3 border-y border-border">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Email</span>
-                <span className="text-xs font-bold text-text-main select-all truncate">{selectedUser.email}</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Phone</span>
-                <span className="text-xs font-bold text-text-main select-all">{selectedUser.phoneNumber || '\u2014'}</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">User ID</span>
-                <span className="text-xs font-bold text-text-main select-all truncate">{selectedUser.uid}</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Wallet ID</span>
-                <span className="text-xs font-bold text-text-main select-all truncate">{selectedUser.walletId}</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Joined</span>
-                <span className="text-xs font-bold text-text-main">
-                  {new Date(parseDate(selectedUser.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Status</span>
-                <span className={`text-xs font-bold ${selectedUser.isActive ? 'text-success' : 'text-error-val'}`}>
-                  {selectedUser.isActive ? 'Active' : 'Inactive'}
-                </span>
-              </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 py-3.5 border-y border-border">
+              <div className="flex flex-col gap-0.5"><span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Email</span><span className="text-xs font-bold truncate">{selectedUser.email}</span></div>
+              <div className="flex flex-col gap-0.5"><span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Phone</span><span className="text-xs font-bold">{selectedUser.phoneNumber || '—'}</span></div>
+              <div className="flex flex-col gap-0.5"><span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">User ID</span><span className="text-xs font-bold truncate">{selectedUser.uid}</span></div>
+              <div className="flex flex-col gap-0.5"><span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Wallet ID</span><span className="text-xs font-bold truncate">{selectedUser.walletId}</span></div>
+              <div className="flex flex-col gap-0.5"><span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Joined</span><span className="text-xs font-bold">{new Date(parseDate(selectedUser.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}</span></div>
+              <div className="flex flex-col gap-0.5"><span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">Status</span><span className={`text-xs font-bold ${selectedUser.isActive ? 'text-ok' : 'text-err'}`}>{selectedUser.isActive ? 'Active' : 'Inactive'}</span></div>
             </div>
 
-            {/* Wallet Adjust Form */}
             {showWalletAdjust && (
-              <form onSubmit={handleWalletAdjust} className="flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-5 bg-tint rounded-full" />
-                  <span className="text-sm font-bold text-text-main">Wallet Adjustment</span>
+              <form onSubmit={handleWalletAdjust} className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-1 h-5 bg-tint rounded-full" />
+                  <span className="text-sm font-bold">Wallet adjustment</span>
                 </div>
-                <Input
-                  label="Amount (₦)"
-                  placeholder="5000 to credit, -2000 to debit"
-                  type="number"
-                  value={walletAmount}
-                  onChange={(e) => setWalletAmount(e.target.value)}
-                  required
-                  autoFocus
-                />
-                <Input
-                  label="Reason"
-                  placeholder="e.g. Compensation, manual top-up"
-                  value={walletDesc}
-                  onChange={(e) => setWalletDesc(e.target.value)}
-                />
-                <Input
-                  label="Transaction PIN"
-                  placeholder="4-digit PIN"
-                  type="password"
-                  maxLength={4}
-                  pattern="\d{4}"
-                  value={walletPin}
-                  onChange={(e) => setWalletPin(e.target.value.replace(/\D/g, ''))}
-                  required
-                  autoComplete="new-password"
-                />
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button"
-                    onClick={() => setShowWalletAdjust(false)}
-                    className="cursor-pointer text-xs"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    type="submit"
-                    disabled={walletLoading}
-                  >
-                    {walletLoading ? 'Adjusting...' : 'Adjust Balance'}
-                  </Button>
+                <SheetField label="Amount (₦)" value={walletAmount} onChange={setWalletAmount} type="number" mono placeholder="5000 to credit, -2000 to debit" required autoFocus />
+                <SheetField label="Reason" value={walletDesc} onChange={setWalletDesc} placeholder="e.g. Compensation, manual top-up" />
+                <SheetField label="Transaction PIN" value={walletPin} onChange={(v) => setWalletPin(v.replace(/\D/g, ''))} type="password" mono maxLength={4} placeholder="4-digit PIN" required />
+                <div className="flex gap-2 justify-end mt-3">
+                  <button type="button" onClick={() => setShowWalletAdjust(false)} className="px-3.5 py-2 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors">Cancel</button>
+                  <button type="submit" disabled={walletLoading} className="px-4 py-2 rounded-xl border-none bg-tint-dark text-white text-xs font-bold cursor-pointer hover:bg-tint disabled:opacity-50 transition-colors">
+                    {walletLoading ? 'Adjusting…' : 'Adjust balance'}
+                  </button>
                 </div>
               </form>
             )}
 
-            {/* Activity Timeline */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <div className="flex items-center gap-2">
-                <div className="w-1 h-5 bg-tint rounded-full" />
-                <span className="text-sm font-bold text-text-main">Activity Timeline</span>
-                <span className="text-[10px] text-text-secondary">
-                  ({timelineTotal} record{timelineTotal !== 1 ? 's' : ''})
-                </span>
+                <span className="w-1 h-5 bg-tint rounded-full" />
+                <span className="text-sm font-bold">Activity timeline</span>
+                <span className="text-[10px] text-text-secondary">({timelineTotal} record{timelineTotal !== 1 ? 's' : ''})</span>
               </div>
 
               {stats && (
-                <div className="grid grid-cols-2 gap-2 text-[10px] bg-bg-element p-3 rounded-lg border border-border mb-1">
-                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Total Spent</span><span className="font-bold text-error-val">₦{stats.totalSpent?.toLocaleString() || 0}</span></div>
-                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Total Funded</span><span className="font-bold text-success">₦{stats.totalFunded?.toLocaleString() || 0}</span></div>
-                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Orders</span><span className="font-bold text-text-main">{stats.orderCount || 0}</span></div>
-                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Transactions</span><span className="font-bold text-text-main">{stats.transactionCount || 0}</span></div>
+                <div className="grid grid-cols-2 gap-2 text-[10px] bg-tint-a p-3 rounded-xl">
+                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Total spent</span><Money amount={stats.totalSpent || 0} className="font-bold text-err" /></div>
+                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Total funded</span><Money amount={stats.totalFunded || 0} className="font-bold text-ok" /></div>
+                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Orders</span><span className="font-bold">{stats.orderCount || 0}</span></div>
+                  <div className="flex flex-col"><span className="text-text-secondary font-semibold">Transactions</span><span className="font-bold">{stats.transactionCount || 0}</span></div>
                 </div>
               )}
 
               {timelineLoading ? (
                 <div className="flex justify-center items-center py-8">
-                  <svg className="animate-spin h-5 w-5 text-tint" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                  <span className="w-6 h-6 rounded-full border-2 border-tint border-t-transparent animate-spin" />
                 </div>
               ) : timeline.length === 0 ? (
-                <div className="text-center py-6 text-text-secondary text-xs">
-                  No activity history for this user.
-                </div>
+                <div className="text-center py-6 text-text-secondary text-xs">No activity history for this user.</div>
               ) : (
-                <div className="flex flex-col gap-2 overflow-y-auto max-h-60 pr-1 custom-scrollbar">
+                <div className="flex flex-col gap-2 overflow-y-auto max-h-60 pr-1">
                   {timeline.map((item) => (
-                    <div key={item.id} className="p-3 bg-bg-element rounded-lg border border-border flex flex-col gap-1.5">
-                      <div className="flex justify-between items-start">
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-text-main">{item.title}</span>
-                          <span className="text-[10px] text-text-secondary">{item.description}</span>
+                    <div key={item.id} className="p-3 rounded-xl bg-tint-a flex flex-col gap-1.5">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold truncate">{item.title}</span>
+                          <span className="text-[10px] text-text-secondary truncate">{item.description}</span>
                         </div>
-                        <Badge label={item.type.replace('_', ' ')} variant={item.type === 'order' ? 'warning' : item.type === 'audit_log' ? 'default' : 'info'} />
+                        <StatusChip label={item.type.replace('_', ' ')} tone={item.type === 'order' ? 'text-warn' : 'text-tint'} />
                       </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className={`text-xs font-bold ${item.amount > 0 ? 'text-success' : item.amount < 0 ? 'text-error-val' : 'text-text-secondary'}`}>
-                          {item.amount ? (item.amount > 0 ? `+₦${item.amount.toLocaleString()}` : `-₦${Math.abs(item.amount).toLocaleString()}`) : '—'}
-                        </span>
+                      <div className="flex justify-between items-center mt-0.5">
+                        {item.amount ? <Money amount={item.amount} showSign className={`text-xs font-bold ${item.amount > 0 ? 'text-ok' : 'text-err'}`} /> : <span className="text-xs text-text-secondary">—</span>}
                         <div className="flex flex-col items-end gap-0.5 text-[10px] text-text-secondary">
-                          <span className="font-semibold text-text-main capitalize">{item.status || 'logged'}</span>
-                          <span>{new Date(parseDate(item.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="font-semibold capitalize">{item.status || 'logged'}</span>
+                          <span>{new Date(parseDate(item.createdAt)).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </div>
                     </div>
@@ -617,43 +457,18 @@ export default function Users() {
               )}
 
               {timelineTotalPages > 1 && (
-                <div className="flex justify-center items-center gap-2 mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => changeTimelinePage(Math.max(1, timelinePage - 1))}
-                    disabled={timelinePage <= 1}
-                    className="text-[10px] font-bold cursor-pointer"
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-[10px] font-bold text-text-secondary">
-                    {timelinePage} / {timelineTotalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => changeTimelinePage(Math.min(timelineTotalPages, timelinePage + 1))}
-                    disabled={timelinePage >= timelineTotalPages}
-                    className="text-[10px] font-bold cursor-pointer"
-                  >
-                    Next
-                  </Button>
+                <div className="flex justify-center items-center gap-2">
+                  <PillButton onClick={() => changeTimelinePage(Math.max(1, timelinePage - 1))} disabled={timelinePage <= 1}>Previous</PillButton>
+                  <span className="text-[10px] font-bold text-text-secondary">{timelinePage} / {timelineTotalPages}</span>
+                  <PillButton onClick={() => changeTimelinePage(Math.min(timelineTotalPages, timelinePage + 1))} disabled={timelinePage >= timelineTotalPages}>Next</PillButton>
                 </div>
               )}
             </div>
 
-            <div className="flex justify-end border-t border-border pt-3">
-              <Button
-                variant="outline"
-                size="md"
-                onClick={closeUserDetail}
-                className="cursor-pointer"
-              >
-                Close
-              </Button>
+            <div className="flex justify-end border-t border-border pt-3.5">
+              <button onClick={closeUserDetail} className="px-4 py-2 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors">Close</button>
             </div>
-          </Card>
+          </GlassSheet>
         </div>
       )}
     </div>

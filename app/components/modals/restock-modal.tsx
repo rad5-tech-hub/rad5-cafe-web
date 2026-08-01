@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { Card } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import React, { useEffect, useState } from 'react';
 import { useToast } from '~/context/toast-context';
 import { Select } from '../ui/select';
+import { ActionSheetModal, SheetField, SheetTabs } from '../ui/action-sheet-modal';
+import { PinConfirmModal } from '../ui/pin-confirm-modal';
 
 interface RestockModalProps {
   isOpen: boolean;
@@ -11,14 +10,22 @@ interface RestockModalProps {
   products: any[];
   onRestock: (productId: string, qty: number, newCost: number | undefined, pin: string) => Promise<boolean>;
   onRemoveStock?: (productId: string, qty: number, reason: string, pin: string) => Promise<boolean>;
+  /** Pre-select a product (e.g. from a per-row "Restock" action) instead of showing the picker empty. */
+  initialProductId?: string;
 }
 
+/**
+ * RestockModal — thin wrapper around the shared ActionSheetModal + PinConfirmModal
+ * for the Inventory row "Restock" action. Supports both adding stock and
+ * logging a removal (miscount/damage/expiry), matching the existing API contract.
+ */
 export const RestockModal: React.FC<RestockModalProps> = ({
   isOpen,
   onClose,
   products,
   onRestock,
   onRemoveStock,
+  initialProductId,
 }) => {
   const { showToast } = useToast();
   const [mode, setMode] = useState<'add' | 'remove'>('add');
@@ -26,187 +33,163 @@ export const RestockModal: React.FC<RestockModalProps> = ({
   const [quantity, setQuantity] = useState('');
   const [newCostPrice, setNewCostPrice] = useState('');
   const [reason, setReason] = useState('');
-  const [pin, setPin] = useState('');
+  const [awaitingPin, setAwaitingPin] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const product = products.find((p) => p.id === selectedProduct);
   const numericQty = parseInt(quantity, 10);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen && initialProductId) {
+      setSelectedProduct(initialProductId);
+    }
+  }, [isOpen, initialProductId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setMode('add');
+    setSelectedProduct('');
+    setQuantity('');
+    setNewCostPrice('');
+    setReason('');
+    setAwaitingPin(false);
+    setError(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmitDetails = (e: React.FormEvent) => {
     e.preventDefault();
     if (!product) {
       showToast('Please select a product.', 'warning');
       return;
     }
-    if (isNaN(numericQty) || numericQty === 0) {
+    if (isNaN(numericQty) || numericQty <= 0) {
       showToast('Please enter a valid quantity.', 'warning');
       return;
     }
-    if (!pin) {
-      showToast('Transaction PIN is required.', 'warning');
+    if (mode === 'remove' && !reason.trim()) {
+      showToast('Reason is required for removing stock.', 'warning');
       return;
     }
+    setError(null);
+    setAwaitingPin(true);
+  };
 
+  const handleConfirmPin = async (pin: string) => {
+    if (!product) return;
     setLoading(true);
+    setError(null);
     try {
       let success = false;
       if (mode === 'add') {
-        success = await onRestock(
-          product.id,
-          numericQty,
-          newCostPrice ? parseInt(newCostPrice, 10) : undefined,
-          pin
-        );
-      } else {
-        if (!reason.trim()) {
-          showToast('Reason is required for removing stock.', 'warning');
-          setLoading(false);
-          return;
-        }
-        if (onRemoveStock) {
-          success = await onRemoveStock(product.id, numericQty, reason.trim(), pin);
-        }
+        success = await onRestock(product.id, numericQty, newCostPrice ? parseInt(newCostPrice, 10) : undefined, pin);
+      } else if (onRemoveStock) {
+        success = await onRemoveStock(product.id, numericQty, reason.trim(), pin);
       }
-      
+
       if (success) {
-        showToast(mode === 'add' ? `Restocked ${numericQty} units of ${product.name}!` : `Removed ${numericQty} units of ${product.name}!`, 'success');
-        setQuantity('');
-        setNewCostPrice('');
-        setReason('');
-        setPin('');
-        setSelectedProduct('');
-        onClose();
+        showToast(
+          mode === 'add' ? `Restocked ${numericQty} units of ${product.name}!` : `Removed ${numericQty} units of ${product.name}!`,
+          'success',
+        );
+        handleClose();
+      } else {
+        setAwaitingPin(false);
+        setError('Action failed. Check your PIN and try again.');
       }
     } catch (err: any) {
-      showToast(err.message || 'Action failed.', 'error');
+      setAwaitingPin(false);
+      setError(err.message || 'Action failed.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="absolute inset-0" onClick={onClose} />
-
-      <Card
-        padded={true}
-        className="relative bg-card border border-border w-full max-w-sm rounded-2xl flex flex-col gap-5 shadow-2xl animate-scale-up max-h-[90vh] overflow-y-auto"
-        style={{ borderRadius: 'var(--radius-xl)' }}
+    <>
+      <ActionSheetModal
+        isOpen={isOpen && !awaitingPin}
+        onClose={handleClose}
+        title={mode === 'add' ? `Restock ${product ? product.name : 'product'}` : `Remove stock — ${product ? product.name : 'product'}`}
+        subtitle={
+          mode === 'add'
+            ? 'Adds units to available stock and writes a stock-history entry.'
+            : 'Logs a stock reduction due to miscount, damage or expiry.'
+        }
+        onSubmit={handleSubmitDetails}
+        submitLabel="Continue"
+        submitVariant={mode === 'remove' ? 'danger' : 'tint'}
+        submitDisabled={!product || isNaN(numericQty) || numericQty <= 0}
       >
-        <div className="flex flex-col gap-1">
-          <div className="flex justify-between items-start">
-            <h3 className="text-xl font-bold text-text-main">{mode === 'add' ? 'Restock Product' : 'Remove Stock'}</h3>
-            <button
-              onClick={onClose}
-              className="text-text-secondary hover:text-text-main font-bold p-1 rounded-full hover:bg-bg-selected cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-          <p className="text-text-secondary text-xs">
-            {mode === 'add' ? 'Increase stock for cafe inventory items.' : 'Log stock reduction due to miscount, damage, or expiry.'}
-          </p>
-        </div>
+        <SheetTabs
+          value={mode}
+          onChange={(v) => setMode(v as 'add' | 'remove')}
+          options={[
+            { value: 'add', label: 'Add stock' },
+            { value: 'remove', label: 'Remove stock' },
+          ]}
+        />
 
-        <div className="flex bg-bg-element p-1 rounded-xl gap-1">
-          <button
-            type="button"
-            onClick={() => setMode('add')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${mode === 'add' ? 'bg-card shadow-sm text-text-main' : 'text-text-secondary hover:text-text-main'}`}
-          >
-            Add Stock
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('remove')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${mode === 'remove' ? 'bg-card shadow-sm text-text-main' : 'text-text-secondary hover:text-text-main'}`}
-          >
-            Remove Stock
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold text-text-main select-none">Product</label>
+        <div className="mt-3.5">
+          <label className="block text-[12.5px] font-semibold text-text-secondary mb-1.5">Product</label>
           <Select
             value={selectedProduct}
-            onChange={(val) => setSelectedProduct(val)}
+            onChange={(val) => {
+              setSelectedProduct(val);
+              setQuantity('');
+            }}
             placeholder="Select a product..."
-            options={products.map((p) => ({
-              label: `${p.name} (${p.stock} units)`,
-              value: p.id
-            }))}
+            options={products.map((p) => ({ label: `${p.name} (${p.stock} units)`, value: p.id }))}
             className="w-full"
           />
         </div>
 
-        {product && (
-          <div className="flex flex-col gap-1 text-xs text-text-secondary border-l-2 border-tint pl-2">
-            <span>Selected: <strong className="text-text-main">{product.name}</strong></span>
-            <span>Current Stock: <strong className="text-text-main">{product.stock} units</strong></span>
-          </div>
+        <SheetField
+          label={mode === 'add' ? 'Units received' : 'Units to remove'}
+          value={quantity}
+          onChange={setQuantity}
+          type="number"
+          inputMode="numeric"
+          mono
+          placeholder={mode === 'add' ? 'e.g. 10' : 'e.g. 5'}
+          required
+        />
+
+        {mode === 'add' && (
+          <SheetField
+            label="New cost price (optional)"
+            value={newCostPrice}
+            onChange={setNewCostPrice}
+            type="number"
+            inputMode="numeric"
+            mono
+            placeholder="Leave blank to keep current"
+          />
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Input
-            label="Quantity"
-            placeholder={mode === 'add' ? "e.g. 10" : "e.g. 5"}
-            type="number"
-            min="1"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+        {mode === 'remove' && (
+          <SheetField
+            label="Reason for removal"
+            value={reason}
+            onChange={setReason}
+            placeholder="e.g. Miscount, Expired, Damaged"
             required
-            autoFocus
           />
+        )}
+      </ActionSheetModal>
 
-          {mode === 'add' && (
-            <Input
-              label="New Cost Price (optional)"
-              placeholder="Leave blank to keep current"
-              type="number"
-              value={newCostPrice}
-              onChange={(e) => setNewCostPrice(e.target.value)}
-            />
-          )}
-
-          {mode === 'remove' && (
-            <Input
-              label="Reason for Removal"
-              placeholder="e.g. Miscount, Expired, Damaged"
-              type="text"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              required={mode === 'remove'}
-            />
-          )}
-
-          <div className="border-t border-border pt-3.5 mt-1 flex flex-col gap-3">
-            <Input
-              label="Admin Transaction PIN"
-              placeholder="4-digit PIN"
-              type="password"
-              maxLength={4}
-              pattern="\d{4}"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              required
-              className="border-tint/30 focus:border-tint"
-            />
-
-            <Button
-              type="submit"
-              variant={mode === 'add' ? 'primary' : 'secondary'}
-              size="lg"
-              fullWidth={true}
-              disabled={!product || isNaN(numericQty) || numericQty <= 0 || !pin || loading}
-              className={mode === 'remove' ? 'bg-error-val hover:bg-error-val/90 text-white' : ''}
-            >
-              {loading ? 'Processing...' : (mode === 'add' ? `Restock ${numericQty || '0'} units` : `Remove ${numericQty || '0'} units`)}
-            </Button>
-          </div>
-        </form>
-      </Card>
-    </div>
+      <PinConfirmModal
+        isOpen={isOpen && awaitingPin}
+        onClose={() => setAwaitingPin(false)}
+        onConfirm={handleConfirmPin}
+        title={mode === 'add' ? 'Confirm restock' : 'Confirm stock removal'}
+        loading={loading}
+        error={error}
+      />
+    </>
   );
 };

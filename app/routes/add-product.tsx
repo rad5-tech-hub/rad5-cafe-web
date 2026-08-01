@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router';
-import { Card } from '~/components/ui/card';
-import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
+import { GlassPanel } from '~/components/ui/glass-panel';
 import { Icon } from '~/components/ui/icon';
 import { Select } from '~/components/ui/select';
+import { SheetField } from '~/components/ui/action-sheet-modal';
+import { Money } from '~/components/ui/money';
 import { useToast } from '~/context/toast-context';
 import { ProductImageUploader } from '~/components/ui/product-image-uploader';
 import { api } from '~/lib/api';
 
 export function meta() {
   return [
-    { title: "Add New Product - RAD5 Café" },
+    { title: "Add Product - RAD5 Café" },
     { name: "description", content: "Register a new café item into the smart database." },
   ];
 }
@@ -19,7 +19,7 @@ export function meta() {
 export default function AddProduct() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  
+
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -31,7 +31,7 @@ export default function AddProduct() {
   const [lowStockThreshold, setLowStockThreshold] = useState('10');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
@@ -54,7 +54,7 @@ export default function AddProduct() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !sellingPrice || !pin) {
-      showToast('Name, Selling Price, and Transaction PIN are required.', 'warning');
+      showToast({ type: 'warning', title: 'Name, selling price and transaction PIN are required.' });
       return;
     }
 
@@ -62,15 +62,14 @@ export default function AddProduct() {
     try {
       const selectedCategoryName = category === '__new__' ? newCategoryName.trim() : category.trim();
       if (!selectedCategoryName) {
-        showToast('Please select or enter a category.', 'warning');
+        showToast({ type: 'warning', title: 'Please select or enter a category.' });
         setLoading(false);
         return;
       }
 
       let catId = categoriesList.find(c => c.name.toLowerCase() === selectedCategoryName.toLowerCase())?._id ||
                   categoriesList.find(c => c.name.toLowerCase() === selectedCategoryName.toLowerCase())?.id;
-      
-      // Auto-create category if it does not exist
+
       if (!catId && selectedCategoryName) {
         const catRes = await api.adminDashboard.categories.create({
           name: selectedCategoryName,
@@ -98,61 +97,41 @@ export default function AddProduct() {
       });
 
       if (res.success) {
-        showToast('Product added to inventory successfully!', 'success');
+        showToast({ type: 'success', title: 'Product added to inventory' });
         navigate('/inventory');
       } else {
-        showToast(res.message || 'Failed to add product.', 'error');
+        showToast({ type: 'error', title: 'Failed to add product', message: res.message });
       }
     } catch (err: any) {
-      showToast(err.message || 'Failed to add product.', 'error');
+      showToast({ type: 'error', title: 'Failed to add product', message: err.message });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 select-none max-w-md mx-auto">
-      {/* Top Header Control */}
+    <div className="flex flex-col gap-6 w-full max-w-lg">
       <div className="flex items-center gap-3">
-        <Link
-          to="/inventory"
-          className="p-2 rounded-full hover:bg-bg-selected text-text-secondary hover:text-text-main transition-colors border border-border cursor-pointer bg-card"
-        >
-          <Icon name="arrow-down" size={16} className="rotate-90" />
+        <Link to="/inventory" className="w-10 h-10 rounded-xl glass-surface grid place-items-center cursor-pointer hover:border-tint hover:text-tint transition-colors flex-shrink-0">
+          <Icon name="chevron-left" size={17} />
         </Link>
         <div>
-          <h1 className="text-xl font-extrabold text-text-main tracking-tight">New Café Product</h1>
-          <p className="text-text-secondary text-xs mt-0.5">
-            Register a new item into the smart database.
-          </p>
+          <h1 className="text-xl font-extrabold tracking-tight">Add product</h1>
+          <p className="text-text-secondary text-xs mt-0.5">Register a new item into the smart database.</p>
         </div>
       </div>
 
-      <Card
-        padded={true}
-        className="bg-card border border-border w-full rounded-2xl flex flex-col gap-4 shadow-xs"
-        style={{ borderRadius: 'var(--radius-xl)' }}
-      >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Input
-            label="Product Name"
-            placeholder="e.g. Coca Cola"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            autoComplete="off"
-            autoFocus
-          />
+      <GlassPanel radius="lg">
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          <SheetField label="Product name" value={name} onChange={setName} placeholder="e.g. Coca Cola" required autoFocus />
 
-          <div className="flex flex-col gap-1.5 w-full">
-            <label className="text-sm font-semibold text-text-main">Category</label>
+          <div className="mt-3.5">
+            <label className="block text-[12.5px] font-semibold text-text-secondary mb-1.5">Category</label>
             <Select
               value={category}
               onChange={(val) => {
                 setCategory(val);
-                if (val === '__new__') {
-                  setNewCategoryName('');
-                }
+                if (val === '__new__') setNewCategoryName('');
               }}
               disabled={categoriesLoading}
               placeholder={categoriesLoading ? 'Loading categories...' : 'Select a category'}
@@ -161,7 +140,7 @@ export default function AddProduct() {
                   ? []
                   : [
                       ...categoriesList.map((cat) => ({ label: cat.name, value: cat.name })),
-                      { label: '+ Create New Category...', value: '__new__' }
+                      { label: '+ Create new category...', value: '__new__' }
                     ]
               }
               className="w-full"
@@ -169,120 +148,63 @@ export default function AddProduct() {
           </div>
 
           {category === '__new__' && (
-            <Input
-              label="New Category Name"
-              placeholder="e.g. Pastries"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              required
-              autoComplete="off"
-            />
+            <SheetField label="New category name" value={newCategoryName} onChange={setNewCategoryName} placeholder="e.g. Pastries" required />
           )}
 
-          <div className="flex flex-col gap-1.5 w-full">
-            <label className="text-sm font-semibold text-text-main">Description</label>
+          <div className="mt-3.5">
+            <label className="block text-[12.5px] font-semibold text-text-secondary mb-1.5">Description</label>
             <textarea
               placeholder="Brief product description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="bg-bg-element border border-border text-text-main text-sm outline-none transition-colors duration-200 w-full placeholder:text-text-secondary p-3 resize-none h-20"
-              style={{ borderRadius: 'var(--radius-md)' }}
+              className="w-full px-3.5 py-3 rounded-[11px] border border-border bg-card text-[14px] outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)] resize-none h-20 placeholder:text-text-secondary"
             />
           </div>
 
-          {/* Product Image Uploader */}
-          <ProductImageUploader
-            value={imageUrl}
-            onChange={setImageUrl}
-            productName={name}
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Cost Price (₦)"
-              placeholder="0"
-              type="number"
-              value={costPrice}
-              onChange={(e) => setCostPrice(e.target.value)}
-            />
-            <Input
-              label="Selling Price (₦)"
-              placeholder="0"
-              type="number"
-              value={sellingPrice}
-              onChange={(e) => setSellingPrice(e.target.value)}
-              required
-            />
+          <div className="mt-3.5">
+            <ProductImageUploader value={imageUrl} onChange={setImageUrl} productName={name} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Initial Stock"
-              placeholder="0"
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-            />
-            <Input
-              label="Low Stock Alert"
-              placeholder="10"
-              type="number"
-              value={lowStockThreshold}
-              onChange={(e) => setLowStockThreshold(e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-x-3 mt-1">
+            <SheetField label="Cost price (₦)" value={costPrice} onChange={setCostPrice} type="number" mono placeholder="0" />
+            <SheetField label="Selling price (₦)" value={sellingPrice} onChange={setSellingPrice} type="number" mono placeholder="0" required />
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-3">
+            <SheetField label="Initial stock" value={quantity} onChange={setQuantity} type="number" mono placeholder="0" />
+            <SheetField label="Low stock alert" value={lowStockThreshold} onChange={setLowStockThreshold} type="number" mono placeholder="10" />
           </div>
 
           {sellingPrice && costPrice && (
-            <div className="flex justify-between items-center p-3 rounded-xl bg-bg-element border border-border text-sm">
-              <span className="text-text-secondary font-semibold">Calculated Profit/Unit:</span>
-              <span
-                className={`font-bold ${
-                  profitPerUnit >= 0 ? 'text-success' : 'text-error-val'
-                }`}
-              >
-                ₦{profitPerUnit.toLocaleString()}
-              </span>
+            <div className="flex justify-between items-center p-3.5 rounded-xl bg-tint-a mt-3.5 text-sm">
+              <span className="text-text-secondary font-semibold">Calculated profit/unit</span>
+              <Money amount={profitPerUnit} className={`font-bold ${profitPerUnit >= 0 ? 'text-ok' : 'text-err'}`} />
             </div>
           )}
 
-          <div className="border-t border-border pt-3.5 mt-1 flex flex-col gap-3">
-            <Input
-              label="Admin Transaction PIN"
-              placeholder="4-digit PIN"
-              type="password"
-              maxLength={4}
-              pattern="\d{4}"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              required
-              autoComplete="new-password"
-              className="border-tint/30 focus:border-tint"
-            />
+          <div className="border-t border-border pt-3.5 mt-3.5 flex flex-col gap-3">
+            <SheetField label="Admin transaction PIN" value={pin} onChange={(v) => setPin(v.replace(/\D/g, ''))} type="password" mono maxLength={4} placeholder="4-digit PIN" required />
 
-            <div className="flex gap-2">
-              <Button
+            <div className="flex gap-2.5 mt-1">
+              <button
                 type="button"
-                variant="outline"
-                size="lg"
-                fullWidth={true}
                 onClick={() => navigate('/inventory')}
                 disabled={loading}
+                className="flex-1 py-3 rounded-xl border border-border bg-card text-sm font-semibold cursor-pointer hover:border-tint hover:text-tint disabled:opacity-50 transition-colors"
               >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
                 type="submit"
-                variant="primary"
-                size="lg"
-                fullWidth={true}
                 disabled={!name || !sellingPrice || !pin || loading}
+                className="flex-[1.5] py-3 rounded-xl border-none bg-tint-dark text-white text-sm font-bold cursor-pointer hover:bg-tint disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Adding Product...' : 'Add Product'}
-              </Button>
+                {loading ? 'Adding product…' : 'Add product'}
+              </button>
             </div>
           </div>
         </form>
-      </Card>
+      </GlassPanel>
     </div>
   );
 }
