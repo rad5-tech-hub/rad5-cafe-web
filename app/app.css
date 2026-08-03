@@ -210,11 +210,24 @@ body {
 }
 
 input,
-button,
 select,
 textarea {
   font-family: inherit;
   color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Ensure solid deep blue buttons and elements always use white text */
+.glass-blue,
+.bg-tint-dark,
+.bg-tint,
+button.bg-tint-dark,
+button.bg-tint,
+button.glass-blue {
+  color: #ffffff !important;
 }
 
 input::placeholder,

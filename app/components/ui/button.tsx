@@ -33,7 +33,7 @@ export const Button: React.FC<ButtonProps> = ({
       case 'danger':
         return `bg-error-val ${solidBase} text-white hover:shadow-error-val/40 hover:-translate-y-px active:scale-[0.98]`;
       case 'glass-blue':
-        return 'glass-blue hover:bg-tint-dark/15 active:bg-tint-dark/25 dark:hover:bg-tint-dark/35 dark:active:bg-tint-dark/45';
+        return 'glass-blue text-white hover:bg-tint-dark/15 active:bg-tint-dark/25 dark:hover:bg-tint-dark/35 dark:active:bg-tint-dark/45';
       default:
         return `bg-tint-dark ${solidBase} text-white`;
     }
