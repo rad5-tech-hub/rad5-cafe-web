@@ -307,7 +307,7 @@ export default function Sales() {
         <StatCard label="Orders" value={aggregateOrders} />
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div className="sticky top-0 z-30 py-3 -my-2 bg-bg-page/90 backdrop-blur-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border/40">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {filters.map((f) => (
             <PillButton key={f.value} active={activeFilter === f.value} onClick={() => setActiveFilter(f.value)}>{f.label}</PillButton>

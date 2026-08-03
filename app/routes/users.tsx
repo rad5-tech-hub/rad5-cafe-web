@@ -8,6 +8,7 @@ import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
 import { SheetField } from '~/components/ui/action-sheet-modal';
 import { useToast } from '~/context/toast-context';
 import { useConfirm } from '~/context/confirm-context';
+import { AddAdminModal } from '~/components/modals/add-admin-modal';
 import { api } from '~/lib/api';
 
 type User = {
@@ -69,6 +70,8 @@ export default function Users() {
   const [search, setSearch] = useState('');
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'customer'>('all');
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -245,9 +248,12 @@ export default function Users() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  const visibleUsers = search.trim()
-    ? users.filter(u => getDisplayName(u).toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()))
-    : users;
+  const visibleUsers = users.filter(u => {
+    if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+    if (!search.trim()) return true;
+    const s = search.toLowerCase();
+    return getDisplayName(u).toLowerCase().includes(s) || u.email?.toLowerCase().includes(s);
+  });
 
   const columns: DataTableColumn<User>[] = [
     {
@@ -301,22 +307,41 @@ export default function Users() {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="sticky top-0 z-30 py-3 -my-2 bg-bg-page/90 backdrop-blur-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/40">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Users & access</h1>
           <p className="text-text-secondary text-xs mt-1">{total} registered users · Page {page} of {totalPages}</p>
         </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowAddAdminModal(true)}
+            className="px-4 py-2.5 rounded-xl border-none bg-tint-dark text-white text-xs font-bold cursor-pointer hover:bg-tint transition-colors flex items-center gap-1.5 shadow-sm"
+          >
+            <Icon name="plus" size={14} />
+            Add Admin
+          </button>
+        </div>
       </div>
 
-      <div className="relative max-w-md">
-        <Icon name="search" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
-        <input
-          type="text"
-          placeholder="Search by name or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full glass-chip text-sm pl-9 pr-4 py-2.5 rounded-full outline-none focus:border-tint placeholder:text-text-secondary transition-colors border"
-        />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="relative max-w-md w-full">
+          <Icon name="search" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full glass-chip text-sm pl-9 pr-4 py-2.5 rounded-full outline-none focus:border-tint placeholder:text-text-secondary transition-colors border"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <PillButton active={roleFilter === 'all'} onClick={() => setRoleFilter('all')}>All Users</PillButton>
+          <PillButton active={roleFilter === 'admin'} onClick={() => setRoleFilter('admin')}>Admins</PillButton>
+          <PillButton active={roleFilter === 'customer'} onClick={() => setRoleFilter('customer')}>Customers</PillButton>
+        </div>
       </div>
 
       <DataTable
@@ -471,6 +496,12 @@ export default function Users() {
           </GlassSheet>
         </div>
       )}
+
+      <AddAdminModal
+        isOpen={showAddAdminModal}
+        onClose={() => setShowAddAdminModal(false)}
+        onSuccess={() => fetchUsers(page)}
+      />
     </div>
   );
 }

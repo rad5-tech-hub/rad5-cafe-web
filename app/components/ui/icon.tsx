@@ -54,6 +54,7 @@ export type IconName =
   | 'coffee'
   | 'send'
   | 'menu'
+  | 'copy'
   | 'zap-off';
 
 
@@ -171,6 +172,8 @@ export const Icon: React.FC<IconProps> = ({ name, size = 20, color, className })
         return Lucide.Send;
       case 'menu':
         return Lucide.Menu;
+      case 'copy':
+        return Lucide.Copy;
       case 'zap-off':
         return Lucide.ZapOff;
       default:

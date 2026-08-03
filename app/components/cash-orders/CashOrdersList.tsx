@@ -218,7 +218,7 @@ export function CashOrdersList({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="sticky top-0 z-30 py-3 -my-2 bg-bg-page/90 backdrop-blur-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Cash orders</h1>
           <p className="text-text-secondary text-xs mt-1">Review cash orders in limbo and reconcile them with registered user accounts.</p>
