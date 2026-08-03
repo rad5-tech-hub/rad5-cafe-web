@@ -8,6 +8,7 @@ import { Select } from '~/components/ui/select';
 import { Money } from '~/components/ui/money';
 import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
 import { ActionSheetModal } from '~/components/ui/action-sheet-modal';
+import { OrderDetailsModal, type OrderDetails } from '~/components/modals/order-details-modal';
 import type { LimboOrder, User } from './types';
 
 export function CashOrdersList({
@@ -30,6 +31,7 @@ export function CashOrdersList({
   const [deleteReason, setDeleteReason] = useState<string>('');
   const [deletePin, setDeletePin] = useState<string>('');
   const [checkedOrderIds, setCheckedOrderIds] = useState<string[]>([]);
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState<OrderDetails | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -180,21 +182,36 @@ export function CashOrdersList({
     { key: 'enteredBy', header: 'Entered by', render: (o) => <span className="text-[12.5px] text-text-secondary">{o.userName || 'Unknown'}</span> },
     {
       key: 'items', header: 'Products', width: '2fr',
-      render: (o) => (
-        <div className="flex flex-col gap-1 py-1">
-          {o.items && o.items.length > 0 ? o.items.map((item: any, idx: number) => (
-            <div
-              key={idx}
-              className="flex items-center justify-between gap-2 bg-bg-element/70 border border-border/80 px-2 py-1 rounded-lg text-xs font-medium text-text-main"
-            >
-              <span className="truncate">{item.productName || item.name || 'Product'}</span>
-              <span className="font-extrabold text-[11px] text-tint bg-tint-a px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                x{item.quantity}
-              </span>
-            </div>
-          )) : <span className="text-[11.5px] text-text-secondary">No items</span>}
-        </div>
-      ),
+      render: (o) => {
+        const items = o.items || [];
+        const visibleItems = items.slice(0, 3);
+        const hasMore = items.length > 3;
+        return (
+          <div className="flex flex-col gap-1 py-1">
+            {visibleItems.length > 0 ? visibleItems.map((item: any, idx: number) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between gap-2 bg-bg-element/70 border border-border/80 px-2 py-1 rounded-lg text-xs font-medium text-text-main"
+              >
+                <span className="truncate">{item.productName || item.name || 'Product'}</span>
+                <span className="font-extrabold text-[11px] text-tint bg-tint-a px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                  x{item.quantity}
+                </span>
+              </div>
+            )) : <span className="text-[11.5px] text-text-secondary">No items</span>}
+            {hasMore && (
+              <button
+                type="button"
+                onClick={() => setSelectedOrderForModal(o)}
+                className="text-[11.5px] font-bold text-tint hover:underline transition-colors mt-0.5 text-left cursor-pointer flex items-center gap-1"
+              >
+                <Icon name="eye" size={13} />
+                +{items.length - 3} more item{items.length - 3 > 1 ? 's' : ''}
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     { key: 'total', header: 'Total', align: 'right', render: (o) => <Money amount={o.total ?? 0} className="text-[13px] font-bold text-tint" /> },
   ];
@@ -335,6 +352,12 @@ export function CashOrdersList({
           <p className="text-[11px] text-text-secondary mt-1.5">This action is permanent. The order will be marked as cancelled.</p>
         </div>
       </ActionSheetModal>
+
+      <OrderDetailsModal
+        isOpen={!!selectedOrderForModal}
+        onClose={() => setSelectedOrderForModal(null)}
+        order={selectedOrderForModal}
+      />
     </div>
   );
 }

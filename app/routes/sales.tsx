@@ -7,6 +7,7 @@ import { Money } from '~/components/ui/money';
 import { Icon } from '~/components/ui/icon';
 import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
 import { PinConfirmModal } from '~/components/ui/pin-confirm-modal';
+import { OrderDetailsModal, type OrderDetails } from '~/components/modals/order-details-modal';
 import { useConfirm } from '~/context/confirm-context';
 import { useToast } from '~/context/toast-context';
 import { api, type Sale } from '~/lib/api';
@@ -76,6 +77,7 @@ export default function Sales() {
   const [aggregateOrders, setAggregateOrders] = useState(0);
 
   const [hideUnreconciled, setHideUnreconciled] = useState(false);
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState<OrderDetails | null>(null);
 
   const fetchSalesData = (filterValue: string, pageNum: number, silent = false) => {
     if (!silent) setLoading(true);
@@ -201,25 +203,40 @@ export default function Sales() {
     },
     {
       key: 'items', header: 'Items', width: '2.4fr',
-      render: (s) => (
-        <div className="flex flex-col gap-1 py-1">
-          {s.items && s.items.length > 0 ? (
-            s.items.map((i, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between gap-2 bg-bg-element/70 border border-border/80 px-2.5 py-1 rounded-lg text-xs font-medium text-text-main"
+      render: (s) => {
+        const items = s.items || [];
+        const visibleItems = items.slice(0, 3);
+        const hasMore = items.length > 3;
+        return (
+          <div className="flex flex-col gap-1 py-1">
+            {visibleItems.length > 0 ? (
+              visibleItems.map((i, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between gap-2 bg-bg-element/70 border border-border/80 px-2.5 py-1 rounded-lg text-xs font-medium text-text-main"
+                >
+                  <span className="truncate">{i.productName}</span>
+                  <span className="font-extrabold text-[11px] text-tint bg-tint-a px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                    x{i.quantity}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <span className="text-[12px] text-text-secondary">No items</span>
+            )}
+            {hasMore && (
+              <button
+                type="button"
+                onClick={() => setSelectedOrderForModal(s)}
+                className="text-[11.5px] font-bold text-tint hover:underline transition-colors mt-0.5 text-left cursor-pointer flex items-center gap-1"
               >
-                <span className="truncate">{i.productName}</span>
-                <span className="font-extrabold text-[11px] text-tint bg-tint-a px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                  x{i.quantity}
-                </span>
-              </div>
-            ))
-          ) : (
-            <span className="text-[12px] text-text-secondary">No items</span>
-          )}
-        </div>
-      ),
+                <Icon name="eye" size={13} />
+                +{items.length - 3} more item{items.length - 3 > 1 ? 's' : ''}
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'date', header: 'Date', width: '1.1fr',
@@ -328,6 +345,12 @@ export default function Sales() {
         title="Cancel order & refund"
         loading={adjusting}
         error={cancelError}
+      />
+
+      <OrderDetailsModal
+        isOpen={!!selectedOrderForModal}
+        onClose={() => setSelectedOrderForModal(null)}
+        order={selectedOrderForModal}
       />
     </div>
   );
