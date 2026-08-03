@@ -141,7 +141,7 @@ export function CreateCashOrdersView({ onBack }: { onBack: () => void }) {
       render: (order) => (
         <input
           type="text"
-          className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm outline-none focus:border-tint transition-colors placeholder:text-text-secondary"
+          className="w-full px-3 py-2 rounded-lg border border-border bg-bg-element text-text-main text-sm outline-none focus:border-tint transition-colors placeholder:text-text-secondary"
           placeholder="Enter customer name..."
           value={order.customerName}
           onChange={(e) => updateCustomerName(order.id, e.target.value)}
@@ -158,7 +158,7 @@ export function CreateCashOrdersView({ onBack }: { onBack: () => void }) {
               <Money amount={item.unitPrice} className="text-text-secondary" />
               <div className="flex items-center gap-1 bg-card rounded-md border border-border px-1">
                 <button className="w-5 h-5 grid place-items-center text-text-secondary hover:text-tint transition-colors cursor-pointer" onClick={() => updateItemQuantity(order.id, item.productId, item.quantity - 1)}>−</button>
-                <span className="w-4 text-center font-bold">{item.quantity}</span>
+                <span className="w-4 text-center font-bold text-text-main">{item.quantity}</span>
                 <button className="w-5 h-5 grid place-items-center text-text-secondary hover:text-tint transition-colors cursor-pointer" onClick={() => updateItemQuantity(order.id, item.productId, item.quantity + 1)}>+</button>
               </div>
               <button className="w-6 h-6 grid place-items-center text-error-val hover:bg-error-val/10 rounded-md transition-colors cursor-pointer" onClick={() => removeItemFromOrder(order.id, item.productId)}>
@@ -194,7 +194,7 @@ export function CreateCashOrdersView({ onBack }: { onBack: () => void }) {
           <h1 className="text-xl font-extrabold tracking-tight">Batch cash orders</h1>
           <p className="text-text-secondary text-xs mt-1">Quickly bulk-process cash orders directly at the POS.</p>
         </div>
-        <button onClick={onBack} className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5 self-start">
+        <button onClick={onBack} className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-text-main text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5 self-start">
           <Icon name="chevron-left" size={14} />
           Back to orders
         </button>
@@ -203,7 +203,7 @@ export function CreateCashOrdersView({ onBack }: { onBack: () => void }) {
       <DataTable columns={columns} rows={orders} keyExtractor={(o) => o.id} minWidth={820} />
 
       <div className="flex flex-col sm:flex-row justify-between gap-3">
-        <button onClick={addOrderRow} className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5 self-start">
+        <button onClick={addOrderRow} className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-text-main text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5 self-start">
           <Icon name="plus" size={14} />
           Add another order
         </button>

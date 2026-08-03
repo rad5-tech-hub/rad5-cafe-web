@@ -85,7 +85,7 @@ export const ActionSheetModal: React.FC<ActionSheetModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-xl border border-border bg-card text-sm font-semibold cursor-pointer hover:border-tint hover:text-tint transition-colors"
+              className="flex-1 py-3 rounded-xl border border-border bg-card text-text-main text-sm font-semibold cursor-pointer hover:border-tint hover:text-tint transition-colors"
             >
               Cancel
             </button>

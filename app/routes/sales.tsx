@@ -191,7 +191,7 @@ export default function Sales() {
 
   const columns: DataTableColumn<Sale>[] = [
     {
-      key: 'receipt', header: 'Order', width: '1.5fr',
+      key: 'receipt', header: 'Order', width: '1.4fr',
       render: (s) => (
         <div className="min-w-0">
           <div className="text-[13px] font-bold truncate">{s.receiptNumber}</div>
@@ -200,8 +200,26 @@ export default function Sales() {
       ),
     },
     {
-      key: 'items', header: 'Items', width: '1.7fr',
-      render: (s) => <span className="text-[12.5px] text-text-secondary truncate block">{s.items.map(i => `${i.productName} (x${i.quantity})`).join(', ')}</span>,
+      key: 'items', header: 'Items', width: '2.4fr',
+      render: (s) => (
+        <div className="flex flex-col gap-1 py-1">
+          {s.items && s.items.length > 0 ? (
+            s.items.map((i, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between gap-2 bg-bg-element/70 border border-border/80 px-2.5 py-1 rounded-lg text-xs font-medium text-text-main"
+              >
+                <span className="truncate">{i.productName}</span>
+                <span className="font-extrabold text-[11px] text-tint bg-tint-a px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                  x{i.quantity}
+                </span>
+              </div>
+            ))
+          ) : (
+            <span className="text-[12px] text-text-secondary">No items</span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'date', header: 'Date', width: '1.1fr',
@@ -217,7 +235,7 @@ export default function Sales() {
       ),
     },
     {
-      key: 'status', header: 'Status', width: '1.1fr',
+      key: 'status', header: 'Status', width: '1fr',
       render: (s) => (
         <div className="flex flex-col gap-1 items-start">
           <StatusChip label={s.status} tone={statusTone[s.status] ?? 'text-tint'} />
@@ -227,7 +245,7 @@ export default function Sales() {
       ),
     },
     {
-      key: 'actions', header: '', width: '1fr', align: 'right',
+      key: 'actions', header: '', width: '0.9fr', align: 'right',
       render: (s) => (
         <div className="flex items-center justify-end gap-1.5">
           {s.reconciliationStatus === 'limbo' ? (
@@ -289,7 +307,7 @@ export default function Sales() {
         keyExtractor={(s) => s.id}
         loading={loading}
         emptyMessage="No sales logs found."
-        minWidth={760}
+        minWidth={860}
       />
 
       {totalPages > 1 && (

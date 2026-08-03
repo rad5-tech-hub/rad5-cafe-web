@@ -209,6 +209,19 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+input,
+button,
+select,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-secondary);
+}
+
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -277,11 +290,11 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-  .glass-subtle {
+  :root:not([data-theme="light"]) .glass-subtle {
     background: var(--color-background-element);
     border-color: var(--color-border);
   }
-  .glass-blue {
+  :root:not([data-theme="light"]) .glass-blue {
     background: #003d99;
     border-color: #003d99;
     color: #ffffff;
@@ -303,7 +316,7 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-  .admin-layout {
+  :root:not([data-theme="light"]) .admin-layout {
     --color-background: #0F172A;
     --color-background-element: #1E293B;
     --color-background-selected: #334155;
@@ -314,6 +327,30 @@ body {
     --color-text: #F8FAFC;
     --color-text-secondary: #94A3B8;
   }
+}
+
+:root[data-theme="dark"] .admin-layout {
+  --color-background: #0F172A;
+  --color-background-element: #1E293B;
+  --color-background-selected: #334155;
+  --color-tint: #60A5FA;
+  --color-accent: #818CF8;
+  --color-card: #1E293B;
+  --color-border: #334155;
+  --color-text: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+}
+
+:root[data-theme="light"] .admin-layout {
+  --color-background: #F8FAFC;
+  --color-background-element: #FFFFFF;
+  --color-background-selected: #F1F5F9;
+  --color-tint: #003D99;
+  --color-accent: #3B82F6;
+  --color-card: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-text: #0F172A;
+  --color-text-secondary: #64748B;
 }
 
 /* ── Custom scrollbar ─────────────────────────── */

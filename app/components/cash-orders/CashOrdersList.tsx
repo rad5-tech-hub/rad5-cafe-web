@@ -179,13 +179,19 @@ export function CashOrdersList({
     { key: 'customer', header: 'Customer', render: (o) => <span className="text-[12.5px]">{o.customerName || 'Walk-in customer'}</span> },
     { key: 'enteredBy', header: 'Entered by', render: (o) => <span className="text-[12.5px] text-text-secondary">{o.userName || 'Unknown'}</span> },
     {
-      key: 'items', header: 'Products', width: '1.6fr',
+      key: 'items', header: 'Products', width: '2fr',
       render: (o) => (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1 py-1">
           {o.items && o.items.length > 0 ? o.items.map((item: any, idx: number) => (
-            <span key={idx} className="text-[11.5px] text-text-secondary truncate" title={item.productName || item.name}>
-              {item.quantity}x {item.productName || item.name || 'Product'}
-            </span>
+            <div
+              key={idx}
+              className="flex items-center justify-between gap-2 bg-bg-element/70 border border-border/80 px-2 py-1 rounded-lg text-xs font-medium text-text-main"
+            >
+              <span className="truncate">{item.productName || item.name || 'Product'}</span>
+              <span className="font-extrabold text-[11px] text-tint bg-tint-a px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                x{item.quantity}
+              </span>
+            </div>
           )) : <span className="text-[11.5px] text-text-secondary">No items</span>}
         </div>
       ),
@@ -207,7 +213,7 @@ export function CashOrdersList({
               if (checkedOrderIds.length === 0) { showToast({ type: 'warning', title: 'Please select at least one order to reconcile.' }); return; }
               setSelectedOrdersForReconciliation(orders.filter(o => checkedOrderIds.includes(o.id)));
             }}
-            className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5"
+            className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-text-main text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5"
           >
             <Icon name="check" size={14} />
             Reconcile
@@ -222,7 +228,7 @@ export function CashOrdersList({
             <Icon name="trash" size={14} />
             Delete
           </button>
-          <button onClick={onViewHistory} className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5">
+          <button onClick={onViewHistory} className="px-3.5 py-2.5 rounded-xl border border-border bg-card text-text-main text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors flex items-center gap-1.5">
             <Icon name="clock" size={14} />
             History
           </button>
@@ -311,7 +317,7 @@ export function CashOrdersList({
             onChange={(e) => setDeleteReason(e.target.value)}
             placeholder="E.g. Duplicate order, mistake..."
             autoComplete="off"
-            className="w-full px-3.5 py-3 rounded-[11px] border border-border bg-card text-[15px] outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)]"
+            className="w-full px-3.5 py-3 rounded-[11px] border border-border bg-card text-[15px] text-text-main outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)] placeholder:text-text-secondary"
           />
         </div>
 
@@ -324,7 +330,7 @@ export function CashOrdersList({
             placeholder="Enter 4-digit PIN"
             maxLength={4}
             autoComplete="new-password"
-            className="w-full px-3.5 py-3 rounded-[11px] border border-border bg-card text-[15px] font-money outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)]"
+            className="w-full px-3.5 py-3 rounded-[11px] border border-border bg-card text-[15px] text-text-main font-money outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)] placeholder:text-text-secondary"
           />
           <p className="text-[11px] text-text-secondary mt-1.5">This action is permanent. The order will be marked as cancelled.</p>
         </div>

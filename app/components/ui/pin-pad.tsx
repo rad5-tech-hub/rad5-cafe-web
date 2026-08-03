@@ -69,7 +69,7 @@ export const PinPad: React.FC<PinPadProps> = ({
             type="button"
             disabled={disabled}
             onClick={() => press(k)}
-            className="h-14 w-full rounded-xl border border-border bg-card font-money text-xl font-bold flex items-center justify-center cursor-pointer transition-all hover:border-tint hover:text-tint active:scale-[0.96] disabled:opacity-50"
+            className="h-14 w-full rounded-xl border border-border bg-card text-text-main font-money text-xl font-bold flex items-center justify-center cursor-pointer transition-all hover:border-tint hover:text-tint active:scale-[0.96] disabled:opacity-50"
           >
             {k === 'del' ? '⌫' : k === 'ok' ? '✓' : k}
           </button>

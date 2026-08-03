@@ -61,7 +61,7 @@ export const FullNameModal: React.FC<FullNameModalProps> = ({ isOpen, onDismiss,
           placeholder="Full name"
           autoFocus
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          className="w-full mt-4 px-3.5 py-3 rounded-[11px] border border-border bg-card text-[14.5px] outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)]"
+          className="w-full mt-4 px-3.5 py-3 rounded-[11px] border border-border bg-card text-text-main text-[14.5px] outline-none transition-all focus:border-tint focus:shadow-[0_0_0_3px_var(--tint-b)] placeholder:text-text-secondary"
         />
         {error && <div className="mt-2 text-xs font-semibold text-error-val">{error}</div>}
 
