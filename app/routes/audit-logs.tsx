@@ -1,7 +1,24 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PillButton } from '~/components/ui/pill-button';
 import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
+import { Select } from '~/components/ui/select';
 import { api } from '~/lib/api';
+
+type AdminUser = { id: string; fullName?: string; email?: string };
+
+function toDateInputValue(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+type DatePreset = 'all' | 'day' | 'week' | 'month' | 'custom';
+
+function presetRange(preset: 'day' | 'week' | 'month'): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date();
+  if (preset === 'week') start.setDate(start.getDate() - 6);
+  if (preset === 'month') start.setDate(start.getDate() - 29);
+  return { start: toDateInputValue(start), end: toDateInputValue(end) };
+}
 
 type AuditLog = {
   id: string;
@@ -82,11 +99,40 @@ export default function AuditLogs() {
   const [loading, setLoading] = useState(true);
   const [activeAction, setActiveAction] = useState('');
   const [actorFilter, setActorFilter] = useState<{ userId: string; name: string } | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [allActions, setAllActions] = useState<string[]>(Object.keys(actionLabels));
+  const [users, setUsers] = useState<AdminUser[]>([]);
 
   const limit = 50;
+
+  useEffect(() => {
+    api.admin.users.list(1, 1000).then((res: any) => {
+      const data: AdminUser[] = res.data ?? res.users ?? [];
+      if (res.success && Array.isArray(data)) setUsers(data);
+    }).catch(() => {});
+  }, []);
+
+  const userOptions = useMemo(() => [
+    { label: 'All users', value: '' },
+    ...users.map((u) => ({
+      label: `${u.fullName || u.email || u.id}${u.fullName && u.email ? ` — ${u.email}` : ''}`,
+      value: u.id,
+    })),
+  ], [users]);
+
+  const applyDatePreset = (preset: DatePreset) => {
+    setDatePreset(preset);
+    if (preset === 'all') {
+      setStartDate('');
+      setEndDate('');
+    } else if (preset !== 'custom') {
+      const { start, end } = presetRange(preset);
+      setStartDate(start);
+      setEndDate(end);
+    }
+  };
 
   const fetchLogs = useCallback((pageNum: number) => {
     setLoading(true);
@@ -204,12 +250,31 @@ export default function AuditLogs() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
+        <Select
+          value={actorFilter?.userId ?? ''}
+          onChange={(userId) => {
+            if (!userId) { setActorFilter(null); return; }
+            const u = users.find((x) => x.id === userId);
+            setActorFilter({ userId, name: u?.fullName || u?.email || userId });
+          }}
+          options={userOptions}
+          placeholder="Search for a user..."
+          className="w-64"
+        />
+
+        <div className="flex items-center gap-1.5">
+          <PillButton active={datePreset === 'all'} onClick={() => applyDatePreset('all')}>All time</PillButton>
+          <PillButton active={datePreset === 'day'} onClick={() => applyDatePreset('day')}>Today</PillButton>
+          <PillButton active={datePreset === 'week'} onClick={() => applyDatePreset('week')}>Last 7 days</PillButton>
+          <PillButton active={datePreset === 'month'} onClick={() => applyDatePreset('month')}>Last 30 days</PillButton>
+        </div>
+
         <label className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
           From
           <input
             type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e) => { setStartDate(e.target.value); setDatePreset('custom'); }}
             className="px-2 py-1.5 rounded-lg border border-border bg-bg-element text-text-main text-xs outline-none focus:border-tint"
           />
         </label>
@@ -218,24 +283,10 @@ export default function AuditLogs() {
           <input
             type="date"
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(e) => { setEndDate(e.target.value); setDatePreset('custom'); }}
             className="px-2 py-1.5 rounded-lg border border-border bg-bg-element text-text-main text-xs outline-none focus:border-tint"
           />
         </label>
-        {actorFilter && (
-          <span className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-tint-a text-xs font-semibold text-tint">
-            Actor: {actorFilter.name}
-            <button onClick={() => setActorFilter(null)} className="cursor-pointer hover:opacity-70" title="Clear actor filter">✕</button>
-          </span>
-        )}
-        {(startDate || endDate) && (
-          <button
-            onClick={() => { setStartDate(''); setEndDate(''); }}
-            className="text-xs font-bold text-text-secondary hover:text-tint cursor-pointer"
-          >
-            Clear dates
-          </button>
-        )}
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
