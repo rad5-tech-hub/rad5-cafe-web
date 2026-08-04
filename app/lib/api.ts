@@ -354,8 +354,15 @@ export const api = {
       request('/notifications/alerts/check', { method: 'POST' }),
     acknowledgeAlert: (id: string) =>
       request(`/notifications/alerts/${id}/acknowledge`, { method: 'PUT' }),
-    auditLogs: (page = 1, limit = 50) =>
-      request(`/notifications/audit-logs?page=${page}&limit=${limit}`),
+    auditLogs: (page = 1, limit = 50, filters?: { action?: string; resource?: string; userId?: string; startDate?: string; endDate?: string }) => {
+      const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (filters?.action) qs.set('action', filters.action);
+      if (filters?.resource) qs.set('resource', filters.resource);
+      if (filters?.userId) qs.set('userId', filters.userId);
+      if (filters?.startDate) qs.set('startDate', filters.startDate);
+      if (filters?.endDate) qs.set('endDate', filters.endDate);
+      return request(`/notifications/audit-logs?${qs.toString()}`);
+    },
   },
 
   orders: {

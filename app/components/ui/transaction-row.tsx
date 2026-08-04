@@ -19,6 +19,22 @@ export function getTxMeta(kind: TxKind): TxMeta {
   return map[key] || { tag: 'TX', color: 'var(--color-text-secondary)', tintBg: 'rgba(107,114,128,0.12)' };
 }
 
+/** Descriptive row label: item list, then description, then capitalized type. */
+export function getTxLabel(tx: {
+  type: string;
+  amount?: number;
+  description?: string;
+  metadata?: { items?: { productName: string; quantity: number }[] };
+}): string {
+  if (tx.type === 'reward' && (tx.amount ?? 0) < 0) return 'Reward reversal';
+  const items = tx.metadata?.items;
+  if (items?.length) {
+    return items.map((item) => `${item.quantity}x ${item.productName}`).join(', ');
+  }
+  if (tx.description) return tx.description;
+  return tx.type ? tx.type.charAt(0).toUpperCase() + tx.type.slice(1) : tx.type;
+}
+
 /** Status pill background/foreground for a transaction status. */
 export function getStatusMeta(status: TxStatus): StatusMeta {
   const key = (status || '').toLowerCase();

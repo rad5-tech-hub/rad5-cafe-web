@@ -4,7 +4,9 @@ import { Button } from '~/components/ui/button';
 import { PillButton } from '~/components/ui/pill-button';
 import { Money } from '~/components/ui/money';
 import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
-import { getTxMeta, getStatusMeta } from '~/components/ui/transaction-row';
+import { getTxMeta, getStatusMeta, getTxLabel } from '~/components/ui/transaction-row';
+
+type OrderItem = { productName: string; quantity: number };
 
 type Transaction = {
   _id: string;
@@ -12,6 +14,8 @@ type Transaction = {
   amount: number;
   status: string;
   createdAt: string;
+  description?: string;
+  metadata?: { items?: OrderItem[] };
 };
 
 const filters = ['Today', 'Weekly', 'Monthly', 'All'];
@@ -120,8 +124,8 @@ export default function History() {
               {meta.tag}
             </span>
             <div className="min-w-0">
-              <div className="text-[13.5px] font-semibold capitalize truncate">
-                {tx.type === 'reward' && tx.amount < 0 ? 'Reward reversal' : tx.type}
+              <div className="text-[13.5px] font-semibold truncate">
+                {getTxLabel(tx)}
               </div>
               <div className="text-[11.5px] text-text-secondary">{formatTxDate(tx.createdAt)}</div>
             </div>

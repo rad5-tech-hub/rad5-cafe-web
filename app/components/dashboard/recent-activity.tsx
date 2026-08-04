@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon } from '~/components/ui/icon';
-import { TransactionRow } from '~/components/ui/transaction-row';
+import { TransactionRow, getTxLabel } from '~/components/ui/transaction-row';
 
 export type RecentTxn = {
   id: string;
@@ -8,6 +8,8 @@ export type RecentTxn = {
   amount: number;
   status: string;
   createdAt: string;
+  description?: string;
+  metadata?: { items?: { productName: string; quantity: number }[] };
 };
 
 type RecentActivityProps = {
@@ -31,7 +33,7 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({ transactions, lo
           <TransactionRow
             key={tx.id}
             kind={tx.type}
-            label={tx.type === 'reward' && tx.amount < 0 ? 'Reward reversal' : capitalize(tx.type)}
+            label={getTxLabel(tx)}
             when={formatWhen(tx.createdAt)}
             amount={tx.amount}
             status={tx.status}
@@ -41,7 +43,3 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({ transactions, lo
     </div>
   );
 };
-
-function capitalize(s: string) {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-}

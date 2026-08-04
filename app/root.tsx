@@ -27,6 +27,7 @@ import { FullNameModal } from './components/modals/fullname-modal';
 import { CartPill } from './components/ui/cart-pill';
 import { api } from './lib/api';
 import { useViewport } from './lib/use-viewport';
+import { logPageView, logElementClick, setAnalyticsActor } from './lib/analytics';
 
 const PAGE_TITLES: Record<string, { crumb: string; title: string }> = {
   '/dashboard': { crumb: 'Wallet', title: 'Wallet' },
@@ -188,6 +189,38 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       registerWebPush();
     }
   }, [user, registerWebPush]);
+
+  // Analytics: page_view on every route change.
+  useEffect(() => {
+    const pm = PAGE_TITLES[location.pathname];
+    void logPageView(location.pathname, pm?.title);
+  }, [location.pathname]);
+
+  // Analytics: tag events to the signed-in user + customer/admin role.
+  useEffect(() => {
+    void setAnalyticsActor(user?.uid ?? null, user ? (isAdmin ? 'admin' : 'customer') : undefined);
+  }, [user, isAdmin]);
+
+  // Analytics: autocapture every click on an interactive element (button,
+  // link, or anything with role="button") — one listener, no per-button
+  // tagging needed. Installed once; reads the live pathname at click time.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = (e.target as Element)?.closest?.(
+        'button, a, [role="button"], input[type="submit"], input[type="button"]'
+      ) as HTMLElement | null;
+      if (!target) return;
+      const text = (target.getAttribute('aria-label') || target.textContent || '').trim().slice(0, 80);
+      void logElementClick({
+        tag: target.tagName.toLowerCase(),
+        text: text || undefined,
+        id: target.id || undefined,
+        route: window.location.pathname,
+      });
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+  }, []);
 
   const handleSignOut = async () => {
     const confirmed = await showConfirm({
