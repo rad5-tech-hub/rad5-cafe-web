@@ -32,6 +32,21 @@ const CONSOLE_TILES: ConsoleTile[] = [
   { key: 'updates', title: 'App updates', sub: 'Publish new Android release info', icon: 'smartphone', to: '/admin/updates' },
 ];
 
+// Maps a console tile to the permission key that unlocks it.
+const TILE_PERMISSIONS: Record<string, string> = {
+  inventory: 'inventory',
+  sales: 'sales',
+  accounting: 'accounting',
+  analytics: 'analytics',
+  'stock-balance': 'stock_balance',
+  users: 'users',
+  rewards: 'rewards',
+  'pin-changes': 'pin_changes',
+  'add-product': 'products',
+  reports: 'reports',
+  updates: 'updates',
+};
+
 export default function Admin() {
   const { showToast } = useToast();
 
@@ -47,6 +62,12 @@ export default function Admin() {
   const [walletLoading, setWalletLoading] = useState(false);
 
   const [showAdminPinSetup, setShowAdminPinSetup] = useState(false);
+
+  // undefined = still loading; null = full-access admin; array = restricted
+  // sub-admin scoped to those permission keys.
+  const [permissions, setPermissions] = useState<string[] | null | undefined>(undefined);
+  const fullAccess = permissions === null;
+  const hasPermission = (key: string) => permissions === undefined || fullAccess || (permissions || []).includes(key);
 
   const fetchAdminData = () => {
     setLoading(true);
@@ -70,6 +91,14 @@ export default function Admin() {
       })
       .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    api.auth.me().then((res: any) => {
+      if (res.success && res.data) {
+        setPermissions(Array.isArray(res.data.permissions) ? res.data.permissions : null);
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetchAdminData();
@@ -182,6 +211,10 @@ export default function Admin() {
     { label: 'Processed tx', value: stats?.wallet ? Number(stats.wallet.totalTransactions ?? 0).toLocaleString() : '0', icon: 'sync' },
   ];
 
+  const visibleTiles = CONSOLE_TILES.filter((tile) => hasPermission(TILE_PERMISSIONS[tile.key] || tile.key));
+  const canSeeAlerts = hasPermission('inventory');
+  const canAdjustWallet = hasPermission('wallet_adjust');
+
   return (
     <div className="flex flex-col gap-6 w-full">
       <div>
@@ -205,7 +238,7 @@ export default function Admin() {
 
       <div>
         <h2 className="text-[17px] font-bold tracking-tight mb-3">Console</h2>
-        <ConsoleTileGrid tiles={CONSOLE_TILES} />
+        <ConsoleTileGrid tiles={visibleTiles} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -214,21 +247,25 @@ export default function Admin() {
         <MiniStatList title="System wallets" stats={walletStats} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <LowStockAlertsCard alerts={alerts} onAcknowledge={handleAcknowledgeAlert} />
-        <WalletAdjustCard
-          userId={walletUserId}
-          onUserIdChange={setWalletUserId}
-          amount={walletAmount}
-          onAmountChange={setWalletAmount}
-          description={walletDesc}
-          onDescriptionChange={setWalletDesc}
-          pin={walletPin}
-          onPinChange={setWalletPin}
-          loading={walletLoading}
-          onSubmit={handleWalletAdjust}
-        />
-      </div>
+      {(canSeeAlerts || canAdjustWallet) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {canSeeAlerts && <LowStockAlertsCard alerts={alerts} onAcknowledge={handleAcknowledgeAlert} />}
+          {canAdjustWallet && (
+            <WalletAdjustCard
+              userId={walletUserId}
+              onUserIdChange={setWalletUserId}
+              amount={walletAmount}
+              onAmountChange={setWalletAmount}
+              description={walletDesc}
+              onDescriptionChange={setWalletDesc}
+              pin={walletPin}
+              onPinChange={setWalletPin}
+              loading={walletLoading}
+              onSubmit={handleWalletAdjust}
+            />
+          )}
+        </div>
+      )}
 
       <AdminPinSetupModal
         isOpen={showAdminPinSetup}

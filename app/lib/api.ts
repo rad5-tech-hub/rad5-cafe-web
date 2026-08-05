@@ -489,8 +489,14 @@ export const api = {
         request<any>(`/admin/users/${id}/payment-logs?page=${page}&limit=${limit}`),
       setRole: (uid: string, role: string) =>
         request(`/admin/users/${uid}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
-      addAdmin: (data: { email: string; fullName?: string; password?: string }) =>
+      addAdmin: (data: { email: string; fullName?: string; password?: string; permissions?: string[] }) =>
         request(`/admin/users/add-admin`, { method: 'POST', body: JSON.stringify(data) }),
+      listAdmins: () => request<any>('/admin/users/admins'),
+      updatePermissions: (id: string, data: { fullAccess: boolean; permissions?: string[] }) =>
+        request(`/admin/users/${id}/permissions`, { method: 'PUT', body: JSON.stringify(data) }),
+    },
+    permissions: {
+      list: () => request<any>('/admin/permissions'),
     },
     reports: {
       downloadSales: (start?: string, end?: string) =>

@@ -50,6 +50,27 @@ const PAGE_TITLES: Record<string, { crumb: string; title: string }> = {
   '/admin/updates': { crumb: 'Console', title: 'App updates' },
   '/admin/products/add': { crumb: 'Console', title: 'Add product' },
   '/reports': { crumb: 'Console', title: 'Reports' },
+  '/admin/manage-admins': { crumb: 'Console', title: 'Manage admins' },
+};
+
+// Maps an admin-console route to the permission key required to view it.
+// Routes not listed here (e.g. '/admin' itself) are open to any admin.
+const ROUTE_PERMISSIONS: Record<string, string> = {
+  '/inventory': 'inventory',
+  '/analytics': 'analytics',
+  '/accounting': 'accounting',
+  '/accounting/manual': 'accounting',
+  '/sales': 'sales',
+  '/admin/expenses': 'expenses',
+  '/admin/stock-balance': 'stock_balance',
+  '/admin/cash-orders': 'cash_orders',
+  '/admin/users': 'users',
+  '/admin/audit-logs': 'audit_logs',
+  '/reports': 'reports',
+  '/admin/updates': 'updates',
+  '/admin/products/add': 'products',
+  '/admin/pin-changes': 'pin_changes',
+  '/admin/rewards': 'rewards',
 };
 
 export const links: Route.LinksFunction = () => [
@@ -98,6 +119,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const { cartCount, cartTotal, isCartOpen, setIsCartOpen } = useCart();
   const { registerWebPush, permissionStatus } = useNotifications();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [permissions, setPermissions] = useState<string[] | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [appUpdateInfo, setAppUpdateInfo] = useState<any>(null);
@@ -137,6 +159,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           setProfile(res.data);
           if (res.data.role === 'admin' || user.email === 'admin@rad5.cafe' || res.data.email === 'admin@rad5.cafe') {
             setIsAdmin(true);
+            // undefined/null permissions = full-access (grandfathered) admin.
+            setPermissions(Array.isArray(res.data.permissions) ? res.data.permissions : null);
           }
         }
       }).catch(() => {})
@@ -150,6 +174,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       }).catch(() => {});
     } else {
       setIsAdmin(false);
+      setPermissions(null);
       setProfile(null);
       setProfileLoading(false);
       setShowFullNameModal(false);
@@ -275,6 +300,28 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     */
   }, [user, loading, profileLoading, isAuthRoute, isAdminRoute, isAdmin, navigate, location.pathname]);
 
+  // undefined/null permissions on a loaded admin profile = full access
+  // (the grandfathered "highest" tier). A defined array restricts a
+  // sub-admin to just those permission keys.
+  const fullAccess = isAdmin && permissions === null;
+  const hasPermission = (key: string) => fullAccess || (permissions || []).includes(key);
+
+  // Sub-admin permission guard — the nav rail already hides sections a
+  // restricted sub-admin can't see, but this catches direct URL navigation.
+  useEffect(() => {
+    if (loading || profileLoading || !isAdmin || fullAccess) return;
+    if (location.pathname === '/admin/manage-admins') {
+      showToast('Only full-access admins can manage other admins.', 'warning');
+      navigate('/admin');
+      return;
+    }
+    const requiredPerm = ROUTE_PERMISSIONS[location.pathname];
+    if (requiredPerm && !hasPermission(requiredPerm)) {
+      showToast('You do not have permission to view that section.', 'warning');
+      navigate('/admin');
+    }
+  }, [location.pathname, isAdmin, fullAccess, permissions, loading, profileLoading]);
+
   if (loading || (profileLoading && isAdminRoute)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white gap-6 select-none animate-in fade-in duration-300">
@@ -327,9 +374,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     { label: 'Audit Logs', path: '/admin/audit-logs', icon: 'shield-check' },
     { label: 'Reports', path: '/reports', icon: 'file-document' },
     { label: 'App Updates', path: '/admin/updates', icon: 'smartphone' },
+    ...(fullAccess ? [{ label: 'Manage Admins', path: '/admin/manage-admins', icon: 'shield-check' } as Omit<NavRailItem, 'active'>] : []),
   ];
 
-  const rawNavItems = isAdmin ? adminNavItems : userNavItems;
+  // A restricted sub-admin only sees nav entries for sections they have a
+  // permission for; '/admin' (the landing page) is always visible.
+  const visibleAdminNavItems = fullAccess
+    ? adminNavItems
+    : adminNavItems.filter((item) => item.path === '/admin' || hasPermission(ROUTE_PERMISSIONS[item.path] || '__none__'));
+
+  const rawNavItems = isAdmin ? visibleAdminNavItems : userNavItems;
   const isNavItemActive = (path: string) =>
     location.pathname === path ||
     (path === '/admin' && ['/admin', '/admin/users', '/admin/audit-logs', '/inventory', '/analytics', '/sales', '/reports', '/accounting'].includes(location.pathname));

@@ -8,7 +8,7 @@ import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
 import { SheetField } from '~/components/ui/action-sheet-modal';
 import { useToast } from '~/context/toast-context';
 import { useConfirm } from '~/context/confirm-context';
-import { AddAdminModal } from '~/components/modals/add-admin-modal';
+import { AddAdminModal, type PermissionOption } from '~/components/modals/add-admin-modal';
 import { api } from '~/lib/api';
 
 type User = {
@@ -71,6 +71,8 @@ export default function Users() {
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [permissionOptions, setPermissionOptions] = useState<PermissionOption[]>([]);
+  const [fullAccess, setFullAccess] = useState(false);
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'customer'>('all');
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -111,6 +113,20 @@ export default function Users() {
   useEffect(() => {
     fetchUsers(page);
   }, [page, fetchUsers]);
+
+  useEffect(() => {
+    api.auth.me().then((res: any) => {
+      if (res.success && res.data) {
+        const full = res.data.role === 'admin' && !Array.isArray(res.data.permissions);
+        setFullAccess(full);
+        if (full) {
+          api.admin.permissions.list().then((r: any) => {
+            if (r.success && Array.isArray(r.data)) setPermissionOptions(r.data);
+          }).catch(() => {});
+        }
+      }
+    }).catch(() => {});
+  }, []);
 
   const fetchTimeline = (userId: string, pageNum: number) => {
     setTimelineLoading(true);
@@ -287,19 +303,23 @@ export default function Users() {
       key: 'actions', header: '', width: '1fr', align: 'right',
       render: (u) => (
         <div className="flex items-center justify-end gap-1.5">
-          <IconButton
-            icon={u.isActive ? 'zap-off' : 'check'}
-            size={36} iconSize={14}
-            title={u.isActive ? 'Deactivate' : 'Activate'}
-            onClick={() => handleToggleStatus(u)}
-            disabled={togglingUserId === u.id}
-          />
-          <IconButton
-            icon="shield-check"
-            size={36} iconSize={14}
-            title={u.role === 'admin' ? 'Remove admin' : 'Make admin'}
-            onClick={() => handleSetRole(u, u.role === 'admin' ? 'customer' : 'admin')}
-          />
+          {(u.role !== 'admin' || fullAccess) && (
+            <IconButton
+              icon={u.isActive ? 'zap-off' : 'check'}
+              size={36} iconSize={14}
+              title={u.isActive ? 'Deactivate' : 'Activate'}
+              onClick={() => handleToggleStatus(u)}
+              disabled={togglingUserId === u.id}
+            />
+          )}
+          {fullAccess && (
+            <IconButton
+              icon="shield-check"
+              size={36} iconSize={14}
+              title={u.role === 'admin' ? 'Remove admin' : 'Make admin'}
+              onClick={() => handleSetRole(u, u.role === 'admin' ? 'customer' : 'admin')}
+            />
+          )}
         </div>
       ),
     },
@@ -313,16 +333,25 @@ export default function Users() {
           <p className="text-text-secondary text-xs mt-1">{total} registered users · Page {page} of {totalPages}</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowAddAdminModal(true)}
-            className="px-4 py-2.5 rounded-xl border-none bg-tint-dark text-white text-xs font-bold cursor-pointer hover:bg-tint transition-colors flex items-center gap-1.5 shadow-sm"
-          >
-            <Icon name="plus" size={14} />
-            Add Admin
-          </button>
-        </div>
+        {fullAccess && (
+          <div className="flex items-center gap-2">
+            <a
+              href="/admin/manage-admins"
+              className="px-4 py-2.5 rounded-xl border border-border bg-card text-text-main text-xs font-bold cursor-pointer hover:border-tint transition-colors flex items-center gap-1.5"
+            >
+              <Icon name="shield-check" size={14} />
+              Manage Admins
+            </a>
+            <button
+              type="button"
+              onClick={() => setShowAddAdminModal(true)}
+              className="px-4 py-2.5 rounded-xl border-none bg-tint-dark text-white text-xs font-bold cursor-pointer hover:bg-tint transition-colors flex items-center gap-1.5 shadow-sm"
+            >
+              <Icon name="plus" size={14} />
+              Add Admin
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -389,21 +418,25 @@ export default function Users() {
                       <Icon name="bank" size={14} className="text-tint" />
                       Adjust wallet
                     </button>
-                    <button
-                      onClick={() => { setMenuOpen(false); handleToggleStatus(selectedUser); }}
-                      disabled={togglingUserId === selectedUser.id}
-                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-tint-a transition-colors flex items-center gap-2.5 cursor-pointer disabled:opacity-50 ${selectedUser.isActive ? 'text-err' : 'text-ok'}`}
-                    >
-                      <Icon name={selectedUser.isActive ? 'zap-off' : 'check'} size={14} />
-                      {togglingUserId === selectedUser.id ? 'Updating…' : selectedUser.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button
-                      onClick={() => { setMenuOpen(false); handleSetRole(selectedUser, selectedUser.role === 'admin' ? 'customer' : 'admin'); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-tint-a transition-colors flex items-center gap-2.5 cursor-pointer ${selectedUser.role === 'admin' ? 'text-err' : 'text-warn'}`}
-                    >
-                      <Icon name="shield-check" size={14} />
-                      {selectedUser.role === 'admin' ? 'Remove admin' : 'Make admin'}
-                    </button>
+                    {(selectedUser.role !== 'admin' || fullAccess) && (
+                      <button
+                        onClick={() => { setMenuOpen(false); handleToggleStatus(selectedUser); }}
+                        disabled={togglingUserId === selectedUser.id}
+                        className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-tint-a transition-colors flex items-center gap-2.5 cursor-pointer disabled:opacity-50 ${selectedUser.isActive ? 'text-err' : 'text-ok'}`}
+                      >
+                        <Icon name={selectedUser.isActive ? 'zap-off' : 'check'} size={14} />
+                        {togglingUserId === selectedUser.id ? 'Updating…' : selectedUser.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                    )}
+                    {fullAccess && (
+                      <button
+                        onClick={() => { setMenuOpen(false); handleSetRole(selectedUser, selectedUser.role === 'admin' ? 'customer' : 'admin'); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-tint-a transition-colors flex items-center gap-2.5 cursor-pointer ${selectedUser.role === 'admin' ? 'text-err' : 'text-warn'}`}
+                      >
+                        <Icon name="shield-check" size={14} />
+                        {selectedUser.role === 'admin' ? 'Remove admin' : 'Make admin'}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -501,6 +534,7 @@ export default function Users() {
         isOpen={showAddAdminModal}
         onClose={() => setShowAddAdminModal(false)}
         onSuccess={() => fetchUsers(page)}
+        permissionOptions={permissionOptions}
       />
     </div>
   );

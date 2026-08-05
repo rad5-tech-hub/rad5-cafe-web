@@ -4,17 +4,25 @@ import { Icon } from '../ui/icon';
 import { useToast } from '~/context/toast-context';
 import { api } from '~/lib/api';
 
+export interface PermissionOption {
+  key: string;
+  label: string;
+  description: string;
+}
+
 interface AddAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  permissionOptions: PermissionOption[];
 }
 
-export const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, onSuccess, permissionOptions }) => {
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     message: string;
@@ -30,8 +38,13 @@ export const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, o
     setEmail('');
     setFullName('');
     setPassword('');
+    setSelectedPermissions([]);
     setResult(null);
     setLoading(false);
+  };
+
+  const togglePermission = (key: string) => {
+    setSelectedPermissions((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
   };
 
   const handleClose = () => {
@@ -52,6 +65,7 @@ export const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, o
         email: email.trim(),
         fullName: fullName.trim() || undefined,
         password: password.trim() || undefined,
+        permissions: selectedPermissions,
       });
 
       if (res.success) {
@@ -202,6 +216,28 @@ export const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, o
                 placeholder="Leave empty for auto-generated password"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-bg-element text-sm text-text-main outline-none focus:border-tint placeholder:text-text-secondary transition-colors"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                Console access
+              </label>
+              <p className="text-[11px] text-text-secondary mb-2">
+                This admin will only see the sections checked below. Nothing is granted by default — you can adjust this anytime from Manage Admins.
+              </p>
+              <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto p-2.5 rounded-xl border border-border bg-bg-element">
+                {permissionOptions.map((p) => (
+                  <label key={p.key} className="flex items-start gap-2 text-xs cursor-pointer p-1.5 rounded-lg hover:bg-tint-a transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedPermissions.includes(p.key)}
+                      onChange={() => togglePermission(p.key)}
+                      className="mt-0.5 accent-tint"
+                    />
+                    <span className="font-semibold text-text-main">{p.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
