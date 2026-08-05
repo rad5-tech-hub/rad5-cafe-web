@@ -144,6 +144,10 @@ export default function Sales() {
         showToast({ type: 'success', title: 'Order cancelled', message: 'Customer refunded successfully.' });
         setSalesList(prev => prev.map(s => s.id === cancellingSaleId ? { ...s, status: 'cancelled' } : s));
         setCancellingSaleId(null);
+        // Reconcile with the server in the background — the optimistic patch
+        // above only updates `status`; a silent refetch picks up any other
+        // fields the adjustment changed (refund amount, reconciliation, etc).
+        fetchSalesData(activeFilter, page, true);
       } else {
         setCancelError(res.message || 'Failed to cancel order.');
       }
