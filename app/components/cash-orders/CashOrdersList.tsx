@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { api } from '~/lib/api';
 import { useToast } from '~/context/toast-context';
 import { useConfirm } from '~/context/confirm-context';
@@ -157,9 +157,32 @@ export function CashOrdersList({
     setCheckedOrderIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
 
+  const allSelected = orders.length > 0 && orders.every((o) => checkedOrderIds.includes(o.id));
+  const someSelected = checkedOrderIds.length > 0 && !allSelected;
+  const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
+  }, [someSelected]);
+
+  const toggleSelectAll = () => {
+    setCheckedOrderIds(allSelected ? [] : orders.map((o) => o.id));
+  };
+
   const columns: DataTableColumn<LimboOrder>[] = [
     {
-      key: 'select', header: '', width: '0.4fr',
+      key: 'select',
+      header: (
+        <input
+          ref={selectAllRef}
+          type="checkbox"
+          checked={allSelected}
+          onChange={toggleSelectAll}
+          title="Select all"
+          className="accent-tint w-4 h-4 cursor-pointer"
+        />
+      ),
+      width: '0.4fr',
       render: (o) => (
         <input
           type="checkbox"

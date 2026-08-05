@@ -2,7 +2,7 @@ import React from 'react';
 
 export type DataTableColumn<T> = {
   key: string;
-  header: string;
+  header: React.ReactNode;
   /** fr width, e.g. "1.5fr" or "0.8fr" — defaults to "1fr" */
   width?: string;
   align?: 'left' | 'right';

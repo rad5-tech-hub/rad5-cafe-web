@@ -370,6 +370,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     { label: 'Sales Ledger / Expenses', path: '/admin/expenses', icon: 'dollar' },
     { label: 'Stock Balance Out', path: '/admin/stock-balance', icon: 'scale' },
     { label: 'Cash Orders', path: '/admin/cash-orders', icon: 'dollar' },
+    { label: 'PIN Approvals', path: '/admin/pin-changes', icon: 'lock' },
     { label: 'Users', path: '/admin/users', icon: 'account-group' },
     { label: 'Audit Logs', path: '/admin/audit-logs', icon: 'shield-check' },
     { label: 'Reports', path: '/reports', icon: 'file-document' },
@@ -446,7 +447,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
         </header>
 
-        <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8 pb-24 md:pb-10">
+        <main className="flex-1 overflow-x-clip p-4 sm:p-6 lg:p-8 pb-24 md:pb-10">
           <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-6">
             <div className="hidden md:block">
               <TopBar crumb={pageMeta.crumb} title={pageMeta.title} unreadCount={unreadCount} userName={displayName} initials={initials} />
