@@ -54,8 +54,8 @@ const PAGE_TITLES: Record<string, { crumb: string; title: string }> = {
 };
 
 // Maps an admin-console route to the permission key required to view it.
-// Routes not listed here (e.g. '/admin' itself) are open to any admin.
 const ROUTE_PERMISSIONS: Record<string, string> = {
+  '/admin': 'dashboard',
   '/inventory': 'inventory',
   '/analytics': 'analytics',
   '/accounting': 'accounting',
@@ -72,6 +72,27 @@ const ROUTE_PERMISSIONS: Record<string, string> = {
   '/admin/pin-changes': 'pin_changes',
   '/admin/rewards': 'rewards',
 };
+
+// Where a restricted sub-admin lands when the section they tried to view
+// (including '/admin' itself, now that the overview needs 'dashboard') is
+// off-limits. Checked in order; first permitted route wins. If the admin
+// has none of these, they fall through to the regular customer dashboard.
+const ADMIN_FALLBACK_ROUTES: Array<[string, string]> = [
+  ['/inventory', 'inventory'],
+  ['/sales', 'sales'],
+  ['/accounting', 'accounting'],
+  ['/analytics', 'analytics'],
+  ['/admin/stock-balance', 'stock_balance'],
+  ['/admin/users', 'users'],
+  ['/admin/rewards', 'rewards'],
+  ['/admin/pin-changes', 'pin_changes'],
+  ['/admin/products/add', 'products'],
+  ['/reports', 'reports'],
+  ['/admin/updates', 'updates'],
+  ['/admin/expenses', 'expenses'],
+  ['/admin/cash-orders', 'cash_orders'],
+  ['/admin/audit-logs', 'audit_logs'],
+];
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -306,19 +327,32 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const fullAccess = isAdmin && permissions === null;
   const hasPermission = (key: string) => fullAccess || (permissions || []).includes(key);
 
+  // '/admin' itself now requires 'dashboard', so a denied admin can't just
+  // be bounced back there — find the first section they actually have.
+  // Falls through to the regular customer dashboard if they have none.
+  const firstAccessibleAdminRoute = () => {
+    const hit = ADMIN_FALLBACK_ROUTES.find(([, perm]) => hasPermission(perm));
+    return hit ? hit[0] : '/dashboard';
+  };
+
   // Sub-admin permission guard — the nav rail already hides sections a
   // restricted sub-admin can't see, but this catches direct URL navigation.
   useEffect(() => {
     if (loading || profileLoading || !isAdmin || fullAccess) return;
     if (location.pathname === '/admin/manage-admins') {
       showToast('Only full-access admins can manage other admins.', 'warning');
-      navigate('/admin');
+      navigate(firstAccessibleAdminRoute());
       return;
     }
     const requiredPerm = ROUTE_PERMISSIONS[location.pathname];
     if (requiredPerm && !hasPermission(requiredPerm)) {
-      showToast('You do not have permission to view that section.', 'warning');
-      navigate('/admin');
+      showToast(
+        location.pathname === '/admin'
+          ? "You don't have permission to view the dashboard overview."
+          : 'You do not have permission to view that section.',
+        'warning'
+      );
+      navigate(firstAccessibleAdminRoute());
     }
   }, [location.pathname, isAdmin, fullAccess, permissions, loading, profileLoading]);
 
@@ -379,10 +413,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   ];
 
   // A restricted sub-admin only sees nav entries for sections they have a
-  // permission for; '/admin' (the landing page) is always visible.
+  // permission for — including '/admin' itself, which needs 'dashboard'.
   const visibleAdminNavItems = fullAccess
     ? adminNavItems
-    : adminNavItems.filter((item) => item.path === '/admin' || hasPermission(ROUTE_PERMISSIONS[item.path] || '__none__'));
+    : adminNavItems.filter((item) => hasPermission(ROUTE_PERMISSIONS[item.path] || '__none__'));
 
   const rawNavItems = isAdmin ? visibleAdminNavItems : userNavItems;
   const isNavItemActive = (path: string) =>
