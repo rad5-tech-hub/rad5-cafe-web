@@ -35,26 +35,30 @@ export function CashOrdersList({
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    try {
-      const [ordersRes, usersRes] = await Promise.all([
-        api.adminDashboard.orders.limbo(1, 100),
-        api.admin.users.list(1, 1000)
-      ]);
+    const [ordersResult, usersResult] = await Promise.allSettled([
+      api.adminDashboard.orders.limbo(1, 100),
+      api.admin.users.list(1, 1000)
+    ]);
 
-      if (ordersRes.success && ordersRes.orders) {
-        setOrders(ordersRes.orders);
-      } else {
-        setOrders([]);
+    if (ordersResult.status === 'fulfilled' && ordersResult.value.success && ordersResult.value.orders) {
+      setOrders(ordersResult.value.orders);
+    } else {
+      setOrders([]);
+      if (ordersResult.status === 'rejected') {
+        showToast({ type: 'error', title: 'Failed to load cash orders', message: ordersResult.reason?.message });
       }
-
-      if (usersRes.success && Array.isArray(usersRes.data)) {
-        setUsers(usersRes.data);
-      }
-    } catch (err) {
-      showToast({ type: 'error', title: 'Failed to load data' });
-    } finally {
-      setLoading(false);
     }
+
+    if (usersResult.status === 'fulfilled' && usersResult.value.success && Array.isArray(usersResult.value.data)) {
+      setUsers(usersResult.value.data);
+    } else {
+      setUsers([]);
+      if (usersResult.status === 'rejected') {
+        showToast({ type: 'warning', title: 'Reconciliation unavailable', message: 'Could not load the user list — you may be missing the "Users & access" permission needed to map orders to a customer.' });
+      }
+    }
+
+    setLoading(false);
   }, [showToast]);
 
   useEffect(() => {
