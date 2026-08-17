@@ -252,15 +252,7 @@ export function CashOrdersList({
       key: 'receipt', header: 'Order', width: '1.3fr',
       render: (o) => (
         <div>
-          <button
-            type="button"
-            onClick={() => setSelectedOrderForModal(o)}
-            title="View order details"
-            className="text-[13px] font-bold text-left cursor-pointer hover:text-tint transition-colors flex items-center gap-1"
-          >
-            {o.receiptNumber}
-            <Icon name="eye" size={12} />
-          </button>
+          <div className="text-[13px] font-bold">{o.receiptNumber}</div>
           <div className="text-[11px] text-text-secondary">{formatDate(o.createdAt)}</div>
         </div>
       ),
@@ -284,6 +276,17 @@ export function CashOrdersList({
                 </span>
               </div>
             )) : <span className="text-[11.5px] text-text-secondary">No items</span>}
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedOrderForModal(o)}
+                title="View unit prices and line totals"
+                className="text-[11.5px] font-bold text-tint hover:underline transition-colors mt-0.5 text-left cursor-pointer flex items-center gap-1"
+              >
+                <Icon name="eye" size={13} />
+                View {items.length} product{items.length === 1 ? '' : 's'} in detail
+              </button>
+            )}
           </div>
         );
       },
