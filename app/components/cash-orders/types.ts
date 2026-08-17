@@ -34,6 +34,13 @@ export type User = {
   email: string;
 };
 
+/** An admin who entered at least one of the cash orders currently in limbo. */
+export type CashOrderAdmin = {
+  id: string;
+  fullName: string;
+  email: string;
+};
+
 export type ReconciledOrder = {
   id: string;
   receiptNumber: string;

@@ -5,11 +5,12 @@ import { useConfirm } from '~/context/confirm-context';
 import { Icon } from '~/components/ui/icon';
 import { IconButton } from '~/components/ui/icon-button';
 import { Select } from '~/components/ui/select';
+import { PillButton } from '~/components/ui/pill-button';
 import { Money } from '~/components/ui/money';
 import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
 import { ActionSheetModal } from '~/components/ui/action-sheet-modal';
 import { OrderDetailsModal, type OrderDetails } from '~/components/modals/order-details-modal';
-import type { LimboOrder, User } from './types';
+import type { CashOrderAdmin, LimboOrder, User } from './types';
 
 export function CashOrdersList({
   onNewCashOrder,
@@ -22,8 +23,15 @@ export function CashOrdersList({
   const { showConfirm } = useConfirm();
   const [orders, setOrders] = useState<LimboOrder[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [admins, setAdmins] = useState<CashOrderAdmin[]>([]);
   const [loading, setLoading] = useState(false);
   const [reconcilingId, setReconcilingId] = useState<string | null>(null);
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [adminFilter, setAdminFilter] = useState<string>('');
+  const limit = 20;
 
   const [selectedOrdersForReconciliation, setSelectedOrdersForReconciliation] = useState<LimboOrder[]>([]);
   const [selectedOrdersForDeletion, setSelectedOrdersForDeletion] = useState<LimboOrder[]>([]);
@@ -36,14 +44,18 @@ export function CashOrdersList({
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [ordersResult, usersResult] = await Promise.allSettled([
-      api.adminDashboard.orders.limbo(1, 100),
+      api.adminDashboard.orders.limbo(page, limit, adminFilter || undefined),
       api.admin.users.list(1, 1000)
     ]);
 
     if (ordersResult.status === 'fulfilled' && ordersResult.value.success && ordersResult.value.orders) {
       setOrders(ordersResult.value.orders);
+      setTotalPages(ordersResult.value.totalPages || 1);
+      setTotal(ordersResult.value.total ?? ordersResult.value.orders.length);
     } else {
       setOrders([]);
+      setTotalPages(1);
+      setTotal(0);
       if (ordersResult.status === 'rejected') {
         showToast({ type: 'error', title: 'Failed to load cash orders', message: ordersResult.reason?.message });
       }
@@ -59,11 +71,43 @@ export function CashOrdersList({
     }
 
     setLoading(false);
-  }, [showToast]);
+  }, [showToast, page, adminFilter]);
+
+  const fetchAdmins = useCallback(async () => {
+    try {
+      const res = await api.adminDashboard.orders.limboAdmins();
+      const list: CashOrderAdmin[] = res.success && Array.isArray(res.admins) ? res.admins : [];
+      setAdmins(list);
+      // An admin drops off the list once their last order is cleared — don't stay
+      // filtered on someone the dropdown can no longer show.
+      setAdminFilter((prev) => (prev && !list.some(a => a.id === prev) ? '' : prev));
+    } catch {
+      setAdmins([]);
+    }
+  }, []);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    fetchAdmins();
+  }, [fetchAdmins]);
+
+  // Selections only ever cover the visible page, so drop them when the page changes.
+  useEffect(() => {
+    setCheckedOrderIds([]);
+  }, [page, adminFilter]);
+
+  // Clearing the last rows on a page can leave us past the end of the list.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const refresh = useCallback(() => {
+    fetchData();
+    fetchAdmins();
+  }, [fetchData, fetchAdmins]);
 
   const handleReconcile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +144,7 @@ export function CashOrdersList({
       setSelectedOrdersForReconciliation([]);
       setSelectedUserId('');
       setCheckedOrderIds([]);
-      fetchData();
+      refresh();
     } catch (err: any) {
       showToast({ type: 'error', title: 'Reconciliation error', message: err.message });
     } finally {
@@ -142,7 +186,7 @@ export function CashOrdersList({
       setDeleteReason('');
       setDeletePin('');
       setCheckedOrderIds([]);
-      fetchData();
+      refresh();
     } catch (err: any) {
       showToast({ type: 'error', title: 'Deletion error', message: err.message });
     } finally {
@@ -251,7 +295,17 @@ export function CashOrdersList({
           <p className="text-text-secondary text-xs mt-1">Review cash orders in limbo and reconcile them with registered user accounts.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <IconButton icon="sync" title="Refresh" onClick={fetchData} disabled={loading} iconSize={15} className={loading ? '[&_svg]:animate-spin' : ''} />
+          <Select
+            value={adminFilter}
+            onChange={(val) => { setAdminFilter(val); setPage(1); }}
+            placeholder="All admins"
+            options={[
+              { label: 'All admins', value: '' },
+              ...admins.map(a => ({ label: a.email ? `${a.fullName} (${a.email})` : a.fullName, value: a.id })),
+            ]}
+            className="min-w-[190px]"
+          />
+          <IconButton icon="sync" title="Refresh" onClick={refresh} disabled={loading} iconSize={15} className={loading ? '[&_svg]:animate-spin' : ''} />
           <button
             onClick={() => {
               if (checkedOrderIds.length === 0) { showToast({ type: 'warning', title: 'Please select at least one order to reconcile.' }); return; }
@@ -288,9 +342,22 @@ export function CashOrdersList({
         rows={orders}
         keyExtractor={(o) => o.id}
         loading={loading && orders.length === 0}
-        emptyMessage="No limbo orders found. All caught up!"
+        emptyMessage={adminFilter ? 'No limbo orders entered by this admin.' : 'No limbo orders found. All caught up!'}
         minWidth={820}
       />
+
+      {total > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="text-xs font-semibold text-text-secondary">
+            Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total} order{total === 1 ? '' : 's'}
+          </span>
+          <div className="flex items-center gap-3">
+            <PillButton disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>Previous</PillButton>
+            <span className="text-xs font-bold text-text-secondary">Page {page} of {totalPages}</span>
+            <PillButton disabled={page >= totalPages || loading} onClick={() => setPage(page + 1)}>Next</PillButton>
+          </div>
+        </div>
+      )}
 
       <ActionSheetModal
         isOpen={selectedOrdersForReconciliation.length > 0}

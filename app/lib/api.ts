@@ -33,6 +33,7 @@ type ApiResponse<T = unknown> = {
   transactions?: any[];
   notifications?: any[];
   orders?: any[];
+  admins?: any[];
   token?: string;
   user?: any;
   balance?: number;
@@ -633,8 +634,10 @@ export const api = {
         request<any>('/admin-dashboard/stock-balance', { method: 'POST', body: JSON.stringify(body) }),
     },
     orders: {
-      limbo: (page = 1, limit = 20) =>
-        request<any>(`/admin/orders/limbo?page=${page}&limit=${limit}`),
+      limbo: (page = 1, limit = 20, enteredBy?: string) =>
+        request<any>(`/admin/orders/limbo?page=${page}&limit=${limit}${enteredBy ? `&enteredBy=${encodeURIComponent(enteredBy)}` : ''}`),
+      limboAdmins: () =>
+        request<any>('/admin/orders/limbo/admins'),
       reconciled: (page = 1, limit = 20) =>
         request<any>(`/admin/orders/reconciled?page=${page}&limit=${limit}`),
       reconcile: (orderId: string, customerUserId: string) =>
