@@ -15,6 +15,10 @@ import type { CashOrderAdmin, LimboOrder, User } from './types';
 // keep going until we have every limbo order.
 const FETCH_CHUNK = 200;
 
+// Products past this many are folded behind the eye button so one big order
+// can't stretch its row past everything else.
+const VISIBLE_ITEMS = 3;
+
 async function fetchAllLimboOrders(enteredBy?: string): Promise<LimboOrder[]> {
   const first = await api.adminDashboard.orders.limbo(1, FETCH_CHUNK, enteredBy);
   if (!first.success || !Array.isArray(first.orders)) throw new Error(first.message || 'Failed to load cash orders');
@@ -263,9 +267,11 @@ export function CashOrdersList({
       key: 'items', header: 'Products', width: '2fr',
       render: (o) => {
         const items = o.items || [];
+        const visibleItems = items.slice(0, VISIBLE_ITEMS);
+        const hiddenCount = items.length - visibleItems.length;
         return (
           <div className="flex flex-col gap-1 py-1">
-            {items.length > 0 ? items.map((item: any, idx: number) => (
+            {visibleItems.length > 0 ? visibleItems.map((item: any, idx: number) => (
               <div
                 key={idx}
                 className="flex items-center justify-between gap-2 bg-bg-element/70 border border-border/80 px-2 py-1 rounded-lg text-xs font-medium text-text-main"
@@ -276,15 +282,15 @@ export function CashOrdersList({
                 </span>
               </div>
             )) : <span className="text-[11.5px] text-text-secondary">No items</span>}
-            {items.length > 0 && (
+            {hiddenCount > 0 && (
               <button
                 type="button"
                 onClick={() => setSelectedOrderForModal(o)}
-                title="View unit prices and line totals"
+                title="View all products in this order"
                 className="text-[11.5px] font-bold text-tint hover:underline transition-colors mt-0.5 text-left cursor-pointer flex items-center gap-1"
               >
                 <Icon name="eye" size={13} />
-                View {items.length} product{items.length === 1 ? '' : 's'} in detail
+                +{hiddenCount} more item{hiddenCount === 1 ? '' : 's'}
               </button>
             )}
           </div>
