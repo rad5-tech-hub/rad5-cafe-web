@@ -5,12 +5,35 @@ import { useConfirm } from '~/context/confirm-context';
 import { Icon } from '~/components/ui/icon';
 import { IconButton } from '~/components/ui/icon-button';
 import { Select } from '~/components/ui/select';
-import { PillButton } from '~/components/ui/pill-button';
 import { Money } from '~/components/ui/money';
 import { DataTable, type DataTableColumn } from '~/components/ui/data-table';
 import { ActionSheetModal } from '~/components/ui/action-sheet-modal';
 import { OrderDetailsModal, type OrderDetails } from '~/components/modals/order-details-modal';
 import type { CashOrderAdmin, LimboOrder, User } from './types';
+
+// The list is unpaginated, but the endpoint still pages — pull in large chunks and
+// keep going until we have every limbo order.
+const FETCH_CHUNK = 200;
+
+async function fetchAllLimboOrders(enteredBy?: string): Promise<LimboOrder[]> {
+  const first = await api.adminDashboard.orders.limbo(1, FETCH_CHUNK, enteredBy);
+  if (!first.success || !Array.isArray(first.orders)) throw new Error(first.message || 'Failed to load cash orders');
+
+  const total: number = first.total ?? first.orders.length;
+  const orders: LimboOrder[] = [...first.orders];
+
+  const remainingPages = Math.ceil(total / FETCH_CHUNK) - 1;
+  if (remainingPages > 0) {
+    const rest = await Promise.all(
+      Array.from({ length: remainingPages }, (_, i) => api.adminDashboard.orders.limbo(i + 2, FETCH_CHUNK, enteredBy))
+    );
+    rest.forEach((res) => {
+      if (res.success && Array.isArray(res.orders)) orders.push(...res.orders);
+    });
+  }
+
+  return orders;
+}
 
 export function CashOrdersList({
   onNewCashOrder,
@@ -27,11 +50,7 @@ export function CashOrdersList({
   const [loading, setLoading] = useState(false);
   const [reconcilingId, setReconcilingId] = useState<string | null>(null);
 
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
   const [adminFilter, setAdminFilter] = useState<string>('');
-  const limit = 20;
 
   const [selectedOrdersForReconciliation, setSelectedOrdersForReconciliation] = useState<LimboOrder[]>([]);
   const [selectedOrdersForDeletion, setSelectedOrdersForDeletion] = useState<LimboOrder[]>([]);
@@ -44,21 +63,15 @@ export function CashOrdersList({
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [ordersResult, usersResult] = await Promise.allSettled([
-      api.adminDashboard.orders.limbo(page, limit, adminFilter || undefined),
+      fetchAllLimboOrders(adminFilter || undefined),
       api.admin.users.list(1, 1000)
     ]);
 
-    if (ordersResult.status === 'fulfilled' && ordersResult.value.success && ordersResult.value.orders) {
-      setOrders(ordersResult.value.orders);
-      setTotalPages(ordersResult.value.totalPages || 1);
-      setTotal(ordersResult.value.total ?? ordersResult.value.orders.length);
+    if (ordersResult.status === 'fulfilled') {
+      setOrders(ordersResult.value);
     } else {
       setOrders([]);
-      setTotalPages(1);
-      setTotal(0);
-      if (ordersResult.status === 'rejected') {
-        showToast({ type: 'error', title: 'Failed to load cash orders', message: ordersResult.reason?.message });
-      }
+      showToast({ type: 'error', title: 'Failed to load cash orders', message: ordersResult.reason?.message });
     }
 
     if (usersResult.status === 'fulfilled' && usersResult.value.success && Array.isArray(usersResult.value.data)) {
@@ -71,7 +84,7 @@ export function CashOrdersList({
     }
 
     setLoading(false);
-  }, [showToast, page, adminFilter]);
+  }, [showToast, adminFilter]);
 
   const fetchAdmins = useCallback(async () => {
     try {
@@ -94,15 +107,10 @@ export function CashOrdersList({
     fetchAdmins();
   }, [fetchAdmins]);
 
-  // Selections only ever cover the visible page, so drop them when the page changes.
+  // Selections only ever cover the rows the filter shows, so drop them when it changes.
   useEffect(() => {
     setCheckedOrderIds([]);
-  }, [page, adminFilter]);
-
-  // Clearing the last rows on a page can leave us past the end of the list.
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  }, [adminFilter]);
 
   const refresh = useCallback(() => {
     fetchData();
@@ -244,7 +252,15 @@ export function CashOrdersList({
       key: 'receipt', header: 'Order', width: '1.3fr',
       render: (o) => (
         <div>
-          <div className="text-[13px] font-bold">{o.receiptNumber}</div>
+          <button
+            type="button"
+            onClick={() => setSelectedOrderForModal(o)}
+            title="View order details"
+            className="text-[13px] font-bold text-left cursor-pointer hover:text-tint transition-colors flex items-center gap-1"
+          >
+            {o.receiptNumber}
+            <Icon name="eye" size={12} />
+          </button>
           <div className="text-[11px] text-text-secondary">{formatDate(o.createdAt)}</div>
         </div>
       ),
@@ -255,11 +271,9 @@ export function CashOrdersList({
       key: 'items', header: 'Products', width: '2fr',
       render: (o) => {
         const items = o.items || [];
-        const visibleItems = items.slice(0, 3);
-        const hasMore = items.length > 3;
         return (
           <div className="flex flex-col gap-1 py-1">
-            {visibleItems.length > 0 ? visibleItems.map((item: any, idx: number) => (
+            {items.length > 0 ? items.map((item: any, idx: number) => (
               <div
                 key={idx}
                 className="flex items-center justify-between gap-2 bg-bg-element/70 border border-border/80 px-2 py-1 rounded-lg text-xs font-medium text-text-main"
@@ -270,16 +284,6 @@ export function CashOrdersList({
                 </span>
               </div>
             )) : <span className="text-[11.5px] text-text-secondary">No items</span>}
-            {hasMore && (
-              <button
-                type="button"
-                onClick={() => setSelectedOrderForModal(o)}
-                className="text-[11.5px] font-bold text-tint hover:underline transition-colors mt-0.5 text-left cursor-pointer flex items-center gap-1"
-              >
-                <Icon name="eye" size={13} />
-                +{items.length - 3} more item{items.length - 3 > 1 ? 's' : ''}
-              </button>
-            )}
           </div>
         );
       },
@@ -297,7 +301,7 @@ export function CashOrdersList({
         <div className="flex flex-wrap items-center gap-2">
           <Select
             value={adminFilter}
-            onChange={(val) => { setAdminFilter(val); setPage(1); }}
+            onChange={(val) => setAdminFilter(val)}
             placeholder="All admins"
             options={[
               { label: 'All admins', value: '' },
@@ -346,17 +350,10 @@ export function CashOrdersList({
         minWidth={820}
       />
 
-      {total > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="text-xs font-semibold text-text-secondary">
-            Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total} order{total === 1 ? '' : 's'}
-          </span>
-          <div className="flex items-center gap-3">
-            <PillButton disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>Previous</PillButton>
-            <span className="text-xs font-bold text-text-secondary">Page {page} of {totalPages}</span>
-            <PillButton disabled={page >= totalPages || loading} onClick={() => setPage(page + 1)}>Next</PillButton>
-          </div>
-        </div>
+      {orders.length > 0 && (
+        <span className="text-xs font-semibold text-text-secondary">
+          Showing all {orders.length} order{orders.length === 1 ? '' : 's'}
+        </span>
       )}
 
       <ActionSheetModal
