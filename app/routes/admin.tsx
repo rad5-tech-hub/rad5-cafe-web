@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '~/lib/firebase';
 import { api } from '~/lib/api';
@@ -60,7 +60,6 @@ function Spinner({ size = 16 }: { size?: number }) {
 }
 
 export default function Admin() {
-  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const [stats, setStats] = useState<any>(null);
@@ -430,20 +429,6 @@ export default function Admin() {
               <span className="block text-text-secondary mb-0.5">Wallet escrow</span>
               <span className="font-bold">{stats?.wallet ? `₦${Number(stats.wallet.totalValue ?? 0).toLocaleString()}` : '₦0'}</span>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-auto pt-1">
-            <button
-              onClick={() => navigate('/accounting')}
-              className="px-3 py-2 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors"
-            >
-              Reconcile
-            </button>
-            <button
-              onClick={() => navigate('/reports')}
-              className="px-3 py-2 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors"
-            >
-              Export
-            </button>
           </div>
         </GlassPanel>
       </div>
