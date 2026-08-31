@@ -539,6 +539,18 @@ export const api = {
     },
     overview: () => request<any>('/admin-dashboard/overview'),
     recentActivity: (limit = 20) => request<any>(`/admin-dashboard/recent-activity?limit=${limit}`),
+    paystack: {
+      total: (status = 'success') => request<any>(`/admin-dashboard/paystack/transactions/total?status=${status}`),
+      transactions: (params: { page?: number; perPage?: number; from?: string; to?: string; status?: string } = {}) => {
+        const qs = new URLSearchParams();
+        if (params.page) qs.set('page', String(params.page));
+        if (params.perPage) qs.set('perPage', String(params.perPage));
+        if (params.from) qs.set('from', params.from);
+        if (params.to) qs.set('to', params.to);
+        if (params.status) qs.set('status', params.status);
+        return request<any>(`/admin-dashboard/paystack/transactions?${qs.toString()}`);
+      },
+    },
     products: {
       create: (body: {
         name: string;

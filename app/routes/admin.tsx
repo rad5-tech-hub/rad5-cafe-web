@@ -64,6 +64,8 @@ export default function Admin() {
   const [activity, setActivity] = useState<RecentTxn[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [trend, setTrend] = useState<{ date: string; revenue: number }[]>([]);
+  const [paystackTotal, setPaystackTotal] = useState<{ total: number; count: number } | null>(null);
+  const [loadingPaystackTotal, setLoadingPaystackTotal] = useState(true);
 
   // Manual wallet adjustment form state
   const [walletUserId, setWalletUserId] = useState('');
@@ -110,6 +112,23 @@ export default function Admin() {
       .catch((err: any) => {
         console.warn('Could not load revenue trend:', err);
       });
+
+    // Walks Paystack's own transaction history and sums it — this is the
+    // real, live total that has ever moved through the account, used in
+    // place of Paystack's /balance figure (which reflects the *current
+    // settlement-account* balance, not the total collected — those are
+    // different numbers, and the latter is what matters for "how much has
+    // this account processed, all-time").
+    setLoadingPaystackTotal(true);
+    api.adminDashboard.paystack.total()
+      .then((res: any) => {
+        const data = res.data ?? res;
+        if (res.success && data) setPaystackTotal(data);
+      })
+      .catch((err: any) => {
+        console.warn('Could not load Paystack transaction total:', err);
+      })
+      .finally(() => setLoadingPaystackTotal(false));
 
     setLoadingActivity(true);
     api.adminDashboard.recentActivity(20)
@@ -328,13 +347,15 @@ export default function Admin() {
           </div>
           <div>
             <div className="font-money text-[26px] font-extrabold tracking-tight">
-              {loading ? '—' : stats?.payments?.paystackBalance != null ? <Money amount={stats.payments.paystackBalance} /> : 'unavailable'}
+              {loadingPaystackTotal ? '—' : paystackTotal ? <Money amount={paystackTotal.total} /> : 'unavailable'}
             </div>
-            <span className="text-xs text-text-secondary">live balance, from Paystack</span>
+            <span className="text-xs text-text-secondary">
+              {paystackTotal ? `sum of ${paystackTotal.count.toLocaleString()} successful transactions, all-time` : 'sum of all transactions, from Paystack'}
+            </span>
           </div>
           <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-border/60">
             <div>
-              <span className="block text-text-secondary mb-0.5">Online tx recorded</span>
+              <span className="block text-text-secondary mb-0.5">Recorded in our system</span>
               <span className="font-bold">{stats?.payments ? `₦${Number(stats.payments.onlineTransactionsTotal ?? 0).toLocaleString()}` : '₦0'}</span>
             </div>
             <div>
