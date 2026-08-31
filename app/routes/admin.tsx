@@ -4,6 +4,7 @@ import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestor
 import { db } from '~/lib/firebase';
 import { api } from '~/lib/api';
 import { Money } from '~/components/ui/money';
+import { StatCard } from '~/components/ui/stat-card';
 import { Icon } from '~/components/ui/icon';
 import { GlassPanel } from '~/components/ui/glass-panel';
 import { ConsoleTileGrid, type ConsoleTile } from '~/components/admin/console-tile-grid';
@@ -54,6 +55,10 @@ const TILE_PERMISSIONS: Record<string, string> = {
 const tooltipStyle = { backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: 12 };
 const axisTick = { fontSize: 11, fill: 'var(--color-text-secondary)' };
 
+function Spinner({ size = 16 }: { size?: number }) {
+  return <Icon name="sync" size={size} className="animate-spin text-tint" />;
+}
+
 export default function Admin() {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -64,8 +69,11 @@ export default function Admin() {
   const [activity, setActivity] = useState<RecentTxn[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [trend, setTrend] = useState<{ date: string; revenue: number }[]>([]);
+  const [loadingTrend, setLoadingTrend] = useState(true);
   const [paystackTotal, setPaystackTotal] = useState<{ total: number; count: number } | null>(null);
   const [loadingPaystackTotal, setLoadingPaystackTotal] = useState(true);
+  const [accountingTotals, setAccountingTotals] = useState<{ actualizedRevenue: number; actualizedProfit: number; limboAmount: number } | null>(null);
+  const [loadingAccounting, setLoadingAccounting] = useState(true);
 
   // Manual wallet adjustment form state
   const [walletUserId, setWalletUserId] = useState('');
@@ -104,6 +112,7 @@ export default function Admin() {
         console.warn('Could not load alerts:', err);
       });
 
+    setLoadingTrend(true);
     api.adminDashboard.analytics.weekly(7)
       .then((res: any) => {
         const data = res.data ?? res;
@@ -111,7 +120,8 @@ export default function Admin() {
       })
       .catch((err: any) => {
         console.warn('Could not load revenue trend:', err);
-      });
+      })
+      .finally(() => setLoadingTrend(false));
 
     // Walks Paystack's own transaction history and sums it — this is the
     // real, live total that has ever moved through the account, used in
@@ -129,6 +139,20 @@ export default function Admin() {
         console.warn('Could not load Paystack transaction total:', err);
       })
       .finally(() => setLoadingPaystackTotal(false));
+
+    // All-time "actualized" revenue/profit — realized from completed orders
+    // across the whole history, not just today. Scans every order, so kept
+    // as its own decoupled fetch rather than folded into /overview.
+    setLoadingAccounting(true);
+    api.adminDashboard.analytics.accounting()
+      .then((res: any) => {
+        const data = res.data ?? res;
+        if (res.success && data?.totals) setAccountingTotals(data.totals);
+      })
+      .catch((err: any) => {
+        console.warn('Could not load accounting totals:', err);
+      })
+      .finally(() => setLoadingAccounting(false));
 
     setLoadingActivity(true);
     api.adminDashboard.recentActivity(20)
@@ -294,13 +318,47 @@ export default function Admin() {
   const unreconciledCashCount = stats?.wallet?.unreconciledLimboCount ?? 0;
   const unreconciledCashTotal = stats?.wallet?.unreconciledLimboTotal ?? 0;
 
+  const stillComputing = loading || loadingPaystackTotal || loadingTrend || loadingAccounting;
+
   return (
     <div className="flex flex-col gap-6 w-full">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight">Staff console</h1>
-        <p className="text-text-secondary text-xs mt-1">
-          Monitor inventory, checkout analytics, sales balances, and exports.
-        </p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight">Staff console</h1>
+          <p className="text-text-secondary text-xs mt-1">
+            Monitor inventory, checkout analytics, sales balances, and exports.
+          </p>
+        </div>
+        {stillComputing && (
+          <span className="flex items-center gap-2 text-xs font-semibold text-text-secondary glass-chip px-3 py-1.5 rounded-full">
+            <Spinner size={13} /> Crunching the numbers…
+          </span>
+        )}
+      </div>
+
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <StatCard
+          label="All-time revenue"
+          value={loadingAccounting ? <Spinner size={20} /> : <Money amount={accountingTotals?.actualizedRevenue ?? 0} />}
+          sub="realized, across every order"
+          valueColor="var(--color-ok)"
+        />
+        <StatCard
+          label="All-time profit"
+          value={loadingAccounting ? <Spinner size={20} /> : <Money amount={accountingTotals?.actualizedProfit ?? 0} />}
+          sub="realized, across every order"
+          valueColor="var(--color-ok)"
+        />
+        <StatCard
+          label="Stock value (cost)"
+          value={loading ? <Spinner size={20} /> : <Money amount={stats?.inventory?.costValue ?? 0} />}
+          sub={`${Number(stats?.inventory?.totalUnits ?? 0).toLocaleString()} units on hand`}
+        />
+        <StatCard
+          label="Stock value (retail)"
+          value={loading ? <Spinner size={20} /> : <Money amount={stats?.inventory?.retailValue ?? 0} />}
+          sub="if sold at listed prices"
+        />
       </div>
 
       {/* Hero: revenue trend + Paystack/payments panel */}
@@ -309,8 +367,8 @@ export default function Admin() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <span className="text-[12.5px] font-semibold text-text-secondary">Revenue today</span>
-              <div className="font-money text-[28px] font-extrabold tracking-tight mt-1">
-                {loading ? '—' : <Money amount={stats?.today?.revenue ?? 0} />}
+              <div className="font-money text-[28px] font-extrabold tracking-tight mt-1 h-[34px] flex items-center">
+                {loading ? <Spinner size={22} /> : <Money amount={stats?.today?.revenue ?? 0} />}
               </div>
               <span className="text-xs text-text-secondary">
                 {stats?.today?.salesCount ?? 0} orders · profit{' '}
@@ -322,19 +380,25 @@ export default function Admin() {
             </span>
           </div>
           <div className="h-56 mt-4 -ml-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString('en-NG', { weekday: 'short' })} tick={axisTick} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} tick={axisTick} axisLine={false} tickLine={false} width={40} />
-                <Tooltip
-                  formatter={(val: any) => [`₦${Number(val).toLocaleString()}`, 'Revenue']}
-                  labelFormatter={(d) => new Date(d).toLocaleDateString('en-NG', { weekday: 'long', month: 'short', day: 'numeric' })}
-                  contentStyle={tooltipStyle}
-                />
-                <Bar dataKey="revenue" fill="var(--color-tint)" radius={[6, 6, 0, 0]} maxBarSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
+            {loadingTrend && trend.length === 0 ? (
+              <div className="h-full flex items-center justify-center gap-2 text-xs text-text-secondary">
+                <Spinner size={16} /> Loading revenue trend…
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={trend}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                  <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString('en-NG', { weekday: 'short' })} tick={axisTick} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} tick={axisTick} axisLine={false} tickLine={false} width={40} />
+                  <Tooltip
+                    formatter={(val: any) => [`₦${Number(val).toLocaleString()}`, 'Revenue']}
+                    labelFormatter={(d) => new Date(d).toLocaleDateString('en-NG', { weekday: 'long', month: 'short', day: 'numeric' })}
+                    contentStyle={tooltipStyle}
+                  />
+                  <Bar dataKey="revenue" fill="var(--color-tint)" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </GlassPanel>
 
@@ -346,11 +410,15 @@ export default function Admin() {
             </span>
           </div>
           <div>
-            <div className="font-money text-[26px] font-extrabold tracking-tight">
-              {loadingPaystackTotal ? '—' : paystackTotal ? <Money amount={paystackTotal.total} /> : 'unavailable'}
+            <div className="font-money text-[26px] font-extrabold tracking-tight h-[32px] flex items-center">
+              {loadingPaystackTotal ? <Spinner size={20} /> : paystackTotal ? <Money amount={paystackTotal.total} /> : 'unavailable'}
             </div>
             <span className="text-xs text-text-secondary">
-              {paystackTotal ? `sum of ${paystackTotal.count.toLocaleString()} successful transactions, all-time` : 'sum of all transactions, from Paystack'}
+              {loadingPaystackTotal
+                ? "walking Paystack's transaction history — can take a few seconds…"
+                : paystackTotal
+                ? `sum of ${paystackTotal.count.toLocaleString()} successful transactions, all-time`
+                : 'sum of all transactions, from Paystack'}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-border/60">

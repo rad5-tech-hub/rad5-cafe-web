@@ -153,6 +153,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isAuthRoute = ['/', '/login', '/register', '/setup-pin'].includes(location.pathname);
   const isAdminRoute = location.pathname.startsWith('/admin') ||
                        ['/inventory', '/analytics', '/sales', '/reports', '/accounting'].includes(location.pathname);
+  // The customer wallet/ordering surface — a staff login shouldn't land here
+  // (their console has its own wallet-adjust tools). Shared pages like
+  // history/notifications/profile stay accessible to both roles.
+  const isCustomerOnlyRoute = ['/dashboard', '/cafe'].includes(location.pathname);
 
   // Lightweight unread-notifications count for the top-bar bell badge — reuses
   // the same read path as the Notifications screen, refetched on navigation
@@ -315,9 +319,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
       } else if (user && isAdminRoute && !isAdmin) {
         navigate('/dashboard');
+      } else if (user && isAdmin && isCustomerOnlyRoute) {
+        navigate('/admin');
       }
     }
-  }, [user, loading, profileLoading, isAuthRoute, isAdminRoute, isAdmin, navigate, location.pathname]);
+  }, [user, loading, profileLoading, isAuthRoute, isAdminRoute, isAdmin, isCustomerOnlyRoute, navigate, location.pathname]);
 
   // undefined/null permissions on a loaded admin profile = full access
   // (the grandfathered "highest" tier). A defined array restricts a
