@@ -8,6 +8,7 @@ import { ConsoleTileGrid, type ConsoleTile } from '~/components/admin/console-ti
 import { MiniStatList, type MiniStat } from '~/components/admin/mini-stat-list';
 import { LowStockAlertsCard } from '~/components/admin/low-stock-alerts-card';
 import { WalletAdjustCard } from '~/components/admin/wallet-adjust-card';
+import { RecentActivity, type RecentTxn } from '~/components/dashboard/recent-activity';
 import { useToast } from '~/context/toast-context';
 import { AdminPinSetupModal } from '~/components/modals/admin-pin-setup-modal';
 
@@ -53,6 +54,8 @@ export default function Admin() {
   const [stats, setStats] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activity, setActivity] = useState<RecentTxn[]>([]);
+  const [loadingActivity, setLoadingActivity] = useState(true);
 
   // Manual wallet adjustment form state
   const [walletUserId, setWalletUserId] = useState('');
@@ -90,6 +93,27 @@ export default function Admin() {
         console.warn('Could not load alerts:', err);
       })
       .finally(() => setLoading(false));
+
+    setLoadingActivity(true);
+    api.adminDashboard.recentActivity(20)
+      .then((res: any) => {
+        const list = res.data ?? res;
+        if (res.success && Array.isArray(list)) setActivity(list);
+      })
+      .catch((err: any) => {
+        console.warn('Could not load recent activity:', err);
+      })
+      .finally(() => setLoadingActivity(false));
+  };
+
+  const formatWhen = (iso: string): string => {
+    const d = new Date(iso);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const isYesterday = d.toDateString() === new Date(now.getTime() - 86400000).toDateString();
+    if (isToday) return `Today, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+    if (isYesterday) return 'Yesterday';
+    return d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
   };
 
   useEffect(() => {
@@ -132,8 +156,10 @@ export default function Admin() {
         initialLoad = false;
         return;
       }
+      let sawNewOrder = false;
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
+          sawNewOrder = true;
           const order = change.doc.data() as any;
           if ('Notification' in window && Notification.permission === 'granted') {
             const itemsStr = order.items?.map((i: any) => `${i.quantity}x ${i.productName}`).join(', ');
@@ -142,6 +168,7 @@ export default function Admin() {
           }
         }
       });
+      if (sawNewOrder) fetchAdminData();
     });
 
     return () => unsubscribe();
@@ -211,6 +238,26 @@ export default function Admin() {
     { label: 'Processed tx', value: stats?.wallet ? Number(stats.wallet.totalTransactions ?? 0).toLocaleString() : '0', icon: 'sync' },
   ];
 
+  const stalePending = stats?.payments?.stalePendingPayments?.count ?? 0;
+  const paymentsStats: MiniStat[] = [
+    {
+      label: 'Paystack balance',
+      value: stats?.payments?.paystackBalance != null ? `₦${Number(stats.payments.paystackBalance).toLocaleString()}` : 'unavailable',
+      icon: 'bank',
+    },
+    {
+      label: 'Online tx recorded (lifetime)',
+      value: stats?.payments ? `₦${Number(stats.payments.onlineTransactionsTotal ?? 0).toLocaleString()}` : '₦0',
+      icon: 'sync',
+    },
+    {
+      label: 'Stuck online payments',
+      value: `${stalePending} pending`,
+      icon: stalePending ? 'alert-triangle' : 'check',
+      tone: stalePending ? 'warning' : 'success',
+    },
+  ];
+
   const visibleTiles = CONSOLE_TILES.filter((tile) => hasPermission(TILE_PERMISSIONS[tile.key] || tile.key));
   const canSeeAlerts = hasPermission('inventory');
   const canAdjustWallet = hasPermission('wallet_adjust');
@@ -234,6 +281,11 @@ export default function Admin() {
           sub={stats?.wallet?.unreconciledLimboTotal ? <Money amount={stats.wallet.unreconciledLimboTotal} /> : 'cash orders in limbo'}
           valueColor={stats?.wallet?.unreconciledLimboCount ? 'var(--color-err)' : undefined}
         />
+        <StatCard
+          label="Paystack balance"
+          value={loading ? '—' : stats?.payments?.paystackBalance != null ? <Money amount={stats.payments.paystackBalance} /> : 'unavailable'}
+          sub="live, from Paystack"
+        />
       </div>
 
       <div>
@@ -241,10 +293,11 @@ export default function Admin() {
         <ConsoleTileGrid tiles={visibleTiles} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MiniStatList title="Inventory levels" stats={inventoryStats} />
         <MiniStatList title="Customer activity" stats={customerStats} />
         <MiniStatList title="System wallets" stats={walletStats} />
+        <MiniStatList title="Payments (Paystack)" stats={paymentsStats} />
       </div>
 
       {(canSeeAlerts || canAdjustWallet) && (
@@ -266,6 +319,11 @@ export default function Admin() {
           )}
         </div>
       )}
+
+      <div>
+        <h2 className="text-[17px] font-bold tracking-tight mb-3">Recent activity</h2>
+        <RecentActivity transactions={activity} loading={loadingActivity} formatWhen={formatWhen} />
+      </div>
 
       <AdminPinSetupModal
         isOpen={showAdminPinSetup}

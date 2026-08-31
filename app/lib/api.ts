@@ -538,6 +538,7 @@ export const api = {
         request<any>('/admin-dashboard/auth/change-pin', { method: 'POST', body: JSON.stringify({ oldPin, newPin }) }),
     },
     overview: () => request<any>('/admin-dashboard/overview'),
+    recentActivity: (limit = 20) => request<any>(`/admin-dashboard/recent-activity?limit=${limit}`),
     products: {
       create: (body: {
         name: string;

@@ -10,6 +10,8 @@ export type RecentTxn = {
   createdAt: string;
   description?: string;
   metadata?: { items?: { productName: string; quantity: number }[] };
+  /** Customer display name — shown ahead of the label for platform-wide (admin) feeds. */
+  actorName?: string;
 };
 
 type RecentActivityProps = {
@@ -33,7 +35,7 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({ transactions, lo
           <TransactionRow
             key={tx.id}
             kind={tx.type}
-            label={getTxLabel(tx)}
+            label={tx.actorName ? `${tx.actorName} · ${getTxLabel(tx)}` : getTxLabel(tx)}
             when={formatWhen(tx.createdAt)}
             amount={tx.amount}
             status={tx.status}
