@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '~/lib/firebase';
 import { api } from '~/lib/api';
-import { StatCard } from '~/components/ui/stat-card';
 import { Money } from '~/components/ui/money';
+import { Icon } from '~/components/ui/icon';
+import { GlassPanel } from '~/components/ui/glass-panel';
 import { ConsoleTileGrid, type ConsoleTile } from '~/components/admin/console-tile-grid';
 import { MiniStatList, type MiniStat } from '~/components/admin/mini-stat-list';
 import { LowStockAlertsCard } from '~/components/admin/low-stock-alerts-card';
@@ -11,6 +13,7 @@ import { WalletAdjustCard } from '~/components/admin/wallet-adjust-card';
 import { RecentActivity, type RecentTxn } from '~/components/dashboard/recent-activity';
 import { useToast } from '~/context/toast-context';
 import { AdminPinSetupModal } from '~/components/modals/admin-pin-setup-modal';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, RadialBarChart, RadialBar } from 'recharts';
 
 export function meta() {
   return [
@@ -48,7 +51,11 @@ const TILE_PERMISSIONS: Record<string, string> = {
   updates: 'updates',
 };
 
+const tooltipStyle = { backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: 12 };
+const axisTick = { fontSize: 11, fill: 'var(--color-text-secondary)' };
+
 export default function Admin() {
+  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const [stats, setStats] = useState<any>(null);
@@ -56,6 +63,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState<RecentTxn[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
+  const [trend, setTrend] = useState<{ date: string; revenue: number }[]>([]);
 
   // Manual wallet adjustment form state
   const [walletUserId, setWalletUserId] = useState('');
@@ -82,7 +90,8 @@ export default function Admin() {
       })
       .catch((err: any) => {
         console.warn('Could not load admin dashboard stats:', err);
-      });
+      })
+      .finally(() => setLoading(false));
 
     api.adminDashboard.alerts.list()
       .then((res: any) => {
@@ -91,8 +100,16 @@ export default function Admin() {
       })
       .catch((err: any) => {
         console.warn('Could not load alerts:', err);
+      });
+
+    api.adminDashboard.analytics.weekly(7)
+      .then((res: any) => {
+        const data = res.data ?? res;
+        if (res.success && data?.trend?.revenueByDay) setTrend(data.trend.revenueByDay);
       })
-      .finally(() => setLoading(false));
+      .catch((err: any) => {
+        console.warn('Could not load revenue trend:', err);
+      });
 
     setLoadingActivity(true);
     api.adminDashboard.recentActivity(20)
@@ -222,12 +239,6 @@ export default function Admin() {
     }
   };
 
-  const inventoryStats: MiniStat[] = [
-    { label: 'Total products', value: `${stats?.inventory?.totalProducts ?? 0} items`, icon: 'package-variant-closed' },
-    { label: 'Low stock alerts', value: `${stats?.inventory?.lowStock ?? 0} alerts`, icon: 'alert-triangle', tone: 'warning' },
-    { label: 'Out of stock', value: `${stats?.inventory?.outOfStock ?? 0} items`, icon: 'block-helper', tone: 'error' },
-  ];
-
   const customerStats: MiniStat[] = [
     { label: 'Total customers', value: `${stats?.customers?.total ?? 0} users`, icon: 'account-group' },
     { label: 'Active today', value: `${stats?.customers?.active ?? 0} users`, icon: 'check', tone: 'success' },
@@ -238,29 +249,31 @@ export default function Admin() {
     { label: 'Processed tx', value: stats?.wallet ? Number(stats.wallet.totalTransactions ?? 0).toLocaleString() : '0', icon: 'sync' },
   ];
 
-  const stalePending = stats?.payments?.stalePendingPayments?.count ?? 0;
-  const paymentsStats: MiniStat[] = [
-    {
-      label: 'Paystack balance',
-      value: stats?.payments?.paystackBalance != null ? `₦${Number(stats.payments.paystackBalance).toLocaleString()}` : 'unavailable',
-      icon: 'bank',
-    },
-    {
-      label: 'Online tx recorded (lifetime)',
-      value: stats?.payments ? `₦${Number(stats.payments.onlineTransactionsTotal ?? 0).toLocaleString()}` : '₦0',
-      icon: 'sync',
-    },
-    {
-      label: 'Stuck online payments',
-      value: `${stalePending} pending`,
-      icon: stalePending ? 'alert-triangle' : 'check',
-      tone: stalePending ? 'warning' : 'success',
-    },
-  ];
-
   const visibleTiles = CONSOLE_TILES.filter((tile) => hasPermission(TILE_PERMISSIONS[tile.key] || tile.key));
   const canSeeAlerts = hasPermission('inventory');
   const canAdjustWallet = hasPermission('wallet_adjust');
+
+  // ── Inventory health donut ──────────────────────────────────────
+  const totalProducts = stats?.inventory?.totalProducts ?? 0;
+  const lowStockCount = stats?.inventory?.lowStock ?? 0;
+  const outOfStockCount = stats?.inventory?.outOfStock ?? 0;
+  const healthyStockCount = Math.max(0, totalProducts - lowStockCount - outOfStockCount);
+  const inventoryBreakdown = [
+    { name: 'Healthy stock', value: healthyStockCount, color: 'var(--color-ok)' },
+    { name: 'Low stock', value: lowStockCount, color: 'var(--color-warn)' },
+    { name: 'Out of stock', value: outOfStockCount, color: 'var(--color-err)' },
+  ];
+  const pct = (n: number) => (totalProducts > 0 ? Math.round((n / totalProducts) * 100) : 0);
+
+  // ── Payment reconciliation gauge ────────────────────────────────
+  const completedOnline = stats?.payments?.onlineTransactionsCount ?? 0;
+  const stalePending = stats?.payments?.stalePendingPayments?.count ?? 0;
+  const onlineAttempts = completedOnline + stalePending;
+  const reconciliationRate = onlineAttempts > 0 ? Math.round((completedOnline / onlineAttempts) * 100) : 100;
+  const reconciliationColor = reconciliationRate >= 95 ? 'var(--color-ok)' : reconciliationRate >= 80 ? 'var(--color-warn)' : 'var(--color-err)';
+
+  const unreconciledCashCount = stats?.wallet?.unreconciledLimboCount ?? 0;
+  const unreconciledCashTotal = stats?.wallet?.unreconciledLimboTotal ?? 0;
 
   return (
     <div className="flex flex-col gap-6 w-full">
@@ -271,21 +284,79 @@ export default function Admin() {
         </p>
       </div>
 
-      <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-        <StatCard label="Revenue today" value={loading ? '—' : <Money amount={stats?.today?.revenue ?? 0} />} sub={`${stats?.today?.salesCount ?? 0} orders`} />
-        <StatCard label="Profit today" value={loading ? '—' : <Money amount={stats?.today?.profit ?? 0} />} sub="calculated, before write-offs" valueColor="var(--color-ok)" />
-        <StatCard label="Low stock" value={loading ? '—' : `${stats?.inventory?.lowStock ?? 0}`} sub={`${stats?.inventory?.outOfStock ?? 0} out of stock`} valueColor={stats?.inventory?.lowStock ? 'var(--color-warn)' : undefined} />
-        <StatCard
-          label="Unreconciled"
-          value={loading ? '—' : `${stats?.wallet?.unreconciledLimboCount ?? 0}`}
-          sub={stats?.wallet?.unreconciledLimboTotal ? <Money amount={stats.wallet.unreconciledLimboTotal} /> : 'cash orders in limbo'}
-          valueColor={stats?.wallet?.unreconciledLimboCount ? 'var(--color-err)' : undefined}
-        />
-        <StatCard
-          label="Paystack balance"
-          value={loading ? '—' : stats?.payments?.paystackBalance != null ? <Money amount={stats.payments.paystackBalance} /> : 'unavailable'}
-          sub="live, from Paystack"
-        />
+      {/* Hero: revenue trend + Paystack/payments panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-stretch">
+        <GlassPanel radius="lg" className="flex flex-col">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <span className="text-[12.5px] font-semibold text-text-secondary">Revenue today</span>
+              <div className="font-money text-[28px] font-extrabold tracking-tight mt-1">
+                {loading ? '—' : <Money amount={stats?.today?.revenue ?? 0} />}
+              </div>
+              <span className="text-xs text-text-secondary">
+                {stats?.today?.salesCount ?? 0} orders · profit{' '}
+                <span className="text-ok font-semibold"><Money amount={stats?.today?.profit ?? 0} /></span>
+              </span>
+            </div>
+            <span className="text-[10.5px] font-bold text-text-secondary uppercase tracking-wider px-2.5 py-1 rounded-full glass-chip whitespace-nowrap">
+              Last 7 days
+            </span>
+          </div>
+          <div className="h-56 mt-4 -ml-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString('en-NG', { weekday: 'short' })} tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} tick={axisTick} axisLine={false} tickLine={false} width={40} />
+                <Tooltip
+                  formatter={(val: any) => [`₦${Number(val).toLocaleString()}`, 'Revenue']}
+                  labelFormatter={(d) => new Date(d).toLocaleDateString('en-NG', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  contentStyle={tooltipStyle}
+                />
+                <Bar dataKey="revenue" fill="var(--color-tint)" radius={[6, 6, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </GlassPanel>
+
+        <GlassPanel radius="lg" className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[12.5px] font-semibold text-text-secondary">Paystack</span>
+            <span className="w-7 h-7 rounded-lg bg-tint-b text-tint grid place-items-center flex-shrink-0">
+              <Icon name="bank" size={14} />
+            </span>
+          </div>
+          <div>
+            <div className="font-money text-[26px] font-extrabold tracking-tight">
+              {loading ? '—' : stats?.payments?.paystackBalance != null ? <Money amount={stats.payments.paystackBalance} /> : 'unavailable'}
+            </div>
+            <span className="text-xs text-text-secondary">live balance, from Paystack</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-border/60">
+            <div>
+              <span className="block text-text-secondary mb-0.5">Online tx recorded</span>
+              <span className="font-bold">{stats?.payments ? `₦${Number(stats.payments.onlineTransactionsTotal ?? 0).toLocaleString()}` : '₦0'}</span>
+            </div>
+            <div>
+              <span className="block text-text-secondary mb-0.5">Wallet escrow</span>
+              <span className="font-bold">{stats?.wallet ? `₦${Number(stats.wallet.totalValue ?? 0).toLocaleString()}` : '₦0'}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-auto pt-1">
+            <button
+              onClick={() => navigate('/accounting')}
+              className="px-3 py-2 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors"
+            >
+              Reconcile
+            </button>
+            <button
+              onClick={() => navigate('/reports')}
+              className="px-3 py-2 rounded-xl border border-border bg-card text-xs font-bold cursor-pointer hover:border-tint hover:text-tint transition-colors"
+            >
+              Export
+            </button>
+          </div>
+        </GlassPanel>
       </div>
 
       <div>
@@ -293,11 +364,104 @@ export default function Admin() {
         <ConsoleTileGrid tiles={visibleTiles} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MiniStatList title="Inventory levels" stats={inventoryStats} />
+      {/* Cost analysis / financial health / goal tracker equivalent row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <GlassPanel radius="lg">
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Inventory health</h3>
+          <div className="flex items-center gap-5">
+            <div className="w-28 h-28 flex-shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={inventoryBreakdown} dataKey="value" innerRadius={32} outerRadius={54} stroke="none">
+                    {inventoryBreakdown.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-col gap-2.5 text-xs flex-1 min-w-0">
+              {inventoryBreakdown.map((entry) => (
+                <div key={entry.name} className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: entry.color }} />
+                    <span className="truncate font-semibold">{entry.name}</span>
+                  </span>
+                  <span className="font-bold flex-shrink-0">{entry.value} · {pct(entry.value)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </GlassPanel>
+
+        <GlassPanel radius="lg" className="flex flex-col items-center text-center">
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4 self-start">Payment reconciliation</h3>
+          <div className="relative w-32 h-32">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadialBarChart
+                innerRadius="72%"
+                outerRadius="100%"
+                data={[{ value: reconciliationRate }]}
+                startAngle={90}
+                endAngle={-270}
+              >
+                <RadialBar dataKey="value" cornerRadius={8} fill={reconciliationColor} background={{ fill: 'var(--ink-a)' }} />
+              </RadialBarChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 grid place-items-center">
+              <span className="text-2xl font-extrabold" style={{ color: reconciliationColor }}>{reconciliationRate}%</span>
+            </div>
+          </div>
+          <span className="text-xs text-text-secondary mt-3">
+            {onlineAttempts > 0
+              ? `Based on ${onlineAttempts} online payment attempts`
+              : 'No online payments recorded yet'}
+          </span>
+          {stalePending > 0 && (
+            <span className="text-[11px] font-bold text-warn mt-1">{stalePending} stuck — money may be uncredited</span>
+          )}
+        </GlassPanel>
+
+        <GlassPanel radius="lg">
+          <h3 className="font-bold text-text-secondary uppercase text-xs tracking-wider mb-4">Needs attention</h3>
+          <div className="flex flex-col gap-3.5">
+            <Link to="/inventory" className="flex items-center justify-between gap-3 group">
+              <span className="flex items-center gap-2.5 min-w-0">
+                <span className="w-8 h-8 rounded-lg grid place-items-center flex-shrink-0" style={{ background: lowStockCount ? 'rgba(245,158,11,0.14)' : 'var(--ink-a)', color: lowStockCount ? 'var(--color-warn)' : 'var(--color-text-secondary)' }}>
+                  <Icon name="alert-triangle" size={14} />
+                </span>
+                <span className="text-sm font-semibold truncate group-hover:text-tint transition-colors">Low stock alerts</span>
+              </span>
+              <span className="text-sm font-extrabold flex-shrink-0">{lowStockCount}</span>
+            </Link>
+            <Link to="/accounting" className="flex items-center justify-between gap-3 group">
+              <span className="flex items-center gap-2.5 min-w-0">
+                <span className="w-8 h-8 rounded-lg grid place-items-center flex-shrink-0" style={{ background: stalePending ? 'rgba(245,158,11,0.14)' : 'var(--ink-a)', color: stalePending ? 'var(--color-warn)' : 'var(--color-text-secondary)' }}>
+                  <Icon name="bank" size={14} />
+                </span>
+                <span className="text-sm font-semibold truncate group-hover:text-tint transition-colors">Stuck online payments</span>
+              </span>
+              <span className="text-sm font-extrabold flex-shrink-0">{stalePending}</span>
+            </Link>
+            <Link to="/admin/cash-orders" className="flex items-center justify-between gap-3 group">
+              <span className="flex items-center gap-2.5 min-w-0">
+                <span className="w-8 h-8 rounded-lg grid place-items-center flex-shrink-0" style={{ background: unreconciledCashCount ? 'rgba(239,68,68,0.12)' : 'var(--ink-a)', color: unreconciledCashCount ? 'var(--color-err)' : 'var(--color-text-secondary)' }}>
+                  <Icon name="cash" size={14} />
+                </span>
+                <span className="text-sm font-semibold truncate group-hover:text-tint transition-colors">Unreconciled cash orders</span>
+              </span>
+              <span className="text-sm font-extrabold flex-shrink-0">{unreconciledCashCount}</span>
+            </Link>
+            {unreconciledCashCount > 0 && (
+              <span className="text-[11px] text-text-secondary -mt-2 ml-[42px]"><Money amount={unreconciledCashTotal} /> in limbo</span>
+            )}
+          </div>
+        </GlassPanel>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <MiniStatList title="Customer activity" stats={customerStats} />
         <MiniStatList title="System wallets" stats={walletStats} />
-        <MiniStatList title="Payments (Paystack)" stats={paymentsStats} />
       </div>
 
       {(canSeeAlerts || canAdjustWallet) && (

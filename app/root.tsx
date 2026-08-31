@@ -310,7 +310,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Auth & Admin Redirection Guard
   useEffect(() => {
-    /*
     if (!loading && !profileLoading) {
       if (!user && !isAuthRoute) {
         navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
@@ -318,7 +317,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         navigate('/dashboard');
       }
     }
-    */
   }, [user, loading, profileLoading, isAuthRoute, isAdminRoute, isAdmin, navigate, location.pathname]);
 
   // undefined/null permissions on a loaded admin profile = full access
@@ -419,9 +417,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     : adminNavItems.filter((item) => hasPermission(ROUTE_PERMISSIONS[item.path] || '__none__'));
 
   const rawNavItems = isAdmin ? visibleAdminNavItems : userNavItems;
-  const isNavItemActive = (path: string) =>
-    location.pathname === path ||
-    (path === '/admin' && ['/admin', '/admin/users', '/admin/audit-logs', '/inventory', '/analytics', '/sales', '/reports', '/accounting'].includes(location.pathname));
+  // Every admin section (Inventory, Analytics, Sales, Reports, Users, Audit
+  // Logs, Accounting...) has its own dedicated nav item below, so "Admin
+  // Panel" should only highlight on '/admin' itself — an exact match keeps
+  // its active state from being tied to whichever other section is open.
+  const isNavItemActive = (path: string) => location.pathname === path;
   const navItems: NavRailItem[] = rawNavItems.map((item) => ({ ...item, active: isNavItemActive(item.path) }));
 
   const sidebarCollapsed = collapsed || narrow;
